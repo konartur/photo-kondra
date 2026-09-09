@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+}
+
+enum GalleryStatus {
+  DRAFT
+  PROCESSING
+  READY
+  ARCHIVED
+}
+
+enum PhotoStatus {
+  UPLOADING
+  PROCESSING
+  READY
+  FAILED
+  DELETED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  refreshTokenHash String?
+  role         UserRole @default(ADMIN)
+  galleries    Gallery[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Gallery {
+  id          String        @id @default(uuid())
+  title       String
+  description String?
+  status      GalleryStatus @default(DRAFT)
+  ownerId     String
+  owner       User          @relation(fields: [ownerId], references: [id])
+  photos      Photo[]
+  accessLinks GalleryAccess[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([ownerId])
+  @@index([status])
+}
+
+model Photo {
+  id           String      @id @default(uuid())
+  galleryId    String
+  gallery      Gallery     @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  originalKey  String?
+  previewKey   String?
+  thumbnailKey String?
+  filename     String
+  mimeType     String
+  size         BigInt
+  width        Int?
+  height       Int?
+  status       PhotoStatus @default(UPLOADING)
+  sortOrder    Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([galleryId])
+  @@index([status])
+}
+
+model GalleryAccess {
+  id        String   @id @default(uuid())
+  galleryId String
+  gallery   Gallery  @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([galleryId])
+  @@index([expiresAt])
+}
+
+model Archive {
+  id         String   @id @default(uuid())
+  galleryId  String
+  storageKey String?
+  status     String
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime?
+}

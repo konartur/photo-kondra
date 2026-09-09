@@ -1,0 +1,14 @@
+{
+  "name": "photo-cloud",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev:backend": "npm run start:dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "lint": "npm run lint --prefix backend && npm run lint --prefix frontend",
+    "typecheck": "npm run typecheck --prefix backend && npm run typecheck --prefix frontend",
+    "test": "npm run test --prefix backend",
+    "test:e2e": "npm run test:e2e --prefix backend",
+    "build": "npm run build --prefix backend && npm run build --prefix frontend"
+  }
+}

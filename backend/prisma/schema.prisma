@@ -27,27 +27,41 @@ enum PhotoStatus {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
+  id           String        @id @default(uuid())
+  email        String        @unique
   passwordHash String
-  refreshTokenHash String?
-  role         UserRole @default(ADMIN)
+  role         UserRole      @default(ADMIN)
+  sessions     AuthSession[]
   galleries    Gallery[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model AuthSession {
+  id               String    @id
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokenHash String
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Gallery {
-  id          String        @id @default(uuid())
+  id          String          @id @default(uuid())
   title       String
   description String?
-  status      GalleryStatus @default(DRAFT)
+  status      GalleryStatus   @default(DRAFT)
   ownerId     String
-  owner       User          @relation(fields: [ownerId], references: [id])
+  owner       User            @relation(fields: [ownerId], references: [id])
   photos      Photo[]
   accessLinks GalleryAccess[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   @@index([ownerId])
   @@index([status])
@@ -67,31 +81,34 @@ model Photo {
   height       Int?
   status       PhotoStatus @default(UPLOADING)
   sortOrder    Int         @default(0)
+  processingLockId        String?
+  processingLockExpiresAt DateTime?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
   @@index([galleryId])
   @@index([status])
+  @@index([processingLockExpiresAt])
 }
 
 model GalleryAccess {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   galleryId String
-  gallery   Gallery  @relation(fields: [galleryId], references: [id], onDelete: Cascade)
-  tokenHash String   @unique
+  gallery   Gallery   @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
   expiresAt DateTime?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
 
   @@index([galleryId])
   @@index([expiresAt])
 }
 
 model Archive {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   galleryId  String
   storageKey String?
   status     String
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
   expiresAt  DateTime?
 }

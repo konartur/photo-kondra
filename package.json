@@ -9,6 +9,13 @@
     "typecheck": "npm run typecheck --prefix backend && npm run typecheck --prefix frontend",
     "test": "npm run test --prefix backend",
     "test:e2e": "npm run test:e2e --prefix backend",
+    "prisma:studio": "npm --prefix backend run prisma:studio",
     "build": "npm run build --prefix backend && npm run build --prefix frontend"
+  },
+  "devDependencies": {
+    "prisma": "^7.10.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^7.10.0"
   }
 }

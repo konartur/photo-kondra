@@ -5,10 +5,16 @@ import { UsersModule } from '../users/users.module.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { JwtStrategy } from './jwt.strategy.js';
+import { RolesGuard } from './roles.guard.js';
 
 @Module({
-  imports: [UsersModule, PassportModule.register({ defaultStrategy: 'jwt' }), JwtModule.register({})],
+  imports: [
+    UsersModule,
+    PassportModule.register({ defaultStrategy: 'jwt' }),
+    JwtModule.register({}),
+  ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, RolesGuard],
+  exports: [JwtModule, PassportModule, RolesGuard],
 })
 export class AuthModule {}

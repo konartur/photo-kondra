@@ -7,6 +7,8 @@ export interface JwtPayload {
   email: string;
   role: UserRole;
   type: TokenType;
+  sessionId: string;
+  jti?: string;
 }
 
 export interface AuthTokens {

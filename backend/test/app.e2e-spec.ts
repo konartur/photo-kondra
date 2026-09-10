@@ -4,6 +4,11 @@ import { afterEach, beforeEach, describe, it, jest } from '@jest/globals';
 import request from 'supertest';
 import { AppModule } from './../src/app.module.js';
 import { PrismaService } from './../src/prisma/prisma.service.js';
+import {
+  ARCHIVE_GENERATION_QUEUE,
+  IMAGE_PROCESSING_QUEUE,
+} from './../src/queues/queue.constants.js';
+import { ImageProcessingWorker } from './../src/image-processing/image-processing.worker.js';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication;
@@ -19,6 +24,12 @@ describe('AppController (e2e)', () => {
         onModuleInit: jest.fn(),
         onModuleDestroy: jest.fn(),
       })
+      .overrideProvider(IMAGE_PROCESSING_QUEUE)
+      .useValue({ close: jest.fn() })
+      .overrideProvider(ARCHIVE_GENERATION_QUEUE)
+      .useValue({ close: jest.fn() })
+      .overrideProvider(ImageProcessingWorker)
+      .useValue({ onModuleDestroy: jest.fn() })
       .compile();
 
     app = moduleFixture.createNestApplication();

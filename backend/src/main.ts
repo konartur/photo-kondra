@@ -14,6 +14,7 @@ async function bootstrap() {
     .setTitle('Photo Cloud API')
     .setDescription('Photo Cloud REST API')
     .setVersion('1.0')
+    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'bearer')
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, document);

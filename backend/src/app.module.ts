@@ -10,7 +10,9 @@ import { PhotosModule } from './photos/photos.module.js';
 import { QueuesModule } from './queues/queues.module.js';
 import { ImageProcessingModule } from './image-processing/image-processing.module.js';
 import { GalleryAccessModule } from './gallery-access/gallery-access.module.js';
+import { PublicGalleryModule } from './public-gallery/public-gallery.module.js';
 import { UsersModule } from './users/users.module.js';
+import { ArchivesModule } from './archives/archives.module.js';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { UsersModule } from './users/users.module.js';
     QueuesModule,
     ImageProcessingModule,
     GalleryAccessModule,
+    PublicGalleryModule,
+    ArchivesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

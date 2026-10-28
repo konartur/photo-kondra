@@ -26,6 +26,13 @@ enum PhotoStatus {
   DELETED
 }
 
+enum ArchiveStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
 model User {
   id           String        @id @default(uuid())
   email        String        @unique
@@ -60,6 +67,7 @@ model Gallery {
   owner       User            @relation(fields: [ownerId], references: [id])
   photos      Photo[]
   accessLinks GalleryAccess[]
+  archives    Archive[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
@@ -68,23 +76,23 @@ model Gallery {
 }
 
 model Photo {
-  id           String      @id @default(uuid())
-  galleryId    String
-  gallery      Gallery     @relation(fields: [galleryId], references: [id], onDelete: Cascade)
-  originalKey  String?
-  previewKey   String?
-  thumbnailKey String?
-  filename     String
-  mimeType     String
-  size         BigInt
-  width        Int?
-  height       Int?
-  status       PhotoStatus @default(UPLOADING)
-  sortOrder    Int         @default(0)
+  id                      String      @id @default(uuid())
+  galleryId               String
+  gallery                 Gallery     @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  originalKey             String?
+  previewKey              String?
+  thumbnailKey            String?
+  filename                String
+  mimeType                String
+  size                    BigInt
+  width                   Int?
+  height                  Int?
+  status                  PhotoStatus @default(UPLOADING)
+  sortOrder               Int         @default(0)
   processingLockId        String?
   processingLockExpiresAt DateTime?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  createdAt               DateTime    @default(now())
+  updatedAt               DateTime    @updatedAt
 
   @@index([galleryId])
   @@index([status])
@@ -105,10 +113,18 @@ model GalleryAccess {
 }
 
 model Archive {
-  id         String    @id @default(uuid())
-  galleryId  String
-  storageKey String?
-  status     String
-  createdAt  DateTime  @default(now())
-  expiresAt  DateTime?
+  id                      String        @id @default(uuid())
+  galleryId               String
+  gallery                 Gallery       @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  storageKey              String?
+  status                  ArchiveStatus @default(PENDING)
+  processingLockId        String?
+  processingLockExpiresAt DateTime?
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+  expiresAt               DateTime?
+
+  @@index([galleryId])
+  @@index([status])
+  @@index([processingLockExpiresAt])
 }

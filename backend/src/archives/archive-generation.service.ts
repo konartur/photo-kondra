@@ -3,6 +3,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ArchiveStatus, Photo } from '@prisma/client';
 import { UnrecoverableError } from 'bullmq';
 import { randomUUID } from 'node:crypto';
+import { once } from 'node:events';
 import { PassThrough, Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -11,6 +12,9 @@ import { STORAGE_SERVICE } from '../storage/storage.service.js';
 import type { StorageService } from '../storage/storage.service.js';
 import { ARCHIVE_GENERATION_CONFIG } from './archive-generation.config.js';
 import type { ArchiveGenerationConfig } from './archive-generation.config.js';
+import { ArchiveProgressTracker } from './archive-progress.js';
+import { ArchiveLeaseBusyError } from './archive-lease-busy.error.js';
+import type { ArchiveProgress } from './archive-progress.js';
 
 @Injectable()
 export class ArchiveGenerationService {
@@ -22,7 +26,10 @@ export class ArchiveGenerationService {
     @Inject(ARCHIVE_GENERATION_CONFIG) private readonly config: ArchiveGenerationConfig,
   ) {}
 
-  async process({ archiveId }: GenerateArchiveJobData): Promise<void> {
+  async process(
+    { archiveId }: GenerateArchiveJobData,
+    report?: (progress: ArchiveProgress) => Promise<void>,
+  ): Promise<void> {
     const lockId = randomUUID();
     const lockClaim = await this.prisma.archive.updateMany({
       where: {
@@ -36,10 +43,17 @@ export class ArchiveGenerationService {
         processingLockExpiresAt: new Date(Date.now() + this.config.lockTtlSeconds * 1000),
       },
     });
-    if (lockClaim.count === 0) return;
+    if (lockClaim.count === 0) {
+      const existing = await this.prisma.archive.findUnique({ where: { id: archiveId } });
+      if (!existing || existing.status === ArchiveStatus.READY) return;
+      throw new ArchiveLeaseBusyError(
+        Math.max(Date.now() + 5000, existing.processingLockExpiresAt?.getTime() ?? 0),
+      );
+    }
 
     // Separate attempt keys prevent an expired worker from overwriting/deleting a newer result.
     const storageKey = `archives/${archiveId}-${lockId}.zip`;
+    let progress: ArchiveProgressTracker | undefined;
     try {
       const archive = await this.prisma.archive.findUnique({ where: { id: archiveId } });
       if (!archive) return;
@@ -53,7 +67,22 @@ export class ArchiveGenerationService {
       }
 
       await this.ensureOriginalsExist(photos);
-      await this.uploadArchive(storageKey, photos);
+      progress = new ArchiveProgressTracker(
+        Number(photos.reduce((sum, photo) => sum + photo.size, 0n)),
+        async (value) => {
+          this.logger.log({ event: 'archive_progress', archiveId, ...value });
+          try {
+            await report?.(value);
+          } catch {
+            this.logger.warn({ event: 'archive_progress_publish_failed', archiveId });
+          }
+        },
+      );
+      progress.start();
+      await progress.publish();
+      await this.uploadArchive(storageKey, photos, archiveId, progress);
+      progress.phase = 'publishing';
+      await progress.publish();
 
       const markedReady = await this.prisma.archive.updateMany({
         where: { id: archive.id, processingLockId: lockId, status: ArchiveStatus.PROCESSING },
@@ -66,16 +95,32 @@ export class ArchiveGenerationService {
         },
       });
       if (markedReady.count === 0) await this.storage.delete(storageKey);
+      else {
+        await progress.stop();
+        progress.phase = 'ready';
+        await progress.publish();
+      }
     } catch (error) {
+      if (progress) {
+        await progress.stop();
+        progress.phase = 'failed';
+        await progress.publish();
+      }
       await this.cleanupPartialArchive(storageKey);
       await this.markFailed(archiveId, lockId);
-      this.logger.error({ event: 'archive_generation_failed', archiveId });
+      this.logger.error({
+        event: 'archive_generation_failed',
+        archiveId,
+        ...safeErrorDetails(error),
+      });
 
       if (error instanceof TerminalArchiveError) {
         throw new UnrecoverableError(error.message);
       }
 
       throw error;
+    } finally {
+      await progress?.stop();
     }
   }
 
@@ -87,7 +132,12 @@ export class ArchiveGenerationService {
     }
   }
 
-  private async uploadArchive(storageKey: string, photos: Photo[]): Promise<void> {
+  private async uploadArchive(
+    storageKey: string,
+    photos: Photo[],
+    archiveId: string,
+    progress: ArchiveProgressTracker,
+  ): Promise<void> {
     const output = new PassThrough();
     // JPEG/WebP originals are already compressed; avoid spending CPU recompressing them.
     const zip = new ZipArchive({ store: true });
@@ -97,6 +147,7 @@ export class ArchiveGenerationService {
     let stopped: Error | undefined;
     const maxSize = this.config.maxSize;
     const storage = this.storage;
+    const logger = this.logger;
     const limit = new Transform({
       transform(chunk: Buffer, _encoding, callback) {
         zipBytes += chunk.length;
@@ -121,7 +172,15 @@ export class ArchiveGenerationService {
       key: storageKey,
       body: output,
       contentType: 'application/zip',
+      onProgress: (bytes) => progress.uploaded(bytes),
     });
+    void transfer
+      .then(() => {
+        progress.totalZipBytes = zipBytes;
+      })
+      .catch(() => undefined);
+    // Never open the next S3 body until archiver has fully processed this entry.
+    // append() pipes its source immediately, even before that entry reaches the ZIP queue.
     // Attach rejection handlers immediately: storage can fail before ZIP finalization.
     const completion = Promise.all([transfer, upload]).catch((error: unknown) => {
       stop(error instanceof Error ? error : new Error('Archive transfer failed'));
@@ -132,6 +191,8 @@ export class ArchiveGenerationService {
     try {
       const names = new Set<string>();
       for (const photo of photos) {
+        progress.beginPhoto(photo.id, Number(photo.size));
+        logger.log({ event: 'archive_photo_started', archiveId, photoId: photo.id });
         // Open one S3 response at a time, only when archiver consumes this entry.
         const entry = Readable.from(
           (async function* () {
@@ -146,10 +207,19 @@ export class ArchiveGenerationService {
               for await (const chunk of original) {
                 const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array);
                 originalBytes += bytes.length;
+                progress.read(bytes.length);
                 if (originalBytes > maxSize)
                   throw new TerminalArchiveError('Originals exceed the size limit');
                 yield bytes;
               }
+            } catch (error) {
+              logger.error({
+                event: 'archive_photo_read_failed',
+                archiveId,
+                photoId: photo.id,
+                ...safeErrorDetails(error),
+              });
+              throw error;
             } finally {
               original.destroy();
               inputs.delete(original);
@@ -159,10 +229,20 @@ export class ArchiveGenerationService {
         inputs.add(entry);
         entry.on('error', stop);
         entry.once('close', () => inputs.delete(entry));
+        const entryFinished = once(zip, 'entry');
         zip.append(entry, { name: uniqueArchiveEntryName(photo.filename, names) });
+        await Promise.race([entryFinished, completion]);
+        logger.log({
+          event: 'archive_photo_completed',
+          archiveId,
+          photoId: photo.id,
+          originalBytes,
+        });
       }
 
       await Promise.all([zip.finalize(), completion]);
+      progress.totalZipBytes = zipBytes;
+      progress.uploaded(zipBytes);
     } catch (error) {
       stop(error instanceof Error ? error : new Error('Archive generation failed'));
       await Promise.allSettled([transfer, upload]);
@@ -214,3 +294,12 @@ function uniqueArchiveEntryName(filename: string, names: Set<string>): string {
 }
 
 class TerminalArchiveError extends Error {}
+
+function safeErrorDetails(error: unknown): { errorName: string; errorCode?: string } {
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined;
+  return {
+    errorName: error instanceof Error ? error.name : 'UnknownError',
+    ...(typeof code === 'string' && /^[A-Za-z0-9_:-]{1,80}$/.test(code) ? { errorCode: code } : {}),
+  };
+}

@@ -5,6 +5,7 @@ import { Readable } from 'node:stream';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { StorageService } from '../storage/storage.service.js';
 import { ArchiveGenerationService } from './archive-generation.service.js';
+import { ArchiveLeaseBusyError } from './archive-lease-busy.error.js';
 
 const archive = {
   id: 'archive-id',
@@ -108,9 +109,29 @@ describe('ArchiveGenerationService', () => {
   it('does not process a duplicate delivery while another worker holds the lease', async () => {
     jest.mocked(prisma.archive.updateMany).mockResolvedValue({ count: 0 });
 
-    await service.process({ archiveId: archive.id });
+    await expect(service.process({ archiveId: archive.id })).rejects.toBeInstanceOf(
+      ArchiveLeaseBusyError,
+    );
 
-    expect(prisma.archive.findUnique).not.toHaveBeenCalled();
+    expect(prisma.archive.findUnique).toHaveBeenCalled();
+    expect(storage.upload).not.toHaveBeenCalled();
+  });
+
+  it('publishes final progress only after the archive is marked READY', async () => {
+    const report = jest.fn<(value: unknown) => Promise<void>>().mockResolvedValue();
+    await service.process({ archiveId: archive.id }, report);
+    expect(report).toHaveBeenLastCalledWith(
+      expect.objectContaining({ phase: 'ready', uploadPercent: 100 }),
+    );
+    expect(prisma.archive.updateMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'READY' }) }),
+    );
+  });
+
+  it('skips an already READY archive when its claim is rejected', async () => {
+    jest.mocked(prisma.archive.updateMany).mockResolvedValue({ count: 0 });
+    jest.mocked(prisma.archive.findUnique).mockResolvedValue({ ...archive, status: ArchiveStatus.READY });
+    await service.process({ archiveId: archive.id });
     expect(storage.upload).not.toHaveBeenCalled();
   });
 
@@ -160,6 +181,38 @@ describe('ArchiveGenerationService', () => {
         orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
       }),
     );
+  });
+
+  it('does not open later originals while the current ZIP entry is still streaming', async () => {
+    jest.mocked(prisma.photo.findMany).mockResolvedValue([photo, { ...photo, id: 'second' }]);
+    let release!: () => void;
+    let started!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const firstStarted = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    jest.mocked(storage.download).mockImplementationOnce(async () =>
+      Readable.from(
+        (async function* () {
+          started();
+          yield Buffer.alloc(256 * 1024);
+          await gate;
+          yield Buffer.from('last chunk');
+        })(),
+      ),
+    );
+    const processing = service.process({ archiveId: archive.id });
+    await firstStarted;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    try {
+      expect(storage.download).toHaveBeenCalledTimes(1);
+    } finally {
+      release();
+      await processing;
+    }
+    expect(storage.download).toHaveBeenCalledTimes(2);
   });
 
   it('fails permanently when there are no READY originals', async () => {

@@ -4,7 +4,8 @@ import { Readable } from 'node:stream';
 import type { PresignedUrlSigner } from './s3-storage.service.js';
 
 const done = jest.fn<() => Promise<void>>();
-const upload = jest.fn().mockImplementation(() => ({ done }));
+const on = jest.fn();
+const upload = jest.fn().mockImplementation(() => ({ done, on }));
 jest.unstable_mockModule('@aws-sdk/lib-storage', () => ({ Upload: upload }));
 const { S3StorageService } = await import('./s3-storage.service.js');
 
@@ -18,6 +19,7 @@ describe('S3 streaming upload', () => {
   beforeEach(() => {
     upload.mockClear();
     done.mockReset();
+    on.mockReset();
   });
 
   it('uses bounded multipart upload and aborts incomplete parts on failure', async () => {
@@ -45,6 +47,22 @@ describe('S3 streaming upload', () => {
     await expect(
       service.upload({ key: 'archives/id.zip', body, contentType: 'application/zip' }),
     ).rejects.toThrow('Multipart failed');
+    body.destroy();
+  });
+
+  it('forwards confirmed multipart progress through the storage abstraction', async () => {
+    const progress = jest.fn();
+    const body = Readable.from(['zip']);
+    await service.upload({
+      key: 'archives/id.zip',
+      body,
+      contentType: 'application/zip',
+      onProgress: progress,
+    });
+    expect(on).toHaveBeenCalledWith('httpUploadProgress', expect.any(Function));
+    const handler = on.mock.calls[0]![1] as (value: { loaded: number }) => void;
+    handler({ loaded: 5242880 });
+    expect(progress).toHaveBeenCalledWith(5242880);
     body.destroy();
   });
 });

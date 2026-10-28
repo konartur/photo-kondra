@@ -18,6 +18,7 @@ export interface UploadObjectParams {
   key: string;
   body: Buffer | Readable;
   contentType: string;
+  onProgress?: (uploadedBytes: number) => void;
 }
 
 export interface StorageService {

@@ -36,7 +36,7 @@ Run every command below from the repository root unless a command specifies `bac
 4. Apply the committed database migrations, generate the Prisma client, and create/update the initial admin:
 
    ```powershell
-   npm --prefix backend exec prisma migrate deploy
+   npm --prefix backend run prisma:deploy
    npm --prefix backend run prisma:generate
    npm --prefix backend run prisma:seed
    ```
@@ -58,8 +58,8 @@ The Docker Compose PostgreSQL service uses the connection settings in `.env`; `D
 | --- | --- |
 | Check service health | `docker compose ps` |
 | View PostgreSQL logs | `docker compose logs -f postgres` |
-| Apply existing migrations | `npm --prefix backend exec prisma migrate deploy` |
-| Check migration state | `npm --prefix backend exec prisma migrate status` |
+| Apply existing migrations | `npm --prefix backend run prisma:deploy` |
+| Check migration state | `npm --prefix backend run prisma:status` |
 | Validate schema | `npm --prefix backend run prisma:validate` |
 | Generate Prisma Client after schema changes | `npm --prefix backend run prisma:generate` |
 | Create a development migration | `npm --prefix backend run prisma:migrate -- --name descriptive_name` |
@@ -102,8 +102,10 @@ The storage identity needs multipart permissions, including `s3:AbortMultipartUp
 Each attempt writes `archives/{archiveId}-{lockId}.zip`. This intentionally extends
 the initial key convention so an expired worker cannot overwrite or delete another
 attempt's object. Only the worker holding the database lease can publish its key
-as READY. READY jobs are skipped. Failed attempts clean up their own object and
-release their lease; transient errors use the queue's configured attempts/backoff,
+as READY. READY jobs are skipped. If another worker holds the database lease, the
+BullMQ job is delayed until that lease expires instead of being incorrectly marked
+completed. Failed attempts clean up their own object and release their lease;
+transient errors use the queue's configured attempts/backoff,
 while empty galleries, missing originals and size-limit failures are permanent.
 
 | Variable | Default | Purpose |
@@ -132,6 +134,17 @@ build succeeds with `npm run build --prefix frontend -- --webpack`; backend buil
 with `npm run build --prefix backend`. The frontend build script is unchanged.
 
 ## Verification
+
+Archive progress is logged as `archive_progress` every five seconds and persisted
+in BullMQ `job.progress`. Fields include `readPercent`, `photoPercent`,
+`readBytesPerSecond`, `uploadBytesPerSecond`, `readIdleSeconds`, `uploadIdleSeconds`,
+`readBytes`, `uploadedBytes` and `phase` (`streaming`, `publishing`, `ready`, `failed`).
+Rates describe the last sampling interval, in bytes/second. Read percentage uses
+database original sizes. `uploadPercent` is null until the exact ZIP size is known;
+confirmed S3 multipart bytes may advance in 5 MiB steps. Reading 100% does not mean
+the ZIP is READY: storage upload and database publication must also finish.
+Retries reset progress for the new attempt. The worker writes the ZIP back to the
+configured private `AWS_S3_BUCKET` under the `archives/` prefix.
 
 ```powershell
 npm run lint

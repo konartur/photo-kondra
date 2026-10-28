@@ -1,10 +1,11 @@
 import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import { Worker } from 'bullmq';
+import { DelayedError, Worker } from 'bullmq';
 import { ARCHIVE_GENERATION_QUEUE_NAME } from '../queues/queue.constants.js';
 import type { GenerateArchiveJobData } from '../queues/queue.constants.js';
 import { QUEUE_CONFIG } from '../queues/queue.config.js';
 import type { QueueInfrastructureConfig } from '../queues/queue.config.js';
 import { ArchiveGenerationService } from './archive-generation.service.js';
+import { ArchiveLeaseBusyError } from './archive-lease-busy.error.js';
 
 @Injectable()
 export class ArchiveGenerationWorker implements OnModuleDestroy {
@@ -17,7 +18,17 @@ export class ArchiveGenerationWorker implements OnModuleDestroy {
   ) {
     this.worker = new Worker<GenerateArchiveJobData>(
       ARCHIVE_GENERATION_QUEUE_NAME,
-      async (job) => archiveGenerationService.process(job.data),
+      async (job, token) => {
+        try {
+          await archiveGenerationService.process(job.data, async (progress) =>
+            job.updateProgress(progress),
+          );
+        } catch (error) {
+          if (!(error instanceof ArchiveLeaseBusyError)) throw error;
+          await job.moveToDelayed(error.retryAt, token);
+          throw new DelayedError();
+        }
+      },
       { connection: queueConfig.connection },
     );
     this.worker.on('error', () => this.logger.error({ event: 'archive_worker_error' }));

@@ -52,15 +52,17 @@ export class S3StorageService implements StorageService {
     );
   }
 
-  async upload({ key, body, contentType }: UploadObjectParams): Promise<void> {
+  async upload({ key, body, contentType, onProgress }: UploadObjectParams): Promise<void> {
     if (body instanceof Readable) {
-      await new Upload({
+      const upload = new Upload({
         client: this.client,
         params: { Bucket: this.bucket, Key: key, Body: body, ContentType: contentType },
         queueSize: 2,
         partSize: 5 * 1024 * 1024,
         leavePartsOnError: false,
-      }).done();
+      });
+      if (onProgress) upload.on('httpUploadProgress', ({ loaded }) => onProgress(loaded ?? 0));
+      await upload.done();
       return;
     }
     await this.client.send(
@@ -71,6 +73,7 @@ export class S3StorageService implements StorageService {
         ContentType: contentType,
       }),
     );
+    onProgress?.(body.length);
   }
 
   async download(key: string): Promise<Readable> {

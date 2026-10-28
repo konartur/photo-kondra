@@ -8,6 +8,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { Inject, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { Readable } from 'node:stream';
+import { Upload } from '@aws-sdk/lib-storage';
 import {
   CreateDownloadUrlParams,
   CreateUploadUrlParams,
@@ -52,6 +53,16 @@ export class S3StorageService implements StorageService {
   }
 
   async upload({ key, body, contentType }: UploadObjectParams): Promise<void> {
+    if (body instanceof Readable) {
+      await new Upload({
+        client: this.client,
+        params: { Bucket: this.bucket, Key: key, Body: body, ContentType: contentType },
+        queueSize: 2,
+        partSize: 5 * 1024 * 1024,
+        leavePartsOnError: false,
+      }).done();
+      return;
+    }
     await this.client.send(
       new PutObjectCommand({
         Bucket: this.bucket,

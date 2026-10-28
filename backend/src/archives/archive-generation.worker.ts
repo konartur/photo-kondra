@@ -1,4 +1,4 @@
-import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { Worker } from 'bullmq';
 import { ARCHIVE_GENERATION_QUEUE_NAME } from '../queues/queue.constants.js';
 import type { GenerateArchiveJobData } from '../queues/queue.constants.js';
@@ -9,6 +9,7 @@ import { ArchiveGenerationService } from './archive-generation.service.js';
 @Injectable()
 export class ArchiveGenerationWorker implements OnModuleDestroy {
   private readonly worker: Worker<GenerateArchiveJobData>;
+  private readonly logger = new Logger(ArchiveGenerationWorker.name);
 
   constructor(
     archiveGenerationService: ArchiveGenerationService,
@@ -18,6 +19,14 @@ export class ArchiveGenerationWorker implements OnModuleDestroy {
       ARCHIVE_GENERATION_QUEUE_NAME,
       async (job) => archiveGenerationService.process(job.data),
       { connection: queueConfig.connection },
+    );
+    this.worker.on('error', () => this.logger.error({ event: 'archive_worker_error' }));
+    this.worker.on('failed', (job) =>
+      this.logger.warn({
+        event: 'archive_job_failed',
+        jobId: job?.id,
+        attemptsMade: job?.attemptsMade,
+      }),
     );
   }
 

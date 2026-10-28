@@ -82,6 +82,55 @@ The API starts without cloud credentials so that health checks and local databas
 
 For an S3-compatible provider such as MinIO or Cloudflare R2, configure `AWS_S3_ENDPOINT`. Set `AWS_S3_FORCE_PATH_STYLE=true` when the provider requires path-style bucket URLs. The bucket must remain private; the API will use short-lived signed URLs when upload and download endpoints are introduced.
 
+## Archive generation worker
+
+`ArchivesModule` runs a BullMQ consumer for `archive-generation` inside the NestJS
+process. Internal callers use `ArchivesService.create(galleryId)` after authorizing
+gallery access. This persists a PENDING archive and enqueues `generate-archive`
+with `{ archiveId }` and a stable BullMQ job ID. If enqueueing fails, the pending
+record is marked FAILED. Public request/status/download endpoints belong to the
+next roadmap issue (#24) and are not implemented by this worker change.
+
+The worker claims a database lease, selects READY originals in gallery order,
+checks their existence and streams each original into a ZIP. Only one original
+response is opened at a time. ZIP entries preserve original bytes (no extra
+compression), sanitize path separators/control characters and disambiguate names.
+The S3 adapter uses multipart upload for streams, with two 5 MiB parts in flight;
+it aborts incomplete multipart uploads on failure. The bucket must remain private.
+The storage identity needs multipart permissions, including `s3:AbortMultipartUpload`.
+
+Each attempt writes `archives/{archiveId}-{lockId}.zip`. This intentionally extends
+the initial key convention so an expired worker cannot overwrite or delete another
+attempt's object. Only the worker holding the database lease can publish its key
+as READY. READY jobs are skipped. Failed attempts clean up their own object and
+release their lease; transient errors use the queue's configured attempts/backoff,
+while empty galleries, missing originals and size-limit failures are permanent.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `ARCHIVE_PROCESSING_LOCK_TTL` | `900` seconds | Database lease duration and streaming deadline; stalled transfers are aborted and can retry |
+| `ARCHIVE_RETENTION_TTL` | `86400` seconds | Sets `expiresAt` when the ZIP becomes READY |
+| `MAX_ARCHIVE_SIZE` | `2147483648` bytes | Bounds declared/actual original bytes and final ZIP bytes, including ZIP overhead |
+
+Apply the existing archive lifecycle migration with the normal `prisma migrate deploy`
+workflow before running the worker. This change needs no additional schema migration.
+Expiration is metadata only here: public expiration enforcement and scheduled object
+deletion are not part of this worker. A process crash between database creation and
+enqueueing can leave a PENDING record; automatic reconciliation is not implemented.
+Database leases and attempt keys prevent conflicting publication, but do not guarantee
+exactly-once execution. No real AWS is needed for unit tests; actual S3 multipart
+and large-gallery load testing remain deployment checks.
+
+Worker verification: `npm test` includes archive creation, actual ZIP entry contents,
+ordering/names, duplicate delivery, retries, missing originals, byte limits, stream
+failures, timeout, lease replacement, configuration and multipart adapter tests.
+The HTTP health E2E overrides both workers so it does not start Redis consumers.
+
+On this Windows environment, the default frontend Turbopack build fails while
+starting the CSS child process, including outside the sandbox. The production
+build succeeds with `npm run build --prefix frontend -- --webpack`; backend builds
+with `npm run build --prefix backend`. The frontend build script is unchanged.
+
 ## Verification
 
 ```powershell

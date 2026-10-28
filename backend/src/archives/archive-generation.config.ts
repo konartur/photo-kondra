@@ -4,6 +4,8 @@ export const ARCHIVE_GENERATION_CONFIG = Symbol('ARCHIVE_GENERATION_CONFIG');
 
 export interface ArchiveGenerationConfig {
   lockTtlSeconds: number;
+  retentionSeconds: number;
+  maxSize: number;
 }
 
 export function createArchiveGenerationConfig(
@@ -11,6 +13,8 @@ export function createArchiveGenerationConfig(
 ): ArchiveGenerationConfig {
   return {
     lockTtlSeconds: getPositiveInteger(configService, 'ARCHIVE_PROCESSING_LOCK_TTL', 900),
+    retentionSeconds: getPositiveInteger(configService, 'ARCHIVE_RETENTION_TTL', 86400),
+    maxSize: getPositiveInteger(configService, 'MAX_ARCHIVE_SIZE', 2147483648),
   };
 }
 

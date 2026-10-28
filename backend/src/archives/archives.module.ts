@@ -9,6 +9,7 @@ import {
 } from './archive-generation.config.js';
 import { ArchiveGenerationService } from './archive-generation.service.js';
 import { ArchiveGenerationWorker } from './archive-generation.worker.js';
+import { ArchivesService } from './archives.service.js';
 
 @Module({
   imports: [PrismaModule, QueuesModule, StorageModule],
@@ -20,7 +21,8 @@ import { ArchiveGenerationWorker } from './archive-generation.worker.js';
     },
     ArchiveGenerationService,
     ArchiveGenerationWorker,
+    ArchivesService,
   ],
-  exports: [ArchiveGenerationService],
+  exports: [ArchivesService],
 })
 export class ArchivesModule {}

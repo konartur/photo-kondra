@@ -9,6 +9,7 @@ import {
   IMAGE_PROCESSING_QUEUE,
 } from './../src/queues/queue.constants.js';
 import { ImageProcessingWorker } from './../src/image-processing/image-processing.worker.js';
+import { ArchiveGenerationWorker } from './../src/archives/archive-generation.worker.js';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication;
@@ -29,6 +30,8 @@ describe('AppController (e2e)', () => {
       .overrideProvider(ARCHIVE_GENERATION_QUEUE)
       .useValue({ close: jest.fn() })
       .overrideProvider(ImageProcessingWorker)
+      .useValue({ onModuleDestroy: jest.fn() })
+      .overrideProvider(ArchiveGenerationWorker)
       .useValue({ onModuleDestroy: jest.fn() })
       .compile();
 

@@ -45,21 +45,47 @@ export function listPublicPhotos(token: string, cursor?: string): Promise<Public
   );
 }
 
-export function requestPublicPhotoDownload(token: string, photoId: string): Promise<PublicPhotoDownload> {
+export function requestPublicPhotoDownload(
+  token: string,
+  photoId: string,
+): Promise<PublicPhotoDownload> {
   return publicRequest<PublicPhotoDownload>(
     `/api/public/photos/${encodeURIComponent(token)}/${encodeURIComponent(photoId)}/download`,
   );
 }
 
-async function publicRequest<T>(path: string): Promise<T> {
-  const response = await fetch(path);
+export interface PublicArchive {
+  id: string;
+  status: 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED';
+  expiresAt: string | null;
+  downloadUrl?: string;
+  expiresIn?: number;
+}
+
+export function getPreparedArchive(token: string): Promise<PublicArchive> {
+  return publicRequest(`/api/public/galleries/${encodeURIComponent(token)}/archive`);
+}
+
+export function getPublicArchive(token: string, archiveId: string): Promise<PublicArchive> {
+  return publicRequest(
+    `/api/public/galleries/${encodeURIComponent(token)}/archives/${encodeURIComponent(archiveId)}`,
+  );
+}
+
+async function publicRequest<T>(path: string, method: 'GET' | 'POST' = 'GET'): Promise<T> {
+  const response = await fetch(path, { method, cache: 'no-store' });
   if (!response.ok) throw new ApiError(await errorMessage(response), response.status);
   return (await response.json()) as T;
 }
 
 async function errorMessage(response: Response): Promise<string> {
   const body: unknown = await response.json().catch(() => null);
-  if (typeof body === 'object' && body !== null && 'message' in body && typeof body.message === 'string') {
+  if (
+    typeof body === 'object' &&
+    body !== null &&
+    'message' in body &&
+    typeof body.message === 'string'
+  ) {
     return body.message;
   }
 

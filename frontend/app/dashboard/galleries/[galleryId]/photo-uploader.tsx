@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChangeEvent, DragEvent, useMemo, useRef, useState } from 'react';
+import { ChangeEvent, DragEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   completePhotoUpload,
   listPhotos,
@@ -25,13 +25,23 @@ interface UploadItem {
   photoId?: string;
   uploadUrl?: string;
   uploaded?: boolean;
+  completed?: boolean;
 }
 
-export function PhotoUploader({ galleryId }: { galleryId: string }) {
+export function PhotoUploader({
+  galleryId,
+  onPendingUploadsChange,
+}: {
+  galleryId: string;
+  onPendingUploadsChange?: (pending: boolean) => void;
+}) {
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  useEffect(() => {
+    onPendingUploadsChange?.(uploads.some((upload) => !upload.completed));
+  }, [uploads, onPendingUploadsChange]);
   const photosQuery = useQuery({
     queryKey: photoKeys.gallery(galleryId),
     queryFn: () => listPhotos(galleryId),
@@ -43,7 +53,9 @@ export function PhotoUploader({ galleryId }: { galleryId: string }) {
   );
 
   function updateUpload(id: string, patch: Partial<UploadItem>) {
-    setUploads((current) => current.map((upload) => (upload.id === id ? { ...upload, ...patch } : upload)));
+    setUploads((current) =>
+      current.map((upload) => (upload.id === id ? { ...upload, ...patch } : upload)),
+    );
   }
 
   async function processUpload(upload: UploadItem) {
@@ -71,6 +83,8 @@ export function PhotoUploader({ galleryId }: { galleryId: string }) {
 
       updateUpload(upload.id, { status: 'PROCESSING', error: undefined });
       await completePhotoUpload(session.photoId);
+      await queryClient.invalidateQueries({ queryKey: ['gallery-archive', galleryId] });
+      updateUpload(upload.id, { completed: true });
       await queryClient.invalidateQueries({ queryKey: photoKeys.gallery(galleryId) });
     } catch (error) {
       updateUpload(upload.id, {
@@ -94,10 +108,13 @@ export function PhotoUploader({ galleryId }: { galleryId: string }) {
         file,
         status: acceptedMimeTypes.has(file.type) ? 'REQUESTING_URL' : 'FAILED',
         progress: 0,
-        ...(acceptedMimeTypes.has(file.type) ? {} : { error: 'Only JPEG, PNG, and WebP images are supported' }),
+        ...(acceptedMimeTypes.has(file.type)
+          ? {}
+          : { error: 'Only JPEG, PNG, and WebP images are supported' }),
       })) satisfies UploadItem[];
 
     if (!newUploads.length) return;
+    onPendingUploadsChange?.(true);
     setUploads((current) => [...current, ...newUploads]);
     void runWithConcurrency(
       newUploads.filter((upload) => upload.status !== 'FAILED'),
@@ -118,7 +135,10 @@ export function PhotoUploader({ galleryId }: { galleryId: string }) {
   }
 
   function retry(upload: UploadItem) {
-    updateUpload(upload.id, { status: upload.uploaded ? 'PROCESSING' : 'UPLOADING', error: undefined });
+    updateUpload(upload.id, {
+      status: upload.uploaded ? 'PROCESSING' : 'UPLOADING',
+      error: undefined,
+    });
     void processUpload(upload);
   }
 
@@ -142,7 +162,9 @@ export function PhotoUploader({ galleryId }: { galleryId: string }) {
       />
       <button
         className={`mt-5 flex w-full flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center transition ${
-          isDragging ? 'border-zinc-950 bg-zinc-100' : 'border-zinc-300 hover:border-zinc-500 hover:bg-zinc-50'
+          isDragging
+            ? 'border-zinc-950 bg-zinc-100'
+            : 'border-zinc-300 hover:border-zinc-500 hover:bg-zinc-50'
         }`}
         onClick={() => inputRef.current?.click()}
         onDragEnter={() => setIsDragging(true)}
@@ -152,14 +174,22 @@ export function PhotoUploader({ galleryId }: { galleryId: string }) {
         type="button"
       >
         <span className="text-sm font-medium text-zinc-900">Drop photos here or choose files</span>
-        <span className="mt-1 text-sm text-zinc-500">JPEG, PNG, or WebP. Multiple files are supported.</span>
+        <span className="mt-1 text-sm text-zinc-500">
+          JPEG, PNG, or WebP. Multiple files are supported.
+        </span>
       </button>
       {uploads.length ? (
         <ul className="mt-5 divide-y divide-zinc-100 rounded-xl border border-zinc-200">
           {uploads.map((upload) => {
-            const status = upload.photoId ? (serverPhotoStatus.get(upload.photoId) ?? upload.status) : upload.status;
-            const processingFailed = status === 'FAILED' && upload.uploaded && serverPhotoStatus.get(upload.photoId ?? '') === 'FAILED';
-            const canRetry = status === 'FAILED' && acceptedMimeTypes.has(upload.file.type) && !processingFailed;
+            const status = upload.photoId
+              ? (serverPhotoStatus.get(upload.photoId) ?? upload.status)
+              : upload.status;
+            const processingFailed =
+              status === 'FAILED' &&
+              upload.uploaded &&
+              serverPhotoStatus.get(upload.photoId ?? '') === 'FAILED';
+            const canRetry =
+              status === 'FAILED' && acceptedMimeTypes.has(upload.file.type) && !processingFailed;
             return (
               <li className="p-4" key={upload.id}>
                 <div className="flex items-start justify-between gap-4">
@@ -167,11 +197,16 @@ export function PhotoUploader({ galleryId }: { galleryId: string }) {
                     <p className="truncate text-sm font-medium text-zinc-900">{upload.file.name}</p>
                     <p className="mt-1 text-xs text-zinc-500">{formatBytes(upload.file.size)}</p>
                   </div>
-                  <span className="shrink-0 text-xs font-medium text-zinc-600">{statusLabel(status)}</span>
+                  <span className="shrink-0 text-xs font-medium text-zinc-600">
+                    {statusLabel(status)}
+                  </span>
                 </div>
                 {status === 'UPLOADING' ? (
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-zinc-100">
-                    <div className="h-full bg-zinc-900 transition-all" style={{ width: `${upload.progress}%` }} />
+                    <div
+                      className="h-full bg-zinc-900 transition-all"
+                      style={{ width: `${upload.progress}%` }}
+                    />
                   </div>
                 ) : null}
                 {status === 'FAILED' ? (
@@ -188,6 +223,17 @@ export function PhotoUploader({ galleryId }: { galleryId: string }) {
                         type="button"
                       >
                         Retry
+                      </button>
+                    ) : null}
+                    {!upload.photoId ? (
+                      <button
+                        type="button"
+                        className="text-sm underline"
+                        onClick={() =>
+                          setUploads((current) => current.filter((item) => item.id !== upload.id))
+                        }
+                      >
+                        Remove from list
                       </button>
                     ) : null}
                   </div>
@@ -210,7 +256,11 @@ function fileKey({ file }: Pick<UploadItem, 'file'>): string {
   return `${file.name}:${file.size}:${file.lastModified}`;
 }
 
-function uploadDirectly(url: string, file: File, onProgress: (progress: number) => void): Promise<void> {
+function uploadDirectly(
+  url: string,
+  file: File,
+  onProgress: (progress: number) => void,
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
     request.open('PUT', url);
@@ -222,7 +272,9 @@ function uploadDirectly(url: string, file: File, onProgress: (progress: number) 
       if (request.status >= 200 && request.status < 300) resolve();
       else reject(new Error(`Storage upload failed (${request.status})`));
     });
-    request.addEventListener('error', () => reject(new Error('Storage upload failed due to a network error')));
+    request.addEventListener('error', () =>
+      reject(new Error('Storage upload failed due to a network error')),
+    );
     request.addEventListener('abort', () => reject(new Error('Storage upload was cancelled')));
     request.send(file);
   });

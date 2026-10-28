@@ -50,6 +50,7 @@ export class PhotosController {
   @ApiOperation({ summary: 'Create a direct-to-storage upload URL for a photo' })
   @ApiParam({ name: 'galleryId', format: 'uuid' })
   @ApiCreatedResponse({ type: RequestPhotoUploadResponseDto })
+  @ApiConflictResponse({ description: 'Return gallery to draft before uploading photos' })
   @ApiBadRequestResponse({ description: 'Invalid file metadata or photo is too large' })
   @ApiNotFoundResponse({ description: 'Gallery not found' })
   requestUpload(
@@ -65,7 +66,9 @@ export class PhotosController {
   @ApiParam({ name: 'photoId', format: 'uuid' })
   @ApiOkResponse({ type: PhotoResponseDto })
   @ApiBadRequestResponse({ description: 'Uploaded object was not found' })
-  @ApiConflictResponse({ description: 'Photo upload was already completed' })
+  @ApiConflictResponse({
+    description: 'Photo upload was already completed or gallery is not draft',
+  })
   @ApiNotFoundResponse({ description: 'Photo not found' })
   completeUpload(
     @Req() request: AuthenticatedRequest,
@@ -89,6 +92,7 @@ export class PhotosController {
 
   @Patch('photos/:photoId')
   @ApiOperation({ summary: 'Update a photo order within an owned gallery' })
+  @ApiConflictResponse({ description: 'Return gallery to draft before changing photos' })
   @ApiParam({ name: 'photoId', format: 'uuid' })
   @ApiOkResponse({ type: PhotoResponseDto })
   @ApiNotFoundResponse({ description: 'Photo not found' })
@@ -101,6 +105,7 @@ export class PhotosController {
   }
 
   @Delete('photos/:photoId')
+  @ApiConflictResponse({ description: 'Return gallery to draft before deleting photos' })
   @HttpCode(204)
   @ApiOperation({ summary: 'Delete a photo and its stored objects' })
   @ApiParam({ name: 'photoId', format: 'uuid' })

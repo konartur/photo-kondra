@@ -9,7 +9,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
 import { randomUUID } from 'node:crypto';
-import { Photo, PhotoStatus } from '@prisma/client';
+import { Photo, PhotoStatus, Prisma } from '@prisma/client';
 import { GalleriesService } from '../galleries/galleries.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { IMAGE_PROCESSING_QUEUE, PROCESS_PHOTO_JOB_NAME } from '../queues/queue.constants.js';
@@ -51,17 +51,19 @@ export class PhotosService {
       expiresIn,
     });
 
-    await this.prisma.photo.create({
-      data: {
-        id: photoId,
-        galleryId,
-        originalKey,
-        filename: dto.filename,
-        mimeType: dto.mimeType,
-        size: BigInt(dto.size),
-        status: PhotoStatus.UPLOADING,
-      },
-    });
+    await this.mutateDraft(galleryId, (tx) =>
+      tx.photo.create({
+        data: {
+          id: photoId,
+          galleryId,
+          originalKey,
+          filename: dto.filename,
+          mimeType: dto.mimeType,
+          size: BigInt(dto.size),
+          status: PhotoStatus.UPLOADING,
+        },
+      }),
+    );
 
     return { photoId, uploadUrl, expiresIn };
   }
@@ -77,10 +79,12 @@ export class PhotosService {
       throw new BadRequestException('Uploaded object was not found');
     }
 
-    const updatedPhoto = await this.prisma.photo.update({
-      where: { id: photoId },
-      data: { status: PhotoStatus.PROCESSING },
-    });
+    const updatedPhoto = await this.mutateDraft(photo.galleryId, (tx) =>
+      tx.photo.update({
+        where: { id: photoId },
+        data: { status: PhotoStatus.PROCESSING },
+      }),
+    );
 
     await this.imageProcessingQueue.add(PROCESS_PHOTO_JOB_NAME, { photoId });
 
@@ -110,12 +114,14 @@ export class PhotosService {
   }
 
   async update(ownerId: string, photoId: string, dto: UpdatePhotoDto): Promise<PhotoResponseDto> {
-    await this.findOne(ownerId, photoId);
+    const existing = await this.findOne(ownerId, photoId);
 
-    const photo = await this.prisma.photo.update({
-      where: { id: photoId },
-      data: { sortOrder: dto.sortOrder },
-    });
+    const photo = await this.mutateDraft(existing.galleryId, (tx) =>
+      tx.photo.update({
+        where: { id: photoId },
+        data: { sortOrder: dto.sortOrder },
+      }),
+    );
 
     return toPhotoResponse(photo);
   }
@@ -126,14 +132,31 @@ export class PhotosService {
       (key): key is string => key !== null,
     );
 
+    await this.mutateDraft(photo.galleryId, (tx) =>
+      tx.photo.update({
+        where: { id: photoId },
+        data: {
+          status: PhotoStatus.DELETED,
+          processingLockId: null,
+          processingLockExpiresAt: null,
+        },
+      }),
+    );
     await Promise.all(keys.map((key) => this.storage.delete(key)));
-    await this.prisma.photo.update({
-      where: { id: photoId },
-      data: {
-        status: PhotoStatus.DELETED,
-        processingLockId: null,
-        processingLockExpiresAt: null,
-      },
+  }
+
+  private async mutateDraft<T>(
+    galleryId: string,
+    change: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    return this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.gallery.updateMany({
+        where: { id: galleryId, status: 'DRAFT' },
+        data: { updatedAt: new Date() },
+      });
+      if (!claimed.count)
+        throw new ConflictException('Return gallery to draft before changing photos');
+      return change(tx);
     });
   }
 

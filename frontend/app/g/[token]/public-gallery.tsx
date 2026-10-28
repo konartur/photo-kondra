@@ -13,6 +13,7 @@ import {
   PublicPhoto,
 } from '@/lib/api/public-galleries';
 import { PhotoLightbox } from './photo-lightbox';
+import { ArchiveDownload } from './archive-download';
 
 export function PublicGalleryPage({ token }: { token: string }) {
   const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
@@ -47,6 +48,7 @@ export function PublicGalleryPage({ token }: { token: string }) {
             <p className="mt-4 text-base leading-7 text-zinc-600 sm:text-lg">{galleryQuery.data.description}</p>
           ) : null}
         </header>
+        {photos.length > 0 ? <ArchiveDownload token={token} key={token} /> : null}
         <section aria-label="Photos" className="mt-8 sm:mt-12">
           {photosQuery.isPending ? <LoadingGrid /> : null}
           {photosQuery.isError && photos.length === 0 ? (

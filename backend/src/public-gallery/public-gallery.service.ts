@@ -86,7 +86,7 @@ export class PublicGalleryService {
     if (!accessLink) throw new NotFoundException('Gallery not found');
 
     const gallery = await this.prisma.gallery.findUnique({ where: { id: accessLink.galleryId } });
-    if (!gallery) throw new NotFoundException('Gallery not found');
+    if (!gallery || gallery.status !== 'READY') throw new NotFoundException('Gallery not found');
 
     return gallery;
   }

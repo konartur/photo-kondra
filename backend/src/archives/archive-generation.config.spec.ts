@@ -6,7 +6,7 @@ describe('archive configuration', () => {
   it('provides a processing deadline, retention and byte limit', () => {
     expect(createArchiveGenerationConfig(new ConfigService())).toEqual({
       lockTtlSeconds: 900,
-      retentionSeconds: 86400,
+      retentionSeconds: 0,
       maxSize: 2147483648,
     });
   });

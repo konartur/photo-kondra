@@ -117,6 +117,7 @@ model Archive {
   galleryId               String
   gallery                 Gallery       @relation(fields: [galleryId], references: [id], onDelete: Cascade)
   storageKey              String?
+  contentHash             String?
   status                  ArchiveStatus @default(PENDING)
   processingLockId        String?
   processingLockExpiresAt DateTime?
@@ -125,6 +126,7 @@ model Archive {
   expiresAt               DateTime?
 
   @@index([galleryId])
+  @@index([galleryId, contentHash])
   @@index([status])
   @@index([processingLockExpiresAt])
 }

@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GalleryAccess, Prisma } from '@prisma/client';
 import { createHash, randomBytes } from 'node:crypto';
@@ -23,7 +28,11 @@ export class GalleryAccessService {
     galleryId: string,
     dto: CreateGalleryAccessDto,
   ): Promise<CreatedGalleryAccessResponseDto> {
-    await this.galleriesService.findOne(ownerId, galleryId);
+    const gallery = await this.galleriesService.findOne(ownerId, galleryId);
+    if (gallery.status !== 'READY')
+      throw new ConflictException('Publish gallery and wait for ZIP preparation before sharing');
+    if ((await this.galleriesService.archiveStatus(ownerId, galleryId)).status !== 'READY')
+      throw new ConflictException('Publish gallery and wait for ZIP preparation before sharing');
     const expiresAt = this.parseExpiration(dto.expiresAt);
 
     for (let attempt = 0; attempt < 3; attempt += 1) {

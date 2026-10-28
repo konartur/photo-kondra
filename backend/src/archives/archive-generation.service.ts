@@ -14,6 +14,7 @@ import { ARCHIVE_GENERATION_CONFIG } from './archive-generation.config.js';
 import type { ArchiveGenerationConfig } from './archive-generation.config.js';
 import { ArchiveProgressTracker } from './archive-progress.js';
 import { ArchiveLeaseBusyError } from './archive-lease-busy.error.js';
+import { archiveContentHash } from './archive-content.js';
 import type { ArchiveProgress } from './archive-progress.js';
 
 @Injectable()
@@ -62,6 +63,9 @@ export class ArchiveGenerationService {
         orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
       });
       if (!photos.length) throw new TerminalArchiveError('Gallery has no ready original photos');
+      if (archive.contentHash && archive.contentHash !== archiveContentHash(photos)) {
+        throw new TerminalArchiveError('Gallery content changed; request a new archive');
+      }
       if (photos.reduce((size, photo) => size + photo.size, 0n) > BigInt(this.config.maxSize)) {
         throw new TerminalArchiveError('Gallery originals exceed the archive size limit');
       }
@@ -81,18 +85,48 @@ export class ArchiveGenerationService {
       progress.start();
       await progress.publish();
       await this.uploadArchive(storageKey, photos, archiveId, progress);
+      if (archive.contentHash) {
+        const currentPhotos = await this.prisma.photo.findMany({
+          where: { galleryId: archive.galleryId, status: 'READY', originalKey: { not: null } },
+          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+        });
+        if (archive.contentHash !== archiveContentHash(currentPhotos)) {
+          throw new TerminalArchiveError('Gallery content changed; request a new archive');
+        }
+      }
       progress.phase = 'publishing';
       await progress.publish();
 
-      const markedReady = await this.prisma.archive.updateMany({
-        where: { id: archive.id, processingLockId: lockId, status: ArchiveStatus.PROCESSING },
-        data: {
-          storageKey,
-          status: ArchiveStatus.READY,
-          expiresAt: new Date(Date.now() + this.config.retentionSeconds * 1000),
-          processingLockId: null,
-          processingLockExpiresAt: null,
-        },
+      const markedReady = await this.prisma.$transaction(async (tx) => {
+        const gallery = await tx.gallery.findUnique({ where: { id: archive.galleryId } });
+        const publishing = gallery?.status === 'PROCESSING';
+        if (publishing) {
+          await tx.gallery.update({
+            where: { id: archive.galleryId, status: 'PROCESSING' },
+            data: { status: 'READY' },
+          });
+          const current = await tx.photo.findMany({
+            where: { galleryId: archive.galleryId, status: 'READY', originalKey: { not: null } },
+            orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+          });
+          if (!archive.contentHash || archiveContentHash(current) !== archive.contentHash)
+            throw new TerminalArchiveError('Gallery content changed before publication');
+        }
+        const result = await tx.archive.updateMany({
+          where: { id: archive.id, processingLockId: lockId, status: ArchiveStatus.PROCESSING },
+          data: {
+            storageKey,
+            status: ArchiveStatus.READY,
+            expiresAt:
+              publishing || this.config.retentionSeconds === 0
+                ? null
+                : new Date(Date.now() + this.config.retentionSeconds * 1000),
+            processingLockId: null,
+            processingLockExpiresAt: null,
+          },
+        });
+        if (!result.count && publishing) throw new ArchiveLeaseBusyError(Date.now() + 5000);
+        return result;
       });
       if (markedReady.count === 0) await this.storage.delete(storageKey);
       else {

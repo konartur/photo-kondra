@@ -9,6 +9,8 @@ import {
   ApiOperation,
   ApiParam,
   ApiTags,
+  ApiAcceptedResponse,
+  ApiServiceUnavailableResponse,
 } from '@nestjs/swagger';
 import { Request } from 'express';
 import { JwtPayload } from '../auth/auth.types.js';
@@ -17,6 +19,7 @@ import { CreateGalleryDto } from './dto/create-gallery.dto.js';
 import { UpdateGalleryDto } from './dto/update-gallery.dto.js';
 import { UpdateGalleryStatusDto } from './dto/update-gallery-status.dto.js';
 import { GalleriesService } from './galleries.service.js';
+import { GalleryArchiveStateDto } from './dto/gallery-archive-state.dto.js';
 
 interface AuthenticatedRequest extends Request {
   user: JwtPayload;
@@ -28,6 +31,29 @@ interface AuthenticatedRequest extends Request {
 @Controller('galleries')
 export class GalleriesController {
   constructor(private readonly galleriesService: GalleriesService) {}
+
+  @Post(':galleryId/publish')
+  @HttpCode(202)
+  @ApiOperation({
+    summary: 'Publish gallery: prepare ZIP in S3 before making it READY; retry failed preparation',
+  })
+  @ApiParam({ name: 'galleryId', format: 'uuid' })
+  @ApiAcceptedResponse({ description: 'Gallery is preparing or already ready' })
+  @ApiNotFoundResponse({ description: 'Gallery not found or not owned' })
+  @ApiConflictResponse({ description: 'Photos unfinished or gallery archived' })
+  @ApiServiceUnavailableResponse({ description: 'Archive queue unavailable; retry publication' })
+  publish(@Req() request: AuthenticatedRequest, @Param('galleryId') galleryId: string) {
+    return this.galleriesService.publish(request.user.sub, galleryId);
+  }
+
+  @Get(':galleryId/archive')
+  @ApiOperation({ summary: 'Get current ZIP preparation state for an owned gallery' })
+  @ApiParam({ name: 'galleryId', format: 'uuid' })
+  @ApiOkResponse({ type: GalleryArchiveStateDto })
+  @ApiNotFoundResponse({ description: 'Gallery not found' })
+  archiveStatus(@Req() request: AuthenticatedRequest, @Param('galleryId') galleryId: string) {
+    return this.galleriesService.archiveStatus(request.user.sub, galleryId);
+  }
 
   @Get()
   @ApiOperation({ summary: 'List galleries owned by the current administrator' })

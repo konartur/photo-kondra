@@ -3,17 +3,46 @@ import { Gallery, GalleryStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateGalleryDto } from './dto/create-gallery.dto.js';
 import { UpdateGalleryDto } from './dto/update-gallery.dto.js';
+import { ArchivesService } from '../archives/archives.service.js';
 
 const ALLOWED_STATUS_TRANSITIONS: Readonly<Record<GalleryStatus, readonly GalleryStatus[]>> = {
   [GalleryStatus.DRAFT]: [GalleryStatus.PROCESSING, GalleryStatus.ARCHIVED],
-  [GalleryStatus.PROCESSING]: [GalleryStatus.READY, GalleryStatus.ARCHIVED],
-  [GalleryStatus.READY]: [GalleryStatus.ARCHIVED],
+  [GalleryStatus.PROCESSING]: [GalleryStatus.DRAFT, GalleryStatus.ARCHIVED],
+  [GalleryStatus.READY]: [GalleryStatus.DRAFT, GalleryStatus.ARCHIVED],
   [GalleryStatus.ARCHIVED]: [],
 };
 
 @Injectable()
 export class GalleriesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly archives: ArchivesService,
+  ) {}
+
+  async publish(ownerId: string, galleryId: string): Promise<Gallery> {
+    await this.archives.publish(ownerId, galleryId);
+    return this.findOne(ownerId, galleryId);
+  }
+
+  async archiveStatus(ownerId: string, galleryId: string) {
+    await this.findOne(ownerId, galleryId);
+    const archive = await this.archives.current(galleryId);
+    const pendingPhotoCount = await this.prisma.photo.count({
+      where: {
+        galleryId,
+        OR: [{ status: { notIn: ['READY', 'DELETED'] } }, { status: 'READY', originalKey: null }],
+      },
+    });
+    const readyPhotoCount = await this.prisma.photo.count({
+      where: { galleryId, status: 'READY', originalKey: { not: null } },
+    });
+    return {
+      id: archive?.id ?? null,
+      status: archive?.status ?? 'NOT_PREPARED',
+      pendingPhotoCount,
+      canPublish: pendingPhotoCount === 0 && readyPhotoCount > 0,
+    };
+  }
 
   create(ownerId: string, dto: CreateGalleryDto): Promise<Gallery> {
     return this.prisma.gallery.create({
@@ -62,6 +91,7 @@ export class GalleriesService {
         `Cannot transition gallery from ${gallery.status} to ${nextStatus}`,
       );
     }
+    if (nextStatus === GalleryStatus.PROCESSING) return this.publish(ownerId, galleryId);
 
     return this.prisma.gallery.update({
       where: { id: galleryId },

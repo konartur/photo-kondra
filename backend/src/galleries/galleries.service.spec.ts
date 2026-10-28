@@ -3,6 +3,7 @@ import { GalleryStatus } from '@prisma/client';
 import { describe, expect, it, jest } from '@jest/globals';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { GalleriesService } from './galleries.service.js';
+import type { ArchivesService } from '../archives/archives.service.js';
 
 const gallery = {
   id: 'gallery-id',
@@ -16,6 +17,7 @@ const gallery = {
 
 describe('GalleriesService', () => {
   const prisma = {
+    photo: { count: jest.fn() },
     gallery: {
       create: jest.fn(),
       findMany: jest.fn(),
@@ -24,7 +26,21 @@ describe('GalleriesService', () => {
       delete: jest.fn(),
     },
   } as unknown as PrismaService;
-  const service = new GalleriesService(prisma);
+  const archives = { publish: jest.fn(), current: jest.fn() } as unknown as ArchivesService;
+  const service = new GalleriesService(prisma, archives);
+
+  it.each([0, 1, 5])(
+    'reports publication readiness from the whole gallery, with %s blockers',
+    async (pending) => {
+      jest.mocked(prisma.gallery.findFirst).mockResolvedValue(gallery);
+      jest.mocked(archives.current).mockResolvedValue(null);
+      jest.mocked(prisma.photo.count).mockResolvedValueOnce(pending).mockResolvedValueOnce(6);
+      expect(await service.archiveStatus('admin-id', gallery.id)).toMatchObject({
+        pendingPhotoCount: pending,
+        canPublish: pending === 0,
+      });
+    },
+  );
 
   it('creates a draft gallery for the current administrator', async () => {
     jest.mocked(prisma.gallery.create).mockResolvedValue(gallery);
@@ -80,7 +96,10 @@ describe('GalleriesService', () => {
   });
 
   it('transitions an owned gallery when the lifecycle allows it', async () => {
-    jest.mocked(prisma.gallery.findFirst).mockResolvedValue(gallery);
+    jest
+      .mocked(prisma.gallery.findFirst)
+      .mockResolvedValueOnce(gallery)
+      .mockResolvedValueOnce({ ...gallery, status: GalleryStatus.PROCESSING });
     jest.mocked(prisma.gallery.update).mockResolvedValue({
       ...gallery,
       status: GalleryStatus.PROCESSING,
@@ -89,10 +108,7 @@ describe('GalleriesService', () => {
     await expect(
       service.transitionStatus('admin-id', 'gallery-id', GalleryStatus.PROCESSING),
     ).resolves.toMatchObject({ status: GalleryStatus.PROCESSING });
-    expect(prisma.gallery.update).toHaveBeenCalledWith({
-      where: { id: 'gallery-id' },
-      data: { status: GalleryStatus.PROCESSING },
-    });
+    expect(archives.publish).toHaveBeenCalledWith('admin-id', 'gallery-id');
   });
 
   it('rejects a lifecycle transition that skips processing', async () => {

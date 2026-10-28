@@ -85,11 +85,10 @@ For an S3-compatible provider such as MinIO or Cloudflare R2, configure `AWS_S3_
 ## Archive generation worker
 
 `ArchivesModule` runs a BullMQ consumer for `archive-generation` inside the NestJS
-process. Internal callers use `ArchivesService.create(galleryId)` after authorizing
-gallery access. This persists a PENDING archive and enqueues `generate-archive`
+process. The administrator publishes a gallery using `POST /galleries/{id}/publish`.
+This persists/reuses a PENDING archive and enqueues `generate-archive`
 with `{ archiveId }` and a stable BullMQ job ID. If enqueueing fails, the pending
-record is marked FAILED. Public request/status/download endpoints belong to the
-next roadmap issue (#24) and are not implemented by this worker change.
+record is marked FAILED.
 
 The worker claims a database lease, selects READY originals in gallery order,
 checks their existence and streams each original into a ZIP. Only one original
@@ -111,14 +110,15 @@ while empty galleries, missing originals and size-limit failures are permanent.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `ARCHIVE_PROCESSING_LOCK_TTL` | `900` seconds | Database lease duration and streaming deadline; stalled transfers are aborted and can retry |
-| `ARCHIVE_RETENTION_TTL` | `86400` seconds | Sets `expiresAt` when the ZIP becomes READY |
+| `ARCHIVE_RETENTION_TTL` | `0` (no expiry) | Retention for internal archive jobs; publication ZIPs always have no automatic expiry |
 | `MAX_ARCHIVE_SIZE` | `2147483648` bytes | Bounds declared/actual original bytes and final ZIP bytes, including ZIP overhead |
 
 Apply the existing archive lifecycle migration with the normal `prisma migrate deploy`
 workflow before running the worker. This change needs no additional schema migration.
-Expiration is metadata only here: public expiration enforcement and scheduled object
-deletion are not part of this worker. A process crash between database creation and
-enqueueing can leave a PENDING record; automatic reconciliation is not implemented.
+Public downloads enforce expiration. Scheduled object deletion is not implemented.
+A process crash between database creation and enqueueing can leave a PENDING record;
+a subsequent administrator publication re-enqueues that pending ID. Automatic reconciliation
+without a subsequent request is not implemented.
 Database leases and attempt keys prevent conflicting publication, but do not guarantee
 exactly-once execution. No real AWS is needed for unit tests; actual S3 multipart
 and large-gallery load testing remain deployment checks.
@@ -132,6 +132,85 @@ On this Windows environment, the default frontend Turbopack build fails while
 starting the CSS child process, including outside the sandbox. The production
 build succeeds with `npm run build --prefix frontend -- --webpack`; backend builds
 with `npm run build --prefix backend`. The frontend build script is unchanged.
+
+## Public ZIP downloads
+
+The administrator uploads photographs in DRAFT, waits for all non-deleted photos
+to become READY, then clicks **Publish gallery and prepare ZIP**. The gallery stays
+PROCESSING while its ZIP is streamed into S3. The worker marks the archive and
+gallery READY in one database transaction only after upload completes. Publication
+ZIPs have `expiresAt = null`: they remain stored for the gallery's lifetime, while
+download URLs still expire. Check any bucket lifecycle rules against that retention.
+
+The dashboard shows ZIP preparation state and allows the administrator to retry a
+publication. Once READY, **Share with client → Copy private link** creates a private
+access link and copies it to the clipboard. Repeated copying in the same mounted
+view reuses that URL. The URL is displayed for manual copying if clipboard access
+is denied. It is not persisted in browser storage; reopening the view can create
+a new link because the backend stores only token hashes, not recoverable tokens.
+The publish button is disabled immediately on file selection and stays
+disabled until uploads finish and the server confirms every photo is READY. Server
+readiness counts cover the whole gallery, including unfinished uploads after reload.
+Rejected local files with no server record can be removed from the upload list.
+A failed publication stays private. Private gallery links can be created
+only after publication. Existing links are unavailable during DRAFT/PROCESSING.
+Photo mutations are allowed only in DRAFT, with a database row lock shared with
+publication to protect concurrent operations. To edit a published gallery, return
+it to DRAFT, change photos and publish again. A matching prebuilt archive can be
+reused immediately. Canceling publication by returning to DRAFT does not forcibly
+abort an upload already underway, but the worker will not publish a draft gallery.
+
+The public gallery at `/g/{token}` offers **Download ZIP** for a prebuilt archive.
+The first click revalidates access and downloads directly from S3. No public route
+creates jobs, and the client never polls archive generation. If a ZIP is unavailable,
+the client sees an availability message and can recheck; preparation remains an
+administrator action. Legacy READY galleries without a matching content hash should
+be returned to DRAFT and republished once.
+
+| Endpoint | Access and response |
+| --- | --- |
+| `POST /api/v1/galleries/{galleryId}/publish` | Owner ADMIN JWT; returns 202 with gallery status; starts/retries preparation |
+| `GET /api/v1/galleries/{galleryId}/archive` | Owner ADMIN JWT; current preparation ID and status |
+| `GET /api/v1/public/galleries/{token}/archive` | Valid active token for a READY gallery; returns prebuilt ZIP metadata and signed URL |
+| `GET /api/v1/public/archives/{archiveId}?token={token}` | Valid active token belonging to that archive's gallery; returns current state |
+
+Public operations recheck expiration/revocation, return no storage keys and disable
+HTTP caching. Missing/invalid proof returns 400/404. Expired ZIPs return 410. A READY
+response includes a signed attachment URL whose TTL is the shorter of
+`SIGNED_URL_ARCHIVE_TTL` and the archive's remaining retention, if one exists. Revoking a gallery
+link prevents new URLs; already-issued S3 URLs remain valid until their short TTL
+expires. Do not put private tokens or signed URLs in logs.
+
+Archive `contentHash` identifies the ordered READY originals by ID, key, filename,
+size and order. Serializable PostgreSQL transactions with conflict retries reuse
+an existing active or unexpired READY archive for identical content, including
+concurrent requests. Failed/expired ZIPs or changed content produce a new archive.
+The worker checks content identity before and after streaming; a changed gallery
+fails that attempt rather than publishing it under the wrong content identity.
+Original storage keys must remain immutable. Older archives without a matching hash
+cannot be downloaded through public endpoints; republish those galleries once.
+Republication also removes the finite retention timestamp from a reusable legacy ZIP.
+
+Apply `npm --prefix backend run prisma:deploy` and regenerate the client after the
+content-hash migration; stop the backend first on Windows if its Prisma DLL is locked.
+Swagger documents both endpoints at `/api/docs`.
+
+Additional tests:
+
+```powershell
+npm --prefix backend run test:integration
+npm --prefix frontend exec -- playwright install chromium
+npm --prefix frontend run test:e2e
+```
+
+Integration tests use configured local PostgreSQL, create isolated records and
+clean up their own galleries/users. They verify parallel request deduplication,
+content/expiry handling and HTTP access checks. Queue/storage are mocked so no AWS
+objects are created. Playwright builds an isolated webpack frontend on port 3002
+and mocks public API responses to test immediate prebuilt download, unavailable ZIPs
+without generation, and revoked access at click time. PostgreSQL integration tests
+exercise publication, worker ZIP creation through a fake storage adapter, immutable
+published photos, republication, and failed publication/retry. No real AWS is used.
 
 ## Verification
 

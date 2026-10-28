@@ -1,4 +1,4 @@
-import { ArchiveStatus, PhotoStatus } from '@prisma/client';
+import { ArchiveStatus, PhotoStatus, Prisma } from '@prisma/client';
 import { UnrecoverableError } from 'bullmq';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { Readable } from 'node:stream';
@@ -6,11 +6,13 @@ import type { PrismaService } from '../prisma/prisma.service.js';
 import type { StorageService } from '../storage/storage.service.js';
 import { ArchiveGenerationService } from './archive-generation.service.js';
 import { ArchiveLeaseBusyError } from './archive-lease-busy.error.js';
+import { archiveContentHash } from './archive-content.js';
 
 const archive = {
   id: 'archive-id',
   galleryId: 'gallery-id',
   storageKey: null,
+  contentHash: null,
   status: ArchiveStatus.PENDING,
   processingLockId: null,
   processingLockExpiresAt: null,
@@ -40,6 +42,8 @@ const photo = {
 
 describe('ArchiveGenerationService', () => {
   const prisma = {
+    $transaction: jest.fn(),
+    gallery: { findUnique: jest.fn(), update: jest.fn() },
     archive: { updateMany: jest.fn(), findUnique: jest.fn() },
     photo: { findMany: jest.fn() },
   } as unknown as PrismaService;
@@ -57,6 +61,14 @@ describe('ArchiveGenerationService', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+    jest
+      .mocked(prisma.gallery.findUnique)
+      .mockResolvedValue({ status: 'DRAFT' } as NonNullable<
+        Awaited<ReturnType<typeof prisma.gallery.findUnique>>
+      >);
+    const transaction = async (callback: unknown) =>
+      (callback as (tx: Prisma.TransactionClient) => Promise<unknown>)(prisma);
+    jest.mocked(prisma.$transaction).mockImplementation(transaction as typeof prisma.$transaction);
     jest.mocked(prisma.archive.updateMany).mockResolvedValue({ count: 1 });
     jest.mocked(prisma.archive.findUnique).mockResolvedValue(archive);
     jest.mocked(prisma.photo.findMany).mockResolvedValue([photo]);
@@ -117,6 +129,34 @@ describe('ArchiveGenerationService', () => {
     expect(storage.upload).not.toHaveBeenCalled();
   });
 
+  it('fails a queued archive whose requested originals have changed', async () => {
+    jest
+      .mocked(prisma.archive.findUnique)
+      .mockResolvedValue({ ...archive, contentHash: 'outdated' });
+    await expect(service.process({ archiveId: archive.id })).rejects.toBeInstanceOf(
+      UnrecoverableError,
+    );
+    expect(storage.upload).not.toHaveBeenCalled();
+  });
+
+  it('does not publish ZIP output when gallery content changes during generation', async () => {
+    jest
+      .mocked(prisma.archive.findUnique)
+      .mockResolvedValue({ ...archive, contentHash: archiveContentHash([photo]) });
+    jest
+      .mocked(prisma.photo.findMany)
+      .mockResolvedValueOnce([photo])
+      .mockResolvedValueOnce([{ ...photo, filename: 'changed.jpg' }]);
+    await expect(service.process({ archiveId: archive.id })).rejects.toBeInstanceOf(
+      UnrecoverableError,
+    );
+    expect(storage.upload).toHaveBeenCalled();
+    expect(storage.delete).toHaveBeenCalled();
+    expect(prisma.archive.updateMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'FAILED' }) }),
+    );
+  });
+
   it('publishes final progress only after the archive is marked READY', async () => {
     const report = jest.fn<(value: unknown) => Promise<void>>().mockResolvedValue();
     await service.process({ archiveId: archive.id }, report);
@@ -130,7 +170,9 @@ describe('ArchiveGenerationService', () => {
 
   it('skips an already READY archive when its claim is rejected', async () => {
     jest.mocked(prisma.archive.updateMany).mockResolvedValue({ count: 0 });
-    jest.mocked(prisma.archive.findUnique).mockResolvedValue({ ...archive, status: ArchiveStatus.READY });
+    jest
+      .mocked(prisma.archive.findUnique)
+      .mockResolvedValue({ ...archive, status: ArchiveStatus.READY });
     await service.process({ archiveId: archive.id });
     expect(storage.upload).not.toHaveBeenCalled();
   });

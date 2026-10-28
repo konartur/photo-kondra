@@ -37,7 +37,10 @@ export function updateGallery(galleryId: string, input: GalleryInput): Promise<G
   return apiRequest<Gallery>(`/api/galleries/${galleryId}`, jsonRequest('PATCH', input));
 }
 
-export function transitionGalleryStatus(galleryId: string, status: GalleryStatus): Promise<Gallery> {
+export function transitionGalleryStatus(
+  galleryId: string,
+  status: GalleryStatus,
+): Promise<Gallery> {
   return apiRequest<Gallery>(
     `/api/galleries/${galleryId}/status`,
     jsonRequest('PATCH', { status }),
@@ -46,6 +49,26 @@ export function transitionGalleryStatus(galleryId: string, status: GalleryStatus
 
 export function deleteGallery(galleryId: string): Promise<void> {
   return apiRequest<void>(`/api/galleries/${galleryId}`, { method: 'DELETE' });
+}
+
+export function publishGallery(galleryId: string): Promise<Gallery> {
+  return apiRequest(`/api/galleries/${encodeURIComponent(galleryId)}/publish`, { method: 'POST' });
+}
+
+export interface GalleryArchive {
+  canPublish: boolean;
+  pendingPhotoCount: number;
+  id: string | null;
+  status: 'NOT_PREPARED' | 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED';
+}
+export function getGalleryArchive(galleryId: string): Promise<GalleryArchive> {
+  return apiRequest(`/api/galleries/${encodeURIComponent(galleryId)}/archive`);
+}
+
+export function createPrivateGalleryLink(galleryId: string): Promise<{ id: string; url: string }> {
+  return apiRequest(`/api/galleries/${encodeURIComponent(galleryId)}/access-links`, {
+    method: 'POST',
+  });
 }
 
 function jsonRequest(method: 'POST' | 'PATCH', body: unknown): RequestInit {

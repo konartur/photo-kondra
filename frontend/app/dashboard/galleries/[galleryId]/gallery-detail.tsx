@@ -15,11 +15,13 @@ import {
 import type { Gallery } from '@/lib/api/galleries';
 import { GalleryStatusBadge } from '../gallery-status';
 import { PhotoUploader } from './photo-uploader';
+import { GalleryPublication } from './gallery-publication';
+import { GalleryShareLink } from './gallery-share-link';
 
 const allowedTransitions: Record<GalleryStatus, GalleryStatus[]> = {
-  DRAFT: ['PROCESSING', 'ARCHIVED'],
-  PROCESSING: ['READY', 'ARCHIVED'],
-  READY: ['ARCHIVED'],
+  DRAFT: ['ARCHIVED'],
+  PROCESSING: ['DRAFT', 'ARCHIVED'],
+  READY: ['DRAFT', 'ARCHIVED'],
   ARCHIVED: [],
 };
 
@@ -31,9 +33,14 @@ const transitionLabels: Record<GalleryStatus, string> = {
 };
 
 export function GalleryDetail({ galleryId }: { galleryId: string }) {
-  const galleryQuery = useQuery({ queryKey: galleryKeys.detail(galleryId), queryFn: () => getGallery(galleryId) });
+  const galleryQuery = useQuery({
+    queryKey: galleryKeys.detail(galleryId),
+    queryFn: () => getGallery(galleryId),
+    refetchInterval: (query) => (query.state.data?.status === 'PROCESSING' ? 3000 : false),
+  });
 
-  if (galleryQuery.isPending) return <p className="mx-auto mt-10 max-w-5xl text-sm text-zinc-500">Loading gallery…</p>;
+  if (galleryQuery.isPending)
+    return <p className="mx-auto mt-10 max-w-5xl text-sm text-zinc-500">Loading gallery…</p>;
   if (galleryQuery.isError || !galleryQuery.data) {
     return (
       <section className="mx-auto mt-10 max-w-5xl rounded-xl bg-red-50 p-5 text-sm text-red-700">
@@ -50,6 +57,7 @@ function GalleryDetailContent({ gallery, galleryId }: { gallery: Gallery; galler
   const queryClient = useQueryClient();
   const [title, setTitle] = useState(gallery.title);
   const [description, setDescription] = useState(gallery.description ?? '');
+  const [hasPendingUploads, setHasPendingUploads] = useState(false);
   const updateMutation = useMutation({
     mutationFn: () => updateGallery(galleryId, { title, description: description.trim() || null }),
     onSuccess: (gallery) => {
@@ -88,7 +96,10 @@ function GalleryDetailContent({ gallery, galleryId }: { gallery: Gallery; galler
 
   return (
     <section className="mx-auto mt-10 max-w-3xl">
-      <Link className="text-sm font-medium text-zinc-600 hover:text-zinc-950" href="/dashboard/galleries">
+      <Link
+        className="text-sm font-medium text-zinc-600 hover:text-zinc-950"
+        href="/dashboard/galleries"
+      >
         ← All galleries
       </Link>
       <div className="mt-5 flex items-center justify-between gap-4">
@@ -150,7 +161,9 @@ function GalleryDetailContent({ gallery, galleryId }: { gallery: Gallery; galler
             ))}
           </div>
         ) : (
-          <p className="mt-4 text-sm text-zinc-500">No further lifecycle transitions are available.</p>
+          <p className="mt-4 text-sm text-zinc-500">
+            No further lifecycle transitions are available.
+          </p>
         )}
         {statusMutation.isError ? (
           <p className="mt-3 text-sm text-red-700" role="alert">
@@ -158,7 +171,21 @@ function GalleryDetailContent({ gallery, galleryId }: { gallery: Gallery; galler
           </p>
         ) : null}
       </section>
-      <PhotoUploader galleryId={galleryId} />
+      <GalleryPublication
+        galleryId={galleryId}
+        status={gallery.status}
+        hasPendingUploads={hasPendingUploads}
+      />
+      {gallery.status === 'READY' ? (
+        <GalleryShareLink key={galleryId} galleryId={galleryId} />
+      ) : null}
+      {gallery.status === 'DRAFT' ? (
+        <PhotoUploader galleryId={galleryId} onPendingUploadsChange={setHasPendingUploads} />
+      ) : (
+        <p className="mt-4 text-sm text-zinc-600">
+          Return to draft before changing photos. Private links are unavailable while in draft.
+        </p>
+      )}
       <section className="mt-6 rounded-xl border border-red-200 bg-red-50 p-6">
         <h3 className="font-semibold text-red-950">Delete gallery</h3>
         <p className="mt-2 text-sm leading-6 text-red-800">

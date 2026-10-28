@@ -1,7 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'node:crypto';
-import { describe, expect, it, jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import type { GalleriesService } from '../galleries/galleries.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { GalleryAccessService } from './gallery-access.service.js';
@@ -28,11 +28,29 @@ describe('GalleryAccessService', () => {
     update: jest.fn<(args: unknown) => Promise<typeof accessLink>>(),
   };
   const prisma = { galleryAccess } as unknown as PrismaService;
-  const galleriesService = { findOne: jest.fn() } as unknown as GalleriesService;
+  const galleriesService = {
+    findOne: jest.fn(),
+    archiveStatus: jest.fn(),
+  } as unknown as GalleriesService;
   const configService = {
     getOrThrow: jest.fn(() => 'https://photos.example.com/'),
   } as unknown as ConfigService;
   const service = new GalleryAccessService(prisma, galleriesService, configService);
+  beforeEach(() => {
+    jest
+      .mocked(galleriesService.archiveStatus)
+      .mockResolvedValue({
+        id: 'archive',
+        status: 'READY',
+        canPublish: true,
+        pendingPhotoCount: 0,
+      });
+    jest
+      .mocked(galleriesService.findOne)
+      .mockResolvedValue({ status: 'READY' } as Awaited<
+        ReturnType<typeof galleriesService.findOne>
+      >);
+  });
 
   it('returns a private URL once and persists only its SHA-256 hash', async () => {
     galleryAccess.create.mockImplementation(async ({ data }: { data: { tokenHash: string } }) => ({

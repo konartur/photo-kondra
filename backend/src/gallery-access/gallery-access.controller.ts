@@ -12,6 +12,7 @@ import {
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiConflictResponse,
   ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -44,6 +45,7 @@ export class GalleryAccessController {
   @ApiOperation({ summary: 'Create a private gallery access link' })
   @ApiParam({ name: 'galleryId', format: 'uuid' })
   @ApiCreatedResponse({ type: CreatedGalleryAccessResponseDto })
+  @ApiConflictResponse({ description: 'Publish gallery and wait for ZIP before sharing' })
   @ApiNotFoundResponse({ description: 'Gallery not found' })
   create(
     @Req() request: AuthenticatedRequest,

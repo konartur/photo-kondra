@@ -1,8 +1,8 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
-import { PhotoStatus } from '@prisma/client';
-import { describe, expect, it, jest } from '@jest/globals';
+import { PhotoStatus, Prisma } from '@prisma/client';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import type { GalleriesService } from '../galleries/galleries.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { StorageService } from '../storage/storage.service.js';
@@ -29,6 +29,8 @@ const photo = {
 
 describe('PhotosService', () => {
   const prisma = {
+    $transaction: jest.fn(),
+    gallery: { updateMany: jest.fn() },
     photo: {
       create: jest.fn(),
       findMany: jest.fn(),
@@ -53,6 +55,20 @@ describe('PhotosService', () => {
     imageProcessingQueue,
     configService,
   );
+  beforeEach(() => {
+    jest.mocked(prisma.gallery.updateMany).mockResolvedValue({ count: 1 });
+    const transaction = async (callback: unknown) =>
+      (callback as (tx: Prisma.TransactionClient) => Promise<unknown>)(prisma);
+    jest.mocked(prisma.$transaction).mockImplementation(transaction as typeof prisma.$transaction);
+  });
+
+  it('rejects changes to published or preparing galleries', async () => {
+    jest.mocked(prisma.gallery.updateMany).mockResolvedValue({ count: 0 });
+    jest.mocked(prisma.photo.findFirst).mockResolvedValue(photo);
+    await expect(service.update('admin-id', photo.id, { sortOrder: 2 })).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+  });
 
   it('creates an uploading photo and returns a direct storage URL for an allowed image', async () => {
     jest.mocked(storage.createUploadUrl).mockResolvedValue('https://signed.example/upload');

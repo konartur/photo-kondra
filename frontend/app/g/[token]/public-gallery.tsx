@@ -14,9 +14,19 @@ import {
 } from '@/lib/api/public-galleries';
 import { PhotoLightbox } from './photo-lightbox';
 import { ArchiveDownload } from './archive-download';
+import { SelectedArchiveDownload } from './selected-archive-download';
 
 export function PublicGalleryPage({ token }: { token: string }) {
   const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
+  const [downloadSelection, setDownloadSelection] = useState<Set<string>>(new Set());
+  function toggleDownload(photoId: string) {
+    setDownloadSelection((current) => {
+      const next = new Set(current);
+      if (next.has(photoId)) next.delete(photoId);
+      else if (next.size < 500) next.add(photoId);
+      return next;
+    });
+  }
   const galleryQuery = useQuery({
     queryKey: publicGalleryKeys.gallery(token),
     queryFn: () => getPublicGallery(token),
@@ -33,7 +43,9 @@ export function PublicGalleryPage({ token }: { token: string }) {
 
   if (galleryQuery.isPending) return <LoadingState />;
   if (galleryQuery.isError || !galleryQuery.data) {
-    return <PrivateLinkFailure error={galleryQuery.error} onRetry={() => void galleryQuery.refetch()} />;
+    return (
+      <PrivateLinkFailure error={galleryQuery.error} onRetry={() => void galleryQuery.refetch()} />
+    );
   }
 
   const photos = photosQuery.data?.pages.flatMap((page) => page.items) ?? [];
@@ -42,26 +54,70 @@ export function PublicGalleryPage({ token }: { token: string }) {
     <main className="min-h-screen bg-zinc-100 px-4 py-8 text-zinc-950 sm:px-8 sm:py-12">
       <section className="mx-auto max-w-7xl">
         <header className="max-w-3xl">
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">Private gallery</p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-5xl">{galleryQuery.data.title}</h1>
+          <p className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">
+            Private gallery
+          </p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-5xl">
+            {galleryQuery.data.title}
+          </h1>
           {galleryQuery.data.description ? (
-            <p className="mt-4 text-base leading-7 text-zinc-600 sm:text-lg">{galleryQuery.data.description}</p>
+            <p className="mt-4 text-base leading-7 text-zinc-600 sm:text-lg">
+              {galleryQuery.data.description}
+            </p>
           ) : null}
         </header>
         {photos.length > 0 ? <ArchiveDownload token={token} key={token} /> : null}
+        {photos.length > 0 ? (
+          <>
+            <SelectedArchiveDownload token={token} photoIds={Array.from(downloadSelection)} />
+            <div className="mt-3 flex flex-wrap gap-4 text-sm">
+              <button
+                type="button"
+                className="underline"
+                onClick={() =>
+                  setDownloadSelection(new Set(photos.slice(0, 500).map((photo) => photo.id)))
+                }
+              >
+                Select loaded photos (up to 500)
+              </button>
+              <button
+                type="button"
+                disabled={!downloadSelection.size}
+                className="underline disabled:opacity-50"
+                onClick={() => setDownloadSelection(new Set())}
+              >
+                Clear selection
+              </button>
+              <span aria-live="polite">{downloadSelection.size} selected</span>
+            </div>
+          </>
+        ) : null}
         <section aria-label="Photos" className="mt-8 sm:mt-12">
           {photosQuery.isPending ? <LoadingGrid /> : null}
           {photosQuery.isError && photos.length === 0 ? (
-            <InlineError message={photosQuery.error.message} onRetry={() => void photosQuery.refetch()} />
+            <InlineError
+              message={photosQuery.error.message}
+              onRetry={() => void photosQuery.refetch()}
+            />
           ) : null}
           {photos.length === 0 && photosQuery.isSuccess ? (
             <p className="rounded-xl border border-dashed border-zinc-300 bg-white p-8 text-sm text-zinc-600">
               There are no ready photos in this gallery yet.
             </p>
           ) : null}
-          {photos.length ? <PhotoGrid onSelect={setSelectedPhotoId} photos={photos} /> : null}
+          {photos.length ? (
+            <PhotoGrid
+              onSelect={setSelectedPhotoId}
+              photos={photos}
+              selected={downloadSelection}
+              onToggle={toggleDownload}
+            />
+          ) : null}
           {photosQuery.isError && photos.length ? (
-            <InlineError message="More photos could not be loaded." onRetry={() => void photosQuery.refetch()} />
+            <InlineError
+              message="More photos could not be loaded."
+              onRetry={() => void photosQuery.refetch()}
+            />
           ) : null}
           <LoadMoreTrigger
             hasNextPage={photosQuery.hasNextPage}
@@ -83,11 +139,32 @@ export function PublicGalleryPage({ token }: { token: string }) {
   );
 }
 
-function PhotoGrid({ photos, onSelect }: { photos: PublicPhoto[]; onSelect: (photoId: string) => void }) {
+function PhotoGrid({
+  photos,
+  onSelect,
+  selected,
+  onToggle,
+}: {
+  photos: PublicPhoto[];
+  onSelect: (photoId: string) => void;
+  selected: Set<string>;
+  onToggle: (id: string) => void;
+}) {
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
       {photos.map((photo) => (
-        <figure className="overflow-hidden rounded-lg bg-zinc-200" key={photo.id}>
+        <figure className="relative overflow-hidden rounded-lg bg-zinc-200" key={photo.id}>
+          <label className="absolute left-2 top-2 z-10 flex items-center gap-2 rounded bg-white/95 px-2 py-1 text-xs shadow">
+            <input
+              type="checkbox"
+              aria-label={`Select ${photo.filename}`}
+              checked={selected.has(photo.id)}
+              disabled={!selected.has(photo.id) && selected.size >= 500}
+              onChange={() => onToggle(photo.id)}
+              className="h-5 w-5 accent-zinc-950"
+            />
+            Select
+          </label>
           <button
             aria-label={`Open ${photo.filename}`}
             className="block w-full cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2"
@@ -157,7 +234,9 @@ function PrivateLinkFailure({ error, onRetry }: { error: Error | null; onRetry: 
     <main className="flex min-h-screen items-center justify-center bg-zinc-100 p-6 text-zinc-950">
       <section className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-zinc-200">
         <p className="text-sm font-medium uppercase tracking-[0.2em] text-zinc-500">Photo Cloud</p>
-        <h1 className="mt-4 text-2xl font-semibold">{isUnavailable ? 'Gallery temporarily unavailable' : 'Gallery unavailable'}</h1>
+        <h1 className="mt-4 text-2xl font-semibold">
+          {isUnavailable ? 'Gallery temporarily unavailable' : 'Gallery unavailable'}
+        </h1>
         <p className="mt-3 text-sm leading-6 text-zinc-600">
           {isUnavailable
             ? 'Please try again in a moment.'

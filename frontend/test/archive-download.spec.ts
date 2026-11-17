@@ -34,6 +34,90 @@ const ready = {
   expiresIn: 300,
 };
 
+test('selects photos, waits for generation and downloads a separate ZIP', async ({ page }) => {
+  let requests = 0;
+  let checks = 0;
+  await page.route('**/api/public/galleries/demo/archive', (route) =>
+    route.fulfill({ json: ready }),
+  );
+  await page.route('**/api/public/galleries/demo/archives', (route) => {
+    requests++;
+    expect(route.request().method()).toBe('POST');
+    expect(route.request().postDataJSON()).toEqual({ photoIds: ['photo'] });
+    return route.fulfill({
+      status: 202,
+      json: { id: 'selection', status: 'PENDING', expiresAt: null },
+    });
+  });
+  await page.route('**/api/public/galleries/demo/archives/selection', (route) => {
+    checks++;
+    return route.fulfill({
+      json:
+        checks === 1
+          ? { id: 'selection', status: 'PROCESSING', expiresAt: null }
+          : { ...ready, id: 'selection' },
+    });
+  });
+  await page.route('**/test.zip', (route) =>
+    route.fulfill({
+      headers: { 'content-disposition': 'attachment; filename="selected.zip"' },
+      contentType: 'application/zip',
+      body: 'selected-zip',
+    }),
+  );
+  await page.goto('/g/demo');
+  await expect(
+    page.getByRole('button', { name: 'Download selected (0)', exact: true }),
+  ).toBeDisabled();
+  await page.getByRole('checkbox', { name: 'Select photo.jpg' }).check();
+  await page.getByRole('button', { name: 'Download selected (1)', exact: true }).click();
+  await expect(
+    page.getByText('Preparing 1 selected originals. You can keep browsing.'),
+  ).toBeVisible();
+  const save = page.getByRole('button', { name: 'Save selected ZIP' });
+  await expect(save).toBeVisible();
+  const download = page.waitForEvent('download');
+  await save.click();
+  expect((await download).suggestedFilename()).toBe('selected.zip');
+  expect(requests).toBe(1);
+  await page.getByRole('button', { name: 'Clear selection', exact: true }).click();
+  await expect(page.getByRole('checkbox', { name: 'Select photo.jpg' })).not.toBeChecked();
+});
+
+test('allows retry after failed selection generation and rechecks revoked access before downloading', async ({
+  page,
+}) => {
+  let requests = 0;
+  let revoked = false;
+  await page.route('**/api/public/galleries/demo/archive', (route) =>
+    route.fulfill({ json: ready }),
+  );
+  await page.route('**/api/public/galleries/demo/archives', (route) => {
+    requests++;
+    return route.fulfill({
+      status: 202,
+      json: { id: `selection-${requests}`, status: 'PENDING', expiresAt: null },
+    });
+  });
+  await page.route('**/api/public/galleries/demo/archives/selection-*', (route) => {
+    if (revoked) return route.fulfill({ status: 404, json: { message: 'Gallery not found' } });
+    return route.fulfill({
+      json: { ...ready, id: `selection-${requests}`, status: requests === 1 ? 'FAILED' : 'READY' },
+    });
+  });
+  await page.goto('/g/demo');
+  await page.getByRole('checkbox', { name: 'Select photo.jpg' }).check();
+  await page.getByRole('button', { name: 'Download selected (1)', exact: true }).click();
+  await expect(page.getByText('Selected ZIP preparation failed. Please try again.')).toBeVisible();
+  await page.getByRole('button', { name: 'Download selected (1)', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Save selected ZIP' })).toBeVisible();
+  revoked = true;
+  await page.getByRole('button', { name: 'Save selected ZIP' }).click();
+  await expect(page.getByText('Gallery not found', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save selected ZIP' })).toHaveCount(0);
+  expect(requests).toBe(2);
+});
+
 test('downloads a prebuilt ZIP on the first click without any generation request', async ({
   page,
 }) => {

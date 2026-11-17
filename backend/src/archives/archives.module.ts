@@ -10,6 +10,7 @@ import {
 import { ArchiveGenerationService } from './archive-generation.service.js';
 import { ArchiveGenerationWorker } from './archive-generation.worker.js';
 import { ArchivesService } from './archives.service.js';
+import { SelectedArchiveCleanupService } from './selected-archive-cleanup.service.js';
 
 @Module({
   imports: [PrismaModule, QueuesModule, StorageModule],
@@ -22,6 +23,7 @@ import { ArchivesService } from './archives.service.js';
     ArchiveGenerationService,
     ArchiveGenerationWorker,
     ArchivesService,
+    SelectedArchiveCleanupService,
   ],
   exports: [ArchivesService],
 })

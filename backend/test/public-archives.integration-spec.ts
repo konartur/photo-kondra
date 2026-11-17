@@ -11,6 +11,7 @@ import request from 'supertest';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { ArchivesService } from '../src/archives/archives.service.js';
 import { ArchiveGenerationService } from '../src/archives/archive-generation.service.js';
+import { SelectedArchiveCleanupService } from '../src/archives/selected-archive-cleanup.service.js';
 import { GalleriesService } from '../src/galleries/galleries.service.js';
 import { PhotosService } from '../src/photos/photos.service.js';
 import { GalleryAccessService } from '../src/gallery-access/gallery-access.service.js';
@@ -236,6 +237,123 @@ describe('publish -> prebuilt ZIP -> immediate client download', () => {
     await expect(access.create(ownerId, galleryId, {})).resolves.toHaveProperty('url');
   });
 
+  it('validates, deduplicates and generates selected ZIPs without replacing the full album', async () => {
+    const path = `/api/v1/public/galleries/${token}/archives`;
+    for (const body of [
+      { photoIds: [] },
+      { photoIds: [photoId, photoId] },
+      { photoIds: ['bad'] },
+      { photoIds: [randomUUID()] },
+      { photoIds: [photoId], key: 'forbidden' },
+    ]) {
+      await request(app.getHttpServer()).post(path).send(body).expect(400);
+    }
+    await request(app.getHttpServer())
+      .post(`/api/v1/public/galleries/${expiredToken}/archives`)
+      .send({ photoIds: [photoId] })
+      .expect(404);
+    const results = await Promise.all(
+      Array.from({ length: 3 }, () =>
+        request(app.getHttpServer())
+          .post(path)
+          .send({ photoIds: [photoId] })
+          .expect(202),
+      ),
+    );
+    const selectedId = results[0]!.body.id as string;
+    expect(new Set(results.map((result) => result.body.id)).size).toBe(1);
+    expect(selectedId).not.toBe(archiveId);
+    expect(results[0]!.body.status).toBe('PENDING');
+    expect(results[0]!.body).not.toHaveProperty('downloadUrl');
+    await worker.process({ archiveId: selectedId });
+    const ready = await request(app.getHttpServer())
+      .get(`/api/v1/public/archives/${selectedId}?token=${token}`)
+      .expect(200);
+    expect(ready.body.status).toBe('READY');
+    expect(ready.body.downloadUrl).toBeDefined();
+    expect(ready.body).not.toHaveProperty('selectedPhotoIds');
+    expect(ready.body).not.toHaveProperty('storageKey');
+    const selected = await prisma.archive.findUniqueOrThrow({ where: { id: selectedId } });
+    expect(selected.selectedPhotoIds).toEqual([photoId]);
+    expect(selected.expiresAt).not.toBeNull();
+    expect((await galleries.findOne(ownerId, galleryId)).status).toBe('READY');
+    expect((await archives.current(galleryId))?.id).toBe(archiveId);
+    const reused = await request(app.getHttpServer())
+      .post(path)
+      .send({ photoIds: [photoId] })
+      .expect(202);
+    expect(reused.body.id).toBe(selectedId);
+    await prisma.archive.update({ where: { id: selectedId }, data: { expiresAt: new Date(0) } });
+    await request(app.getHttpServer())
+      .get(`/api/v1/public/archives/${selectedId}?token=${token}`)
+      .expect(410);
+    const fresh = await request(app.getHttpServer())
+      .post(path)
+      .send({ photoIds: [photoId] })
+      .expect(202);
+    expect(fresh.body.id).not.toBe(selectedId);
+  });
+
+  it('includes exactly the selected originals and cleans up expired selection objects', async () => {
+    const selectionGallery = await prisma.gallery.create({
+      data: { ownerId, title: 'Selection contents', status: 'READY' },
+    });
+    const selectionToken = randomUUID();
+    try {
+      await prisma.galleryAccess.create({
+        data: {
+          galleryId: selectionGallery.id,
+          tokenHash: createHash('sha256').update(selectionToken).digest('hex'),
+        },
+      });
+      const selectedPhoto = await prisma.photo.create({
+        data: {
+          galleryId: selectionGallery.id,
+          filename: 'selected.jpg',
+          mimeType: 'image/jpeg',
+          size: 8n,
+          status: 'READY',
+          originalKey: 'selection/original',
+        },
+      });
+      await prisma.photo.create({
+        data: {
+          galleryId: selectionGallery.id,
+          filename: 'excluded.jpg',
+          mimeType: 'image/jpeg',
+          size: 8n,
+          status: 'READY',
+          originalKey: 'excluded/original',
+        },
+      });
+      await request(app.getHttpServer())
+        .post(`/api/v1/public/galleries/${selectionToken}/archives`)
+        .send({ photoIds: [photoId] })
+        .expect(400);
+      const response = await request(app.getHttpServer())
+        .post(`/api/v1/public/galleries/${selectionToken}/archives`)
+        .send({ photoIds: [selectedPhoto.id] })
+        .expect(202);
+      const id = response.body.id as string;
+      await worker.process({ archiveId: id });
+      const archive = await prisma.archive.findUniqueOrThrow({ where: { id } });
+      const zip = objects.get(archive.storageKey!)!;
+      expect(zip.includes(Buffer.from('selected.jpg'))).toBe(true);
+      expect(zip.includes(Buffer.from('excluded.jpg'))).toBe(false);
+      await request(app.getHttpServer())
+        .get(`/api/v1/public/archives/${id}?token=${token}`)
+        .expect(404);
+      await prisma.archive.update({ where: { id }, data: { expiresAt: new Date(0) } });
+      const cleanup = new SelectedArchiveCleanupService(prisma, storage);
+      await cleanup.cleanup();
+      expect(objects.has(archive.storageKey!)).toBe(false);
+      expect(await prisma.archive.findUnique({ where: { id } })).toBeNull();
+      expect(await prisma.archive.findUnique({ where: { id: archiveId } })).not.toBeNull();
+    } finally {
+      await prisma.gallery.delete({ where: { id: selectionGallery.id } });
+    }
+  });
+
   it('checks missing proof, expired/revoked tokens and gallery ownership on every download', async () => {
     await request(app.getHttpServer()).get(`/api/v1/public/archives/${archiveId}`).expect(400);
     await request(app.getHttpServer())
@@ -262,6 +380,10 @@ describe('publish -> prebuilt ZIP -> immediate client download', () => {
       await prisma.gallery.delete({ where: { id: other.id } });
     }
     await prisma.galleryAccess.updateMany({ where: { galleryId }, data: { isActive: false } });
+    await request(app.getHttpServer())
+      .post(`/api/v1/public/galleries/${token}/archives`)
+      .send({ photoIds: [photoId] })
+      .expect(404);
     await request(app.getHttpServer())
       .get(`/api/v1/public/archives/${archiveId}?token=${token}`)
       .expect(404);

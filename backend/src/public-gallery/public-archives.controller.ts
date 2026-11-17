@@ -1,4 +1,14 @@
-import { Controller, Get, Header, Param, ParseUUIDPipe, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Header,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+} from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiConflictResponse,
@@ -9,14 +19,39 @@ import {
   ApiParam,
   ApiServiceUnavailableResponse,
   ApiTags,
+  ApiAcceptedResponse,
+  ApiTooManyRequestsResponse,
 } from '@nestjs/swagger';
-import { ArchiveAccessQueryDto, PublicArchiveResponseDto } from './dto/public-archive.dto.js';
+import {
+  ArchiveAccessQueryDto,
+  PublicArchiveResponseDto,
+  RequestSelectedArchiveDto,
+} from './dto/public-archive.dto.js';
 import { PublicArchivesService } from './public-archives.service.js';
 
 @ApiTags('public archives')
 @Controller('public')
 export class PublicArchivesController {
   constructor(private readonly archives: PublicArchivesService) {}
+
+  @Post('galleries/:token/archives')
+  @HttpCode(202)
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({
+    summary:
+      'Prepare a ZIP of selected READY photos asynchronously; reuse identical unexpired selections',
+  })
+  @ApiParam({ name: 'token', description: 'Private gallery access token' })
+  @ApiAcceptedResponse({ type: PublicArchiveResponseDto })
+  @ApiBadRequestResponse({ description: 'Invalid selection or archive size limit exceeded' })
+  @ApiNotFoundResponse({ description: 'Invalid access or unpublished gallery' })
+  @ApiTooManyRequestsResponse({
+    description: 'Gallery archive request or concurrency limit reached',
+  })
+  @ApiServiceUnavailableResponse({ description: 'Archive queue unavailable' })
+  requestSelected(@Param('token') token: string, @Body() dto: RequestSelectedArchiveDto) {
+    return this.archives.requestSelected(token, dto.photoIds);
+  }
 
   @Get('galleries/:token/archive')
   @Header('Cache-Control', 'no-store')

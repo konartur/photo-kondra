@@ -118,6 +118,7 @@ model Archive {
   gallery                 Gallery       @relation(fields: [galleryId], references: [id], onDelete: Cascade)
   storageKey              String?
   contentHash             String?
+  selectedPhotoIds        String[]      @default([])
   status                  ArchiveStatus @default(PENDING)
   processingLockId        String?
   processingLockExpiresAt DateTime?

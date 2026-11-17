@@ -1,6 +1,6 @@
 import { ZipArchive } from 'archiver';
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { ArchiveStatus, Photo } from '@prisma/client';
+import { ArchiveStatus, Photo, PhotoStatus } from '@prisma/client';
 import { UnrecoverableError } from 'bullmq';
 import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
@@ -58,8 +58,17 @@ export class ArchiveGenerationService {
     try {
       const archive = await this.prisma.archive.findUnique({ where: { id: archiveId } });
       if (!archive) return;
+      const selection = archive.selectedPhotoIds.length > 0;
+      if (selection && (!archive.expiresAt || archive.expiresAt.getTime() <= Date.now()))
+        throw new TerminalArchiveError('Selected archive expired');
+      const photoWhere = {
+        galleryId: archive.galleryId,
+        status: PhotoStatus.READY,
+        originalKey: { not: null },
+        ...(selection ? { id: { in: archive.selectedPhotoIds } } : {}),
+      };
       const photos = await this.prisma.photo.findMany({
-        where: { galleryId: archive.galleryId, status: 'READY', originalKey: { not: null } },
+        where: photoWhere,
         orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
       });
       if (!photos.length) throw new TerminalArchiveError('Gallery has no ready original photos');
@@ -87,7 +96,7 @@ export class ArchiveGenerationService {
       await this.uploadArchive(storageKey, photos, archiveId, progress);
       if (archive.contentHash) {
         const currentPhotos = await this.prisma.photo.findMany({
-          where: { galleryId: archive.galleryId, status: 'READY', originalKey: { not: null } },
+          where: photoWhere,
           orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
         });
         if (archive.contentHash !== archiveContentHash(currentPhotos)) {
@@ -99,7 +108,12 @@ export class ArchiveGenerationService {
 
       const markedReady = await this.prisma.$transaction(async (tx) => {
         const gallery = await tx.gallery.findUnique({ where: { id: archive.galleryId } });
-        const publishing = gallery?.status === 'PROCESSING';
+        if (
+          selection &&
+          (gallery?.status !== 'READY' || archive.expiresAt!.getTime() <= Date.now())
+        )
+          throw new TerminalArchiveError('Gallery unavailable or selected archive expired');
+        const publishing = !selection && gallery?.status === 'PROCESSING';
         if (publishing) {
           await tx.gallery.update({
             where: { id: archive.galleryId, status: 'PROCESSING' },
@@ -117,8 +131,9 @@ export class ArchiveGenerationService {
           data: {
             storageKey,
             status: ArchiveStatus.READY,
-            expiresAt:
-              publishing || this.config.retentionSeconds === 0
+            expiresAt: selection
+              ? archive.expiresAt
+              : publishing || this.config.retentionSeconds === 0
                 ? null
                 : new Date(Date.now() + this.config.retentionSeconds * 1000),
             processingLockId: null,

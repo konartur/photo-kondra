@@ -69,7 +69,7 @@ test('shows the URL for manual copying when clipboard permission is denied', asy
   await page.goto('/dashboard/galleries/gallery');
   await page.getByRole('button', { name: 'Copy private link', exact: true }).click();
   await expect(page.getByLabel('Private gallery link')).toHaveValue(url);
-  await expect(page.getByRole('alert')).toContainText('copy it manually');
+  await expect(page.getByRole('alert').filter({ hasText: 'copy it manually' })).toBeVisible();
 });
 
 test('reports a rejected link creation without displaying a URL', async ({ page }) => {
@@ -78,7 +78,9 @@ test('reports a rejected link creation without displaying a URL', async ({ page 
   );
   await page.goto('/dashboard/galleries/gallery');
   await page.getByRole('button', { name: 'Copy private link', exact: true }).click();
-  await expect(page.getByRole('alert')).toHaveText('Publish gallery first');
+  await expect(page.getByRole('alert').filter({ hasText: 'Publish gallery first' })).toHaveText(
+    'Publish gallery first',
+  );
   await expect(page.getByLabel('Private gallery link')).toHaveCount(0);
 });
 

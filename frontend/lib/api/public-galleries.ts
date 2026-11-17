@@ -72,8 +72,24 @@ export function getPublicArchive(token: string, archiveId: string): Promise<Publ
   );
 }
 
-async function publicRequest<T>(path: string, method: 'GET' | 'POST' = 'GET'): Promise<T> {
-  const response = await fetch(path, { method, cache: 'no-store' });
+export function requestSelectedArchive(token: string, photoIds: string[]): Promise<PublicArchive> {
+  return publicRequest(`/api/public/galleries/${encodeURIComponent(token)}/archives`, 'POST', {
+    photoIds,
+  });
+}
+
+async function publicRequest<T>(
+  path: string,
+  method: 'GET' | 'POST' = 'GET',
+  body?: unknown,
+): Promise<T> {
+  const response = await fetch(path, {
+    method,
+    cache: 'no-store',
+    ...(body
+      ? { body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } }
+      : {}),
+  });
   if (!response.ok) throw new ApiError(await errorMessage(response), response.status);
   return (await response.json()) as T;
 }

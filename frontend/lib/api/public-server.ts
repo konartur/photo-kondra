@@ -6,9 +6,15 @@ import { backendUrl } from '@/lib/auth/server';
 export async function forwardPublicRequest(
   path: string,
   method: 'GET' | 'POST' = 'GET',
+  body?: string,
 ): Promise<NextResponse> {
   try {
-    const backendResponse = await fetch(backendUrl(path), { cache: 'no-store', method });
+    const backendResponse = await fetch(backendUrl(path), {
+      cache: 'no-store',
+      method,
+      body,
+      ...(body ? { headers: { 'Content-Type': 'application/json' } } : {}),
+    });
     return new NextResponse(backendResponse.body, {
       status: backendResponse.status,
       headers: {

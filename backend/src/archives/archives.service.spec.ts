@@ -7,7 +7,8 @@ import { ArchivesService } from './archives.service.js';
 
 describe('ArchivesService', () => {
   const prisma = {
-    archive: { create: jest.fn(), updateMany: jest.fn(), findFirst: jest.fn() },
+    archive: { create: jest.fn(), updateMany: jest.fn(), findFirst: jest.fn(), count: jest.fn() },
+    gallery: { findUnique: jest.fn() },
     photo: { findMany: jest.fn() },
     $transaction: jest.fn(),
   } as unknown as PrismaService;
@@ -27,6 +28,12 @@ describe('ArchivesService', () => {
         { id: 'photo', originalKey: 'original', filename: 'a.jpg', size: 1n, sortOrder: 0 },
       ] as Awaited<ReturnType<typeof prisma.photo.findMany>>);
     jest.mocked(prisma.archive.findFirst).mockResolvedValue(null);
+    jest.mocked(prisma.archive.count).mockResolvedValue(0);
+    jest
+      .mocked(prisma.gallery.findUnique)
+      .mockResolvedValue({ status: 'READY' } as Awaited<
+        ReturnType<typeof prisma.gallery.findUnique>
+      >);
   });
 
   it('persists a pending archive before queueing its ID', async () => {
@@ -112,5 +119,62 @@ describe('ArchivesService', () => {
     jest.mocked(prisma.photo.findMany).mockResolvedValue([]);
     await expect(service.create('gallery-id')).rejects.toThrow('Gallery has no ready photos');
     expect(queue.add).not.toHaveBeenCalled();
+  });
+
+  it('captures a bounded selection with retention and isolates it from publication archives', async () => {
+    jest
+      .mocked(prisma.archive.create)
+      .mockResolvedValue({ id: 'selected', status: 'PENDING' } as Awaited<
+        ReturnType<typeof prisma.archive.create>
+      >);
+    await service.createSelected('gallery-id', ['photo']);
+    expect(prisma.photo.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          galleryId: 'gallery-id',
+          id: { in: ['photo'] },
+          status: 'READY',
+        }),
+      }),
+    );
+    expect(prisma.archive.create).toHaveBeenCalledWith({
+      data: {
+        galleryId: 'gallery-id',
+        contentHash: expect.any(String),
+        selectedPhotoIds: ['photo'],
+        expiresAt: expect.any(Date),
+      },
+    });
+    expect(prisma.archive.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ selectedPhotoIds: { isEmpty: false } }),
+      }),
+    );
+  });
+
+  it.each(
+    [[], ['photo', 'photo'], Array.from({ length: 501 }, (_, i) => String(i))].map((ids) => [ids]),
+  )('rejects invalid selection bounds', async (ids) => {
+    await expect(service.createSelected('gallery-id', ids)).rejects.toThrow('unique photos');
+    expect(queue.add).not.toHaveBeenCalled();
+  });
+
+  it('rejects a selection with missing, cross-gallery or non-ready photos', async () => {
+    await expect(service.createSelected('gallery-id', ['photo', 'foreign'])).rejects.toThrow(
+      'Every selected photo',
+    );
+    expect(queue.add).not.toHaveBeenCalled();
+  });
+
+  it('limits new archive jobs per gallery without preventing deduplication', async () => {
+    jest.mocked(prisma.archive.count).mockResolvedValue(3);
+    await expect(service.createSelected('gallery-id', ['photo'])).rejects.toThrow(
+      'Too many archive requests',
+    );
+    const existing = { id: 'existing', status: 'PROCESSING' } as Awaited<
+      ReturnType<typeof prisma.archive.create>
+    >;
+    jest.mocked(prisma.archive.findFirst).mockResolvedValue(existing);
+    await expect(service.createSelected('gallery-id', ['photo'])).resolves.toEqual(existing);
   });
 });

@@ -7,20 +7,30 @@ import type { PrismaService } from '../prisma/prisma.service.js';
 import type { StorageService } from '../storage/storage.service.js';
 import { PublicArchivesService } from './public-archives.service.js';
 
-const row = {
+const row: Archive = {
+  selectedPhotoIds: [],
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  contentHash: null,
+  processingLockId: null,
+  processingLockExpiresAt: null,
   id: 'archive',
   galleryId: 'gallery',
   status: 'PROCESSING',
   expiresAt: null,
   storageKey: null,
-} as Archive;
+};
 describe('public archive access', () => {
   const prisma = {
     gallery: { findUnique: jest.fn() },
     archive: { findFirst: jest.fn() },
   } as unknown as PrismaService;
   const access = { findActiveByToken: jest.fn() } as unknown as GalleryAccessService;
-  const archives = { create: jest.fn(), current: jest.fn() } as unknown as ArchivesService;
+  const archives = {
+    create: jest.fn(),
+    createSelected: jest.fn(),
+    current: jest.fn(),
+  } as unknown as ArchivesService;
   const storage = { createDownloadUrl: jest.fn() } as unknown as StorageService;
   const service = new PublicArchivesService(
     prisma,
@@ -51,6 +61,7 @@ describe('public archive access', () => {
     async (token) => {
       jest.mocked(access.findActiveByToken).mockResolvedValue(null);
       await expect(service.request(token)).rejects.toThrow('Gallery not found');
+      await expect(service.requestSelected(token, ['photo'])).rejects.toThrow('Gallery not found');
       await expect(service.status(token, 'archive')).rejects.toThrow('Gallery not found');
       expect(archives.create).not.toHaveBeenCalled();
       expect(storage.createDownloadUrl).not.toHaveBeenCalled();
@@ -110,5 +121,16 @@ describe('public archive access', () => {
     expect(archives.create).not.toHaveBeenCalled();
     jest.mocked(access.findActiveByToken).mockResolvedValue(null);
     await expect(service.status('token', 'archive')).rejects.toThrow('Gallery not found');
+  });
+
+  it('returns an authorized selected job without signing before it is READY', async () => {
+    jest.mocked(archives.createSelected).mockResolvedValue({ ...row, selectedPhotoIds: ['photo'] });
+    expect(await service.requestSelected('token', ['photo'])).toEqual({
+      id: row.id,
+      status: 'PROCESSING',
+      expiresAt: null,
+    });
+    expect(archives.createSelected).toHaveBeenCalledWith('gallery', ['photo']);
+    expect(storage.createDownloadUrl).not.toHaveBeenCalled();
   });
 });

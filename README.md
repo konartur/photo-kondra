@@ -115,7 +115,8 @@ while empty galleries, missing originals and size-limit failures are permanent.
 
 Apply the existing archive lifecycle migration with the normal `prisma migrate deploy`
 workflow before running the worker. This change needs no additional schema migration.
-Public downloads enforce expiration. Scheduled object deletion is not implemented.
+Public downloads enforce expiration. Full-album archive object cleanup is not scheduled;
+temporary selected-photo archives have the cleanup provider described below.
 A process crash between database creation and enqueueing can leave a PENDING record;
 a subsequent administrator publication re-enqueues that pending ID. Automatic reconciliation
 without a subsequent request is not implemented.
@@ -161,8 +162,9 @@ reused immediately. Canceling publication by returning to DRAFT does not forcibl
 abort an upload already underway, but the worker will not publish a draft gallery.
 
 The public gallery at `/g/{token}` offers **Download ZIP** for a prebuilt archive.
-The first click revalidates access and downloads directly from S3. No public route
-creates jobs, and the client never polls archive generation. If a ZIP is unavailable,
+The first click revalidates access and downloads directly from S3. This full-album flow
+creates no jobs and does not poll generation. Selected-photo ZIP requests use the
+separate on-demand flow described below. If the full-album ZIP is unavailable,
 the client sees an availability message and can recheck; preparation remains an
 administrator action. Legacy READY galleries without a matching content hash should
 be returned to DRAFT and republished once.
@@ -213,6 +215,59 @@ exercise publication, worker ZIP creation through a fake storage adapter, immuta
 published photos, republication, and failed publication/retry. No real AWS is used.
 
 ## Verification
+
+### Selected-photo ZIPs
+
+The public gallery now supports two independent downloads. **Download ZIP** still
+serves the full album prepared at publication. Check individual photos (or select
+the loaded photos), then use **Download selected** to prepare a separate ZIP.
+Selection persists across loaded pages in the current view, with a maximum of 500
+photos. It is temporary browser state. Fullscreen browsing remains available.
+After preparation, **Save selected ZIP** revalidates access and downloads directly
+from private object storage. Failures allow retry without reuploading photographs.
+
+`POST /api/v1/public/galleries/{token}/archives` accepts only a DTO with
+`photoIds: string[]` (1–500 unique UUIDs). It returns 202 and an archive ID/status.
+The existing authenticated-by-gallery-token status endpoint is polled until
+READY/FAILED. Every selected photo must be READY and belong to that published
+gallery; invalid selections are rejected as a whole. No original bytes pass through
+HTTP controllers. Requests are bounded by `MAX_ARCHIVE_SIZE` and per-gallery
+creation/concurrency limits; exhausted limits return 429.
+
+`Archive.selectedPhotoIds` stores the requested IDs in gallery order. An empty list
+identifies a full-album archive, preserving existing records. The content hash
+captures the exact original identities, filenames, sizes and order. Serializable
+transactions deduplicate identical selection/content requests independently from
+full-album archives, including selections containing every photo. The existing
+streaming BullMQ worker filters by the persisted IDs and checks content identity
+before/after transfer. Selection jobs never publish galleries or replace their
+full-album ZIP. Status/download checks reject changed selected content, unavailable
+galleries and expired/revoked access.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `SELECTED_ARCHIVE_RETENTION_TTL` | `86400` seconds | Selection expiry measured from request creation, including queue time |
+| `SELECTED_ARCHIVE_MAX_ACTIVE` | `3` | Maximum unexpired PENDING/PROCESSING selections per gallery |
+| `SELECTED_ARCHIVE_REQUESTS_PER_MINUTE` | `3` | Maximum new selection records per gallery in a rolling minute; existing reusable jobs are exempt |
+
+These values must be positive integers. A cleanup provider checks every minute,
+deleting up to 50 expired selection objects/records per pass, skipping active worker
+leases. Storage failures leave records for retry. Cleanup never targets full-album
+archives. Expired records may return 410 before cleanup and 404 afterward; a fresh
+selection request creates a new job. Signed URLs never outlive archive retention;
+already-issued URLs can remain usable until their short TTL after link revocation.
+
+Apply the migration and regenerate Prisma Client before starting the updated API:
+
+```powershell
+npm --prefix backend run prisma:deploy
+npm --prefix backend run prisma:generate
+```
+
+The integration suite covers selection DTO validation, concurrent deduplication,
+expiry and preservation of the full-album archive. Unit tests check ZIP contents,
+content changes, job limits and cleanup retries. Playwright covers selection,
+preparation, retry, download and access revocation with mocked public API responses.
 
 Archive progress is logged as `archive_progress` every five seconds and persisted
 in BullMQ `job.progress`. Fields include `readPercent`, `photoPercent`,

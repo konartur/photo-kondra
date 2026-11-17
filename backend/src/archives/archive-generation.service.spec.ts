@@ -9,6 +9,7 @@ import { ArchiveLeaseBusyError } from './archive-lease-busy.error.js';
 import { archiveContentHash } from './archive-content.js';
 
 const archive = {
+  selectedPhotoIds: [] as string[],
   id: 'archive-id',
   galleryId: 'gallery-id',
   storageKey: null,
@@ -80,6 +81,52 @@ describe('ArchiveGenerationService', () => {
     jest.mocked(storage.upload).mockImplementation(async ({ body }) => {
       for await (const chunk of body) void chunk;
     });
+  });
+
+  it('streams only selected originals and never publishes a gallery for a selection', async () => {
+    const expiresAt = new Date(Date.now() + 600000);
+    jest
+      .mocked(prisma.archive.findUnique)
+      .mockResolvedValue({
+        ...archive,
+        selectedPhotoIds: [photo.id],
+        contentHash: archiveContentHash([photo]),
+        expiresAt,
+      });
+    jest
+      .mocked(prisma.gallery.findUnique)
+      .mockResolvedValue({ status: 'READY' } as Awaited<
+        ReturnType<typeof prisma.gallery.findUnique>
+      >);
+    const uploaded: Buffer[] = [];
+    jest.mocked(storage.upload).mockImplementation(async ({ body }) => {
+      for await (const chunk of body) uploaded.push(Buffer.from(chunk));
+    });
+    await service.process({ archiveId: archive.id });
+    expect(readStoredZip(Buffer.concat(uploaded))).toEqual([
+      { name: 'photo.jpg', body: Buffer.from('original image bytes') },
+    ]);
+    expect(prisma.photo.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ id: { in: [photo.id] } }) }),
+    );
+    expect(prisma.gallery.update).not.toHaveBeenCalled();
+    expect(prisma.archive.updateMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ expiresAt, status: 'READY' }) }),
+    );
+  });
+
+  it('fails a selection if selected contents change, without uploading a different ZIP', async () => {
+    jest
+      .mocked(prisma.archive.findUnique)
+      .mockResolvedValue({
+        ...archive,
+        selectedPhotoIds: [photo.id],
+        contentHash: archiveContentHash([photo]),
+        expiresAt: new Date(Date.now() + 600000),
+      });
+    jest.mocked(prisma.photo.findMany).mockResolvedValue([{ ...photo, filename: 'changed.jpg' }]);
+    await expect(service.process({ archiveId: archive.id })).rejects.toThrow('content changed');
+    expect(storage.upload).not.toHaveBeenCalled();
   });
 
   it('streams READY originals into private storage and marks the claimed archive ready', async () => {

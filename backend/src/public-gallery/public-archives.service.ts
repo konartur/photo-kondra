@@ -14,6 +14,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { STORAGE_SERVICE } from '../storage/storage.service.js';
 import type { StorageService } from '../storage/storage.service.js';
 import { PublicArchiveResponseDto } from './dto/public-archive.dto.js';
+import { archiveContentHash } from '../archives/archive-content.js';
 
 @Injectable()
 export class PublicArchivesService {
@@ -41,10 +42,33 @@ export class PublicArchivesService {
       archive.status === 'READY' &&
       (!archive.expiresAt || archive.expiresAt.getTime() > Date.now())
     ) {
-      const current = await this.archives.current(galleryId);
-      if (current?.id !== archive.id) throw new NotFoundException('Archive is no longer current');
+      if (archive.selectedPhotoIds.length) {
+        const photos = await this.prisma.photo.findMany({
+          where: {
+            galleryId,
+            id: { in: archive.selectedPhotoIds },
+            status: 'READY',
+            originalKey: { not: null },
+          },
+          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+        });
+        if (
+          !archive.contentHash ||
+          photos.length !== archive.selectedPhotoIds.length ||
+          archiveContentHash(photos) !== archive.contentHash
+        )
+          throw new NotFoundException('Archive is no longer current');
+      } else {
+        const current = await this.archives.current(galleryId);
+        if (current?.id !== archive.id) throw new NotFoundException('Archive is no longer current');
+      }
     }
     return this.toResponse(archive);
+  }
+
+  async requestSelected(token: string, photoIds: string[]): Promise<PublicArchiveResponseDto> {
+    const galleryId = await this.authorize(token);
+    return this.toResponse(await this.archives.createSelected(galleryId, photoIds));
   }
 
   private async authorize(token: string): Promise<string> {
@@ -64,9 +88,9 @@ export class PublicArchivesService {
       status: archive.status,
       expiresAt: archive.expiresAt,
     };
-    if (archive.status !== 'READY') return response;
     if (archive.expiresAt && archive.expiresAt.getTime() <= Date.now())
       throw new GoneException('Archive expired; request a new archive');
+    if (archive.status !== 'READY') return response;
     if (!archive.storageKey)
       throw new ServiceUnavailableException('Archive is temporarily unavailable');
     const ttl = Number(this.config.getOrThrow<string>('SIGNED_URL_ARCHIVE_TTL'));
@@ -79,7 +103,7 @@ export class PublicArchivesService {
     const downloadUrl = await this.storage.createDownloadUrl({
       key: archive.storageKey,
       expiresIn,
-      filename: `gallery-${archive.galleryId}.zip`,
+      filename: `gallery-${archive.galleryId}${archive.selectedPhotoIds.length ? '-selected' : ''}.zip`,
     });
     return { ...response, downloadUrl, expiresIn };
   }

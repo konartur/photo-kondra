@@ -13,6 +13,8 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
   if (response.status === 401 && path !== '/api/auth/refresh') {
     const refreshResponse = await fetch('/api/auth/refresh', { method: 'POST' });
     if (refreshResponse.ok) response = await fetch(path, init);
+    else if (refreshResponse.status !== 401)
+      throw new ApiError(await errorMessage(refreshResponse), refreshResponse.status);
   }
 
   if (!response.ok) throw new ApiError(await errorMessage(response), response.status);

@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { afterAll, beforeAll, describe, expect, it, jest } from '@jest/globals';
@@ -19,6 +19,9 @@ import type { StorageService } from '../src/storage/storage.service.js';
 import type { GenerateArchiveJobData } from '../src/queues/queue.constants.js';
 import { PublicArchivesController } from '../src/public-gallery/public-archives.controller.js';
 import { PublicArchivesService } from '../src/public-gallery/public-archives.service.js';
+import { setupApp } from '../src/setup-app.js';
+import { createCorsOptions } from '../src/cors.config.js';
+import { createHttpSecurityConfig } from '../src/common/http-security.config.js';
 
 config({ path: '../.env', quiet: true });
 describe('publish -> prebuilt ZIP -> immediate client download', () => {
@@ -106,10 +109,14 @@ describe('publish -> prebuilt ZIP -> immediate client download', () => {
       controllers: [PublicArchivesController],
       providers: [{ provide: PublicArchivesService, useValue: service }],
     }).compile();
-    app = module.createNestApplication();
-    app.setGlobalPrefix('api/v1');
-    app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+    app = module.createNestApplication({ bodyParser: false });
+    // This suite deliberately submits many invalid/repeated selections from one IP.
+    // Exact quota enforcement is covered separately by HTTP security regression tests.
+    setupApp(
+      app,
+      false,
+      createCorsOptions(),
+      createHttpSecurityConfig({ RATE_LIMIT_ARCHIVE: '100' }),
     );
     await app.init();
   });

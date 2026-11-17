@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { REFRESH_TOKEN_COOKIE } from '@/lib/auth/constants';
 import { clearAuthCookies, setAuthCookies } from '@/lib/auth/cookies';
 import { backendUrl } from '@/lib/auth/server';
+import { backendResponseHeaders } from '@/lib/api/response-headers';
+import { backendClientHeaders } from '@/lib/api/backend-client';
 
 interface RefreshResponse {
   accessToken: string;
@@ -17,11 +19,21 @@ export async function POST() {
   try {
     const backendResponse = await fetch(backendUrl('/auth/refresh'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(await backendClientHeaders(backendUrl('/auth/refresh'), 'POST')),
+      },
       body: JSON.stringify({ refreshToken }),
       cache: 'no-store',
     });
-    if (!backendResponse.ok) return unauthenticatedResponse();
+    if (!backendResponse.ok) {
+      if ([400, 401, 403].includes(backendResponse.status)) return unauthenticatedResponse();
+      // A temporary throttle/outage must not clear a still-valid refresh session.
+      return new NextResponse(backendResponse.body, {
+        status: backendResponse.status,
+        headers: backendResponseHeaders(backendResponse),
+      });
+    }
 
     const tokens = (await backendResponse.json()) as RefreshResponse;
     if (!tokens.accessToken || !tokens.refreshToken) return unauthenticatedResponse();

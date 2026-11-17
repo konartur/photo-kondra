@@ -1,9 +1,13 @@
 import { redirect } from 'next/navigation';
-import { getAuthenticatedAdmin } from '@/lib/auth/server';
+import { getAdminSession } from '@/lib/auth/server';
+import { SessionUnavailable } from '@/app/auth/session-unavailable';
 import { LoginForm } from './login-form';
 
 export default async function LoginPage() {
-  if (await getAuthenticatedAdmin()) redirect('/dashboard');
+  const session = await getAdminSession();
+  if (session.state === 'authenticated') redirect('/dashboard');
+  if (session.state === 'unavailable')
+    return <SessionUnavailable message={session.message} retryAfter={session.retryAfter} />;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-zinc-100 p-6">

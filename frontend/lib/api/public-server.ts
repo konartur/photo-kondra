@@ -2,6 +2,8 @@ import 'server-only';
 
 import { NextResponse } from 'next/server';
 import { backendUrl } from '@/lib/auth/server';
+import { backendResponseHeaders } from './response-headers';
+import { backendClientHeaders } from './backend-client';
 
 export async function forwardPublicRequest(
   path: string,
@@ -13,14 +15,14 @@ export async function forwardPublicRequest(
       cache: 'no-store',
       method,
       body,
-      ...(body ? { headers: { 'Content-Type': 'application/json' } } : {}),
+      headers: {
+        ...(await backendClientHeaders(backendUrl(path), method)),
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+      },
     });
     return new NextResponse(backendResponse.body, {
       status: backendResponse.status,
-      headers: {
-        'Content-Type': backendResponse.headers.get('content-type') ?? 'application/json',
-        'Cache-Control': 'no-store',
-      },
+      headers: backendResponseHeaders(backendResponse),
     });
   } catch {
     return NextResponse.json({ message: 'Gallery service is unavailable' }, { status: 503 });

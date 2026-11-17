@@ -1,0 +1,21 @@
+# Render with the nginx image's standard /etc/nginx/templates env substitution.
+# The public ingress must overwrite these headers; do not expose Next.js directly.
+server {
+    listen 80;
+    server_name _;
+    access_log off; # Private gallery tokens occur in URLs.
+    error_log /dev/null; # Application errors use redacted request-ID logs; nginx errors may include URLs.
+    client_max_body_size 64k;
+
+    location / {
+        proxy_pass http://${FRONTEND_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Photo-Ingress-Key "${BFF_TRUST_SECRET}";
+        proxy_set_header X-Photo-Client-IP $remote_addr;
+        proxy_set_header X-Photo-Client-Time "";
+        proxy_set_header X-Photo-Client-Signature "";
+    }
+}

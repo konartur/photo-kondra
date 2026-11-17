@@ -216,6 +216,171 @@ published photos, republication, and failed publication/retry. No real AWS is us
 
 ## Verification
 
+### API security headers (Helmet)
+
+The NestJS HTTP bootstrap registers Helmet before Swagger and API routes, including
+error responses. `backend/src/setup-app.ts` is shared with HTTP E2E tests so the
+tested middleware and production bootstrap stay aligned. Helmet applies its default
+headers, including `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`,
+`Referrer-Policy: no-referrer`, Content Security Policy and removal of `X-Powered-By`.
+Swagger uses local scripts and retains the default `script-src 'self'` policy.
+
+Set `NODE_ENV=production` in the deployment environment to enable Helmet's default
+HSTS header and CSP `upgrade-insecure-requests`. Production must serve HTTPS.
+For local development/test HTTP these two HTTPS controls are disabled; the other
+headers remain enabled. This middleware affects responses served by NestJS; the
+Next.js frontend and direct S3 downloads have their own response headers. Helmet
+does not configure CORS or rate limiting; those policies are configured separately below.
+
+Verify with `npm --prefix backend run test:e2e`, or inspect the API response headers:
+
+```powershell
+curl.exe -I http://localhost:3000/api/v1/health
+```
+
+### API CORS
+
+`setupApp` enables NestJS CORS after Helmet and before Swagger/API routes.
+Configure exact browser origins (scheme, hostname and port) using a comma-separated
+list; paths, wildcard origins, credentials, query strings and fragments are rejected
+at startup. Origins are normalized, including an optional trailing slash.
+
+```dotenv
+CORS_ALLOWED_ORIGINS=http://localhost:3001,https://photos.example.com
+API_URL=https://api.example.com
+```
+
+If `CORS_ALLOWED_ORIGINS` is absent, `APP_URL` is used. An explicitly empty list
+allows no frontend origins. The origin from `API_URL` is also allowed so Swagger
+can call its own API. Configure the browser-visible API origin in production.
+Missing configuration never falls back to `*` or arbitrary origin reflection.
+
+An unapproved `Origin`, including the literal `null` origin, receives a generic 403
+`CORS_ORIGIN_DENIED` before route handlers run. Allowed origins receive their exact
+`Access-Control-Allow-Origin` value and `Vary: Origin`; GET, HEAD, POST, PATCH,
+DELETE and OPTIONS are advertised, with only Authorization and Content-Type as
+allowed request headers. OPTIONS preflights return 204 without requiring JWT and
+can be cached by the browser for 600 seconds. Actual protected requests still
+require a valid JWT. Cross-origin cookies are not enabled: admin cookies belong to
+Next.js, which forwards Bearer tokens to NestJS from the server.
+
+Requests without Origin (Next.js server requests, curl, health probes) continue
+working, but receive no `Access-Control-Allow-Origin`. CORS controls browser access;
+it does not authenticate non-browser callers or replace authorization/CSRF controls.
+The browser-to-S3 upload/download path needs its own bucket CORS policy; the API
+policy does not configure S3 or add API PUT endpoints.
+
+`npm --prefix backend run test:e2e` verifies exact origin matching, rejected origins,
+preflight handling, JWT enforcement, Helmet headers and requests without Origin.
+
+### Rate limits, request validation and safe errors
+
+`setupApp` configures explicit JSON and URL-encoded parsers with
+`HTTP_BODY_LIMIT_BYTES` (default 65536 bytes). Nest's automatic body parser is
+disabled at HTTP bootstrap. Compressed request bodies are rejected (415) to avoid
+unbounded decompression; malformed JSON returns 400 without echoing submitted
+values. Oversized bodies and URL-encoded requests with more than 1000 parameters
+return 413. Bodies with other content types are rejected with 415 before parsing.
+This limit applies to metadata, not photo/ZIP bytes transferred directly
+to S3. The default accepts the maximum 500-photo selection payload.
+
+The global ValidationPipe transforms DTOs, rejects unknown fields and validates
+payloads/query parameters. Validation errors return a generic `VALIDATION_FAILED`
+message without submitted objects, passwords or tokens.
+
+API counters are grouped by IP and category, independently of gallery tokens,
+resource IDs and query strings. The default fixed window is 60000 milliseconds:
+
+| Setting | Default | Scope |
+| --- | --- | --- |
+| `RATE_LIMIT_AUTH` | 60 | Shared POST login/refresh request quota |
+| `RATE_LIMIT_PUBLIC` | 600 | Public gallery, photo downloads and archive status reads |
+| `RATE_LIMIT_ARCHIVE` | 10 | Public selected-photo archive creation requests |
+| `RATE_LIMIT_API` | 1200 | Remaining API requests, including upload metadata |
+| `RATE_LIMIT_WINDOW_MS` | 60000 | Counter window duration |
+
+Each request uses one category. Counts include invalid/failed requests. OPTIONS and
+the exact health endpoint are exempt; Swagger is outside the API limiter. Exceeded
+limits return 429, `Retry-After` and standard `RateLimit`/`RateLimit-Policy` headers.
+Limits and body size must be positive integers. Existing per-gallery archive
+creation/concurrency limits remain an additional safeguard.
+
+Counters currently use in-process memory for the single-API MVP: restarts reset
+them, and replicas do not share them. Before running multiple API replicas, use a
+shared counter store or enforce quotas at the trusted gateway. In production,
+Next.js forwards a verified browser IP with an authenticated proof, so users no
+longer share the BFF server's quota. Direct API calls use the socket/trusted-proxy
+IP. The supplied ingress template limits public request bodies to 64 KiB too.
+
+`TRUSTED_PROXY_CIDRS` defaults to empty, so arbitrary X-Forwarded-For headers cannot
+change the client's rate-limit key. Set it only to actual reverse-proxy IPs/CIDRs
+and ensure that proxy overwrites client-supplied forwarding headers. Do not set
+unrestricted trust. BFF client proofs are verified independently of this setting;
+merely trusting a caller's X-Forwarded-For header is never sufficient.
+
+The global exception filter returns `{ statusCode, code, message }`. Expected 4xx
+messages and explicit application codes remain usable. All 5xx responses use generic
+messages; database/AWS exception details, stack traces, request bodies and tokenized
+URLs are never serialized. Unexpected/server failures log a safe event with a
+generated `X-Request-Id`, status and code; error responses use `Cache-Control: no-store`.
+Swagger documents the common error schema, 413/415/429/5xx responses and retry header.
+
+Next.js forwards retry/rate-limit/request-ID headers through an explicit allowlist.
+Login preserves 429/503 instead of converting every failure to 401. Refresh preserves
+cookies on throttling/outages, and the UI can retry without discarding the session.
+Allowed direct browser callers can read these headers through CORS exposedHeaders.
+SSR dashboard/login checks distinguish a 401 from throttling/outages: only a 401
+enters the refresh/sign-in flow. A 429/503/network failure displays a retry screen
+at the current URL and never rotates a valid refresh session automatically.
+
+Security regression tests are in `backend/test/http-security.e2e-spec.ts`; they use
+real HTTP middleware/DTOs and fixture handlers without AWS, PostgreSQL or Redis.
+`backend/test/security-product-flow.integration-spec.ts` also verifies the actual
+AppModule controllers, JWT/Argon2 sessions, Prisma, direct upload metadata, Sharp,
+private gallery/original downloads and both ZIP flows with `setupApp` enabled.
+Only external object storage and queue transport are faked; the workers and business
+services are real. The archive integration suite now uses `setupApp` too (with a
+higher test archive quota for its many intentional invalid/repeated requests).
+
+### Trusted ingress and client-IP proofs
+
+Production requires a shared `BFF_TRUST_SECRET` of at least 32 bytes on the trusted
+ingress, Next.js runtime and NestJS runtime. Generate a random secret privately,
+store it in the deployment secret manager and never prefix it with `NEXT_PUBLIC_`.
+Keep all three copies identical and clocks synchronized. Never commit its value.
+An empty key is permitted only for local development: API socket addresses are used
+there, and browser-supplied forwarding headers remain ignored.
+
+The deployable nginx template is `infra/docker/nginx/frontend.conf.template`.
+Mount it under `/etc/nginx/templates/default.conf.template` when using the nginx
+image's standard env-substitution entrypoint. Provide `BFF_TRUST_SECRET` and
+`FRONTEND_UPSTREAM` (for example `frontend:3001`). Enable HTTPS at the public edge
+using your deployment's certificate configuration. The template assumes that it
+receives browser connections directly. If a trusted load balancer is in front,
+configure nginx real-IP handling with only that load balancer's specific trusted
+addresses, so `$remote_addr` is the verified original client IP.
+
+Ingress overwrites `X-Photo-Ingress-Key` and `X-Photo-Client-IP`, and strips incoming
+proof signatures/timestamps. Restrict direct network access to Next.js and the API
+where appropriate. Next.js verifies the ingress key with a constant-time comparison,
+validates the IP and signs `(protocol version, IP, timestamp, method, API URL path
+and query)` with HMAC-SHA256. The raw ingress key is never forwarded to the API or
+browser. Invalid/missing ingress information fails closed with a temporary service
+error; it does not silently pool users into a fallback production IP quota.
+
+The API accepts the signed IP only when the signature is valid and the timestamp
+is within 30 seconds. Tampered/expired proofs or proofs replayed on another method
+or URL return 403. Quotas still group IPv6 subnets to prevent simple address rotation.
+The proof affects rate limiting only; all JWT/private-gallery authorization remains
+mandatory. Do not log ingress headers, private URLs or proof material. The sample
+nginx template disables URL-bearing logs; use the application's redacted request-ID
+events or configure a redacted gateway log pipeline before enabling proxy logs.
+
+Playwright checks dashboard 429/503 handling, session preservation and different
+client quotas through real Next.js forwarding. Run `npm --prefix frontend run test:e2e`.
+For an isolated Windows build cache, optionally set `PHOTO_CLOUD_E2E_DIST_DIR` to a
+fresh `.next-e2e-*` directory; generated Next output is ignored by Git and ESLint.
+
 ### Selected-photo ZIPs
 
 The public gallery now supports two independent downloads. **Download ZIP** still

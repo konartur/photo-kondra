@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { ACCESS_TOKEN_COOKIE } from '@/lib/auth/constants';
 import { clearAuthCookies } from '@/lib/auth/cookies';
 import { backendUrl } from '@/lib/auth/server';
+import { backendClientHeaders } from '@/lib/api/backend-client';
 
 export async function POST() {
   const cookieStore = await cookies();
@@ -12,7 +13,10 @@ export async function POST() {
     try {
       await fetch(backendUrl('/auth/logout'), {
         method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}` },
+        headers: {
+          ...(await backendClientHeaders(backendUrl('/auth/logout'), 'POST')),
+          Authorization: `Bearer ${accessToken}`,
+        },
         cache: 'no-store',
       });
     } catch {

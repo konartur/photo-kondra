@@ -17,11 +17,12 @@ import {
 import type { StorageService } from './storage.service.js';
 import { S3_CLIENT, S3_PRESIGNED_URL_SIGNER, S3_STORAGE_CONFIG } from './s3-storage.config.js';
 import type { S3StorageConfig } from './s3-storage.config.js';
+import { signedUrlLimits, validateSignedUrlTtl } from './signed-url-policy.js';
 
 export type PresignedUrlSigner = (
   client: S3Client,
   command: PutObjectCommand | GetObjectCommand,
-  options: { expiresIn: number },
+  options: { expiresIn: number; signableHeaders?: Set<string> },
 ) => Promise<string>;
 
 @Injectable()
@@ -33,14 +34,21 @@ export class S3StorageService implements StorageService {
   ) {}
 
   async createUploadUrl({ key, contentType, expiresIn }: CreateUploadUrlParams): Promise<string> {
+    validateSignedUrlTtl(expiresIn, signedUrlLimits.upload);
     return this.signUrl(
       this.client,
-      new PutObjectCommand({ Bucket: this.bucket, Key: key, ContentType: contentType }),
-      { expiresIn },
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        ContentType: contentType,
+        IfNoneMatch: '*',
+      }),
+      { expiresIn, signableHeaders: new Set(['if-none-match', 'content-type']) },
     );
   }
 
   async createDownloadUrl({ key, expiresIn, filename }: CreateDownloadUrlParams): Promise<string> {
+    validateSignedUrlTtl(expiresIn, signedUrlLimits.preview);
     return this.signUrl(
       this.client,
       new GetObjectCommand({

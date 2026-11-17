@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Header, Param, Query } from '@nestjs/common';
 import {
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -19,6 +19,7 @@ export class PublicGalleryController {
   constructor(private readonly publicGalleryService: PublicGalleryService) {}
 
   @Get(':token')
+  @Header('Cache-Control', 'no-store')
   @ApiOperation({ summary: 'Get a private gallery using its access token' })
   @ApiParam({ name: 'token', description: 'Private gallery access token' })
   @ApiOkResponse({ type: PublicGalleryResponseDto })
@@ -28,6 +29,7 @@ export class PublicGalleryController {
   }
 
   @Get(':token/photos')
+  @Header('Cache-Control', 'no-store')
   @ApiOperation({ summary: 'List READY photos in a private gallery' })
   @ApiParam({ name: 'token', description: 'Private gallery access token' })
   @ApiOkResponse({ type: PublicPhotoListResponseDto })

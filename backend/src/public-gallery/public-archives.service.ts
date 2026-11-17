@@ -11,6 +11,11 @@ import { Archive } from '@prisma/client';
 import { ArchivesService } from '../archives/archives.service.js';
 import { GalleryAccessService } from '../gallery-access/gallery-access.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import {
+  capAccessTtl,
+  signedUrlLimits,
+  validateSignedUrlTtl,
+} from '../storage/signed-url-policy.js';
 import { STORAGE_SERVICE } from '../storage/storage.service.js';
 import type { StorageService } from '../storage/storage.service.js';
 import { PublicArchiveResponseDto } from './dto/public-archive.dto.js';
@@ -27,15 +32,15 @@ export class PublicArchivesService {
   ) {}
 
   async request(token: string): Promise<PublicArchiveResponseDto> {
-    const galleryId = await this.authorize(token);
+    const { galleryId, expiresAt } = await this.authorize(token);
     const archive = await this.archives.current(galleryId);
     if (!archive || archive.status !== 'READY')
       throw new ConflictException('ZIP is not prepared; contact the photographer');
-    return this.toResponse(archive);
+    return this.toResponse(archive, expiresAt);
   }
 
   async status(token: string, archiveId: string): Promise<PublicArchiveResponseDto> {
-    const galleryId = await this.authorize(token);
+    const { galleryId, expiresAt } = await this.authorize(token);
     const archive = await this.prisma.archive.findFirst({ where: { id: archiveId, galleryId } });
     if (!archive) throw new NotFoundException('Archive not found');
     if (
@@ -63,15 +68,15 @@ export class PublicArchivesService {
         if (current?.id !== archive.id) throw new NotFoundException('Archive is no longer current');
       }
     }
-    return this.toResponse(archive);
+    return this.toResponse(archive, expiresAt);
   }
 
   async requestSelected(token: string, photoIds: string[]): Promise<PublicArchiveResponseDto> {
-    const galleryId = await this.authorize(token);
-    return this.toResponse(await this.archives.createSelected(galleryId, photoIds));
+    const { galleryId, expiresAt } = await this.authorize(token);
+    return this.toResponse(await this.archives.createSelected(galleryId, photoIds), expiresAt);
   }
 
-  private async authorize(token: string): Promise<string> {
+  private async authorize(token: string): Promise<{ galleryId: string; expiresAt: Date | null }> {
     const link = await this.access.findActiveByToken(token);
     if (!link) throw new NotFoundException('Gallery not found');
     const gallery = await this.prisma.gallery.findUnique({
@@ -79,10 +84,13 @@ export class PublicArchivesService {
       select: { status: true },
     });
     if (gallery?.status !== 'READY') throw new NotFoundException('Gallery not found');
-    return link.galleryId;
+    return { galleryId: link.galleryId, expiresAt: link.expiresAt };
   }
 
-  private async toResponse(archive: Archive): Promise<PublicArchiveResponseDto> {
+  private async toResponse(
+    archive: Archive,
+    accessExpiresAt: Date | null,
+  ): Promise<PublicArchiveResponseDto> {
     const response: PublicArchiveResponseDto = {
       id: archive.id,
       status: archive.status,
@@ -93,9 +101,13 @@ export class PublicArchivesService {
     if (archive.status !== 'READY') return response;
     if (!archive.storageKey)
       throw new ServiceUnavailableException('Archive is temporarily unavailable');
-    const ttl = Number(this.config.getOrThrow<string>('SIGNED_URL_ARCHIVE_TTL'));
-    if (!Number.isSafeInteger(ttl) || ttl <= 0)
-      throw new ServiceUnavailableException('Archive download configuration is invalid');
+    const ttl = capAccessTtl(
+      validateSignedUrlTtl(
+        Number(this.config.getOrThrow<string>('SIGNED_URL_ARCHIVE_TTL')),
+        signedUrlLimits.archive,
+      ),
+      accessExpiresAt,
+    );
     const expiresIn = archive.expiresAt
       ? Math.min(ttl, Math.floor((archive.expiresAt.getTime() - Date.now()) / 1000))
       : ttl;

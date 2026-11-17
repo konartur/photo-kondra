@@ -1,4 +1,4 @@
-import { Controller, Get, Param, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Header, Param, ParseUUIDPipe } from '@nestjs/common';
 import {
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -15,6 +15,7 @@ export class PublicPhotoController {
   constructor(private readonly publicGalleryService: PublicGalleryService) {}
 
   @Get(':token/:photoId/download')
+  @Header('Cache-Control', 'no-store')
   @ApiOperation({ summary: 'Create a short-lived download URL for an original gallery photo' })
   @ApiParam({ name: 'token', description: 'Private gallery access token' })
   @ApiParam({ name: 'photoId', format: 'uuid' })

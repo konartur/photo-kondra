@@ -265,11 +265,14 @@ function uploadDirectly(
     const request = new XMLHttpRequest();
     request.open('PUT', url);
     request.setRequestHeader('Content-Type', file.type);
+    request.setRequestHeader('If-None-Match', '*');
     request.upload.addEventListener('progress', (event) => {
       if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
     });
     request.addEventListener('load', () => {
-      if (request.status >= 200 && request.status < 300) resolve();
+      // A retried PUT can return 412 if the first response was lost.
+      // Completion still checks the object using the authenticated backend.
+      if ((request.status >= 200 && request.status < 300) || request.status === 412) resolve();
       else reject(new Error(`Storage upload failed (${request.status})`));
     });
     request.addEventListener('error', () =>

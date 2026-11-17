@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   Param,
   ParseUUIDPipe,
@@ -42,6 +43,7 @@ export class GalleryAccessController {
   constructor(private readonly galleryAccessService: GalleryAccessService) {}
 
   @Post('galleries/:galleryId/access-links')
+  @Header('Cache-Control', 'no-store')
   @ApiOperation({ summary: 'Create a private gallery access link' })
   @ApiParam({ name: 'galleryId', format: 'uuid' })
   @ApiCreatedResponse({ type: CreatedGalleryAccessResponseDto })

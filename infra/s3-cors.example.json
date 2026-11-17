@@ -1,0 +1,10 @@
+{
+  "CORSRules": [
+    {
+      "AllowedOrigins": ["https://photos.example.com"],
+      "AllowedMethods": ["PUT"],
+      "AllowedHeaders": ["content-type", "if-none-match"],
+      "MaxAgeSeconds": 300
+    }
+  ]
+}

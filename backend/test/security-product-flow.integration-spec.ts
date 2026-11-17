@@ -194,12 +194,15 @@ describe('real product controllers/services with HTTP security enabled', () => {
       .expect(200);
     expect(publicGallery.headers['access-control-allow-origin']).toBe('https://photos.example');
     expect(publicGallery.headers['x-content-type-options']).toBe('nosniff');
+    expect(publicGallery.headers['cache-control']).toBe('no-store');
     const photos = await http.get(`/api/v1/public/galleries/${token}/photos?limit=1`).expect(200);
+    expect(photos.headers['cache-control']).toBe('no-store');
     expect(photos.body.items[0].id).toBe(photoId);
     expect(photos.body.items[0]).not.toHaveProperty('originalKey');
     const download = await http
       .get(`/api/v1/public/photos/${token}/${photoId}/download`)
       .expect(200);
+    expect(download.headers['cache-control']).toBe('no-store');
     expect(download.body.downloadUrl).toContain('original.jpg');
     await http.get(`/api/v1/public/galleries/${token}/archive`).expect(200);
     const selected = await http

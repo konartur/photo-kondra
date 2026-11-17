@@ -56,6 +56,28 @@ describe('public archive access', () => {
     jest.mocked(archives.current).mockResolvedValue({ ...row, status: 'READY', storageKey: 'key' });
     jest.mocked(storage.createDownloadUrl).mockResolvedValue('https://signed.example/zip');
   });
+  it('caps ready full and selected archive URLs to access-link expiry', async () => {
+    jest
+      .mocked(access.findActiveByToken)
+      .mockResolvedValue({
+        galleryId: 'gallery',
+        expiresAt: new Date(Date.now() + 30000),
+      } as NonNullable<Awaited<ReturnType<typeof access.findActiveByToken>>>);
+    jest
+      .mocked(archives.createSelected)
+      .mockResolvedValue({
+        ...row,
+        status: 'READY',
+        storageKey: 'key',
+        selectedPhotoIds: ['photo'],
+      });
+    const full = await service.request('token');
+    const selected = await service.requestSelected('token', ['photo']);
+    for (const response of [full, selected]) {
+      expect(response.expiresIn).toBeGreaterThan(0);
+      expect(response.expiresIn).toBeLessThanOrEqual(30);
+    }
+  });
   it.each(['invalid', 'expired', 'revoked'])(
     'rejects %s tokens for creation and status',
     async (token) => {

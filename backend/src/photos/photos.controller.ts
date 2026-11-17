@@ -2,6 +2,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   Param,
   Patch,
@@ -47,6 +48,7 @@ export class PhotosController {
   constructor(private readonly photosService: PhotosService) {}
 
   @Post('galleries/:galleryId/photos/upload-url')
+  @Header('Cache-Control', 'no-store')
   @ApiOperation({ summary: 'Create a direct-to-storage upload URL for a photo' })
   @ApiParam({ name: 'galleryId', format: 'uuid' })
   @ApiCreatedResponse({ type: RequestPhotoUploadResponseDto })

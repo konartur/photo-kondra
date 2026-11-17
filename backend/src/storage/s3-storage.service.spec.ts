@@ -5,6 +5,7 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 import { ServiceUnavailableException } from '@nestjs/common';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { describe, expect, it, jest } from '@jest/globals';
 import type { S3StorageConfig } from './s3-storage.config.js';
 import { S3StorageService } from './s3-storage.service.js';
@@ -38,6 +39,7 @@ describe('S3StorageService', () => {
       Bucket: 'photo-cloud-test',
       Key: 'galleries/id/originals/photo.jpg',
       ContentType: 'image/jpeg',
+      IfNoneMatch: '*',
     });
   });
 
@@ -70,5 +72,43 @@ describe('S3StorageService', () => {
     await expect(
       unconfigured.createUploadUrl({ key: 'photo.jpg', contentType: 'image/jpeg', expiresIn: 60 }),
     ).rejects.toBeInstanceOf(ServiceUnavailableException);
+  });
+
+  it('binds browser uploads to a create-only conditional PUT', async () => {
+    await service.createUploadUrl({
+      key: 'galleries/id/originals/new.jpg',
+      contentType: 'image/jpeg',
+      expiresIn: 900,
+    });
+    expect(signUrl.mock.calls.at(-1)?.[1].input).toHaveProperty('IfNoneMatch', '*');
+    expect(signUrl.mock.calls.at(-1)?.[2]).toEqual(
+      expect.objectContaining({ signableHeaders: new Set(['if-none-match', 'content-type']) }),
+    );
+  });
+
+  it('refuses unsafe signed URL lifetimes before invoking the signer', async () => {
+    await expect(service.createDownloadUrl({ key: 'private', expiresIn: 86400 })).rejects.toThrow();
+  });
+
+  it('cryptographically signs the create-only and content-type headers', async () => {
+    const offlineClient = new S3Client({
+      region: 'eu-central-1',
+      credentials: { accessKeyId: 'test', secretAccessKey: 'test' },
+    });
+    try {
+      const adapter = new S3StorageService(offlineClient, config, getSignedUrl);
+      const url = new URL(
+        await adapter.createUploadUrl({
+          key: 'new.jpg',
+          contentType: 'image/jpeg',
+          expiresIn: 900,
+        }),
+      );
+      const headers = url.searchParams.get('X-Amz-SignedHeaders')?.split(';');
+      expect(headers).toEqual(expect.arrayContaining(['if-none-match', 'content-type', 'host']));
+      expect(url.searchParams.get('X-Amz-Expires')).toBe('900');
+    } finally {
+      offlineClient.destroy();
+    }
   });
 });

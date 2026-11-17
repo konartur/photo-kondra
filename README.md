@@ -78,6 +78,11 @@ docker compose down
 
 ## Object storage configuration
 
+See the [storage and private-link security audit](docs/security/storage-private-links-audit.md)
+for signed URL limits, deployment checks, residual risks and the required conditional-PUT CORS update.
+
+Production setup: [покрокова інструкція CORS для HTTPS-домену](docs/production-cors.md).
+
 The API starts without cloud credentials so that health checks and local database work remain available. Storage operations require `AWS_REGION` and `AWS_S3_BUCKET`; set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` together when using static AWS credentials. The application otherwise uses the AWS SDK default credential provider chain.
 
 For an S3-compatible provider such as MinIO or Cloudflare R2, configure `AWS_S3_ENDPOINT`. Set `AWS_S3_FORCE_PATH_STYLE=true` when the provider requires path-style bucket URLs. The bucket must remain private; the API will use short-lived signed URLs when upload and download endpoints are introduced.

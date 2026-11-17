@@ -1,3 +1,4 @@
+import { signedUrlLimits, validateSignedUrlTtl } from '../storage/signed-url-policy.js';
 import {
   BadRequestException,
   ConflictException,
@@ -44,7 +45,10 @@ export class PhotosService {
 
     const photoId = randomUUID();
     const originalKey = `galleries/${galleryId}/originals/${photoId}.${PHOTO_MIME_EXTENSIONS[dto.mimeType]}`;
-    const expiresIn = this.getPositiveIntegerConfig('SIGNED_URL_UPLOAD_TTL');
+    const expiresIn = validateSignedUrlTtl(
+      this.getPositiveIntegerConfig('SIGNED_URL_UPLOAD_TTL'),
+      signedUrlLimits.upload,
+    );
     const uploadUrl = await this.storage.createUploadUrl({
       key: originalKey,
       contentType: dto.mimeType,

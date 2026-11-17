@@ -22,6 +22,7 @@ export interface UploadObjectParams {
 }
 
 export interface StorageService {
+  /** Signs a create-only PUT; callers must send Content-Type and If-None-Match: *. */
   createUploadUrl(params: CreateUploadUrlParams): Promise<string>;
   createDownloadUrl(params: CreateDownloadUrlParams): Promise<string>;
   upload(params: UploadObjectParams): Promise<void>;

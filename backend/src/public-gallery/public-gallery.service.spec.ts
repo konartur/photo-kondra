@@ -158,4 +158,45 @@ describe('PublicGalleryService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(storage.createDownloadUrl).not.toHaveBeenCalled();
   });
+
+  it('never issues an original URL beyond the private link expiry', async () => {
+    jest.mocked(galleryAccessService.findActiveByToken).mockResolvedValue({
+      galleryId: gallery.id,
+      expiresAt: new Date(Date.now() + 30000),
+    } as Awaited<ReturnType<GalleryAccessService['findActiveByToken']>>);
+    jest.mocked(prisma.gallery.findUnique).mockResolvedValue(gallery);
+    jest.mocked(prisma.photo.findFirst).mockResolvedValue(readyPhoto);
+    jest.mocked(storage.createDownloadUrl).mockResolvedValue('https://signed.example/original');
+    const result = await service.createPhotoDownloadUrl('private-token', readyPhoto.id);
+    expect(result.expiresIn).toBeGreaterThan(0);
+    expect(result.expiresIn).toBeLessThanOrEqual(30);
+  });
+
+  it('caps both previews to the private link expiry and refuses subsecond access', async () => {
+    jest
+      .mocked(galleryAccessService.findActiveByToken)
+      .mockResolvedValue({
+        galleryId: gallery.id,
+        expiresAt: new Date(Date.now() + 30000),
+      } as Awaited<ReturnType<GalleryAccessService['findActiveByToken']>>);
+    jest.mocked(prisma.gallery.findUnique).mockResolvedValue(gallery);
+    jest.mocked(prisma.photo.findMany).mockResolvedValue([readyPhoto]);
+    await service.getPhotos('private-token', { limit: 50 });
+    expect(storage.createDownloadUrl).toHaveBeenCalledTimes(2);
+    for (const [params] of jest.mocked(storage.createDownloadUrl).mock.calls) {
+      expect(params.expiresIn).toBeGreaterThan(0);
+      expect(params.expiresIn).toBeLessThanOrEqual(30);
+    }
+    jest.mocked(storage.createDownloadUrl).mockClear();
+    jest
+      .mocked(galleryAccessService.findActiveByToken)
+      .mockResolvedValue({
+        galleryId: gallery.id,
+        expiresAt: new Date(Date.now() + 500),
+      } as Awaited<ReturnType<GalleryAccessService['findActiveByToken']>>);
+    await expect(
+      service.createPhotoDownloadUrl('private-token', readyPhoto.id),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(storage.createDownloadUrl).not.toHaveBeenCalled();
+  });
 });

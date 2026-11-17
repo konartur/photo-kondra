@@ -1,5 +1,6 @@
+import { AppLogger, safeErrorDetails } from '../common/logging/app-logger.js';
 import { ZipArchive } from 'archiver';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ArchiveStatus, Photo, PhotoStatus } from '@prisma/client';
 import { UnrecoverableError } from 'bullmq';
 import { randomUUID } from 'node:crypto';
@@ -19,7 +20,7 @@ import type { ArchiveProgress } from './archive-progress.js';
 
 @Injectable()
 export class ArchiveGenerationService {
-  private readonly logger = new Logger(ArchiveGenerationService.name);
+  private readonly logger = new AppLogger(ArchiveGenerationService.name);
 
   constructor(
     private readonly prisma: PrismaService,
@@ -83,7 +84,7 @@ export class ArchiveGenerationService {
       progress = new ArchiveProgressTracker(
         Number(photos.reduce((sum, photo) => sum + photo.size, 0n)),
         async (value) => {
-          this.logger.log({ event: 'archive_progress', archiveId, ...value });
+          this.logger.debug({ event: 'archive_progress', archiveId, ...value });
           try {
             await report?.(value);
           } catch {
@@ -241,7 +242,7 @@ export class ArchiveGenerationService {
       const names = new Set<string>();
       for (const photo of photos) {
         progress.beginPhoto(photo.id, Number(photo.size));
-        logger.log({ event: 'archive_photo_started', archiveId, photoId: photo.id });
+        logger.debug({ event: 'archive_photo_started', archiveId, photoId: photo.id });
         // Open one S3 response at a time, only when archiver consumes this entry.
         const entry = Readable.from(
           (async function* () {
@@ -281,7 +282,7 @@ export class ArchiveGenerationService {
         const entryFinished = once(zip, 'entry');
         zip.append(entry, { name: uniqueArchiveEntryName(photo.filename, names) });
         await Promise.race([entryFinished, completion]);
-        logger.log({
+        logger.debug({
           event: 'archive_photo_completed',
           archiveId,
           photoId: photo.id,
@@ -312,7 +313,7 @@ export class ArchiveGenerationService {
     try {
       await this.storage.delete(storageKey);
     } catch {
-      this.logger.warn('Could not clean up an incomplete archive object');
+      this.logger.warn({ event: 'archive_cleanup_failed' });
     }
   }
 }
@@ -342,13 +343,6 @@ function uniqueArchiveEntryName(filename: string, names: Set<string>): string {
   return candidate;
 }
 
-class TerminalArchiveError extends Error {}
-
-function safeErrorDetails(error: unknown): { errorName: string; errorCode?: string } {
-  const code =
-    typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined;
-  return {
-    errorName: error instanceof Error ? error.name : 'UnknownError',
-    ...(typeof code === 'string' && /^[A-Za-z0-9_:-]{1,80}$/.test(code) ? { errorCode: code } : {}),
-  };
+class TerminalArchiveError extends Error {
+  override name = 'TerminalArchiveError';
 }

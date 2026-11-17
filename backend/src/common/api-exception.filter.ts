@@ -1,6 +1,7 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException, Logger } from '@nestjs/common';
+import { ArgumentsHost, Catch, ExceptionFilter, HttpException } from '@nestjs/common';
 import type { Response } from 'express';
-import { randomUUID } from 'node:crypto';
+import { AppLogger, safeErrorDetails } from './logging/app-logger.js';
+import { correlationId, currentLogContext } from './logging/log-context.js';
 
 const errors: Record<number, [string, string]> = {
   400: ['BAD_REQUEST', 'Invalid request'],
@@ -19,7 +20,7 @@ const errors: Record<number, [string, string]> = {
 
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
-  private readonly logger = new Logger(ApiExceptionFilter.name);
+  private readonly logger = new AppLogger(ApiExceptionFilter.name);
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<Response>();
@@ -59,10 +60,15 @@ export class ApiExceptionFilter implements ExceptionFilter {
         message = payload.message;
     }
     if (statusCode >= 500) {
-      const requestId = randomUUID();
+      const requestId = currentLogContext().requestId ?? correlationId();
       response.setHeader('X-Request-Id', requestId);
       // Do not serialize exceptions, URLs, bodies or headers: they may contain private tokens.
-      this.logger.error({ event: 'http_request_failed', requestId, statusCode, code });
+      this.logger.error({
+        event: 'http_request_failed',
+        requestId,
+        statusCode,
+        ...safeErrorDetails(exception),
+      });
     }
     response.setHeader('Cache-Control', 'no-store');
     response.status(statusCode).json({ statusCode, code, message });

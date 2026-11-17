@@ -1,4 +1,5 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { AppLogger, safeErrorDetails } from '../common/logging/app-logger.js';
+import { Inject, Injectable } from '@nestjs/common';
 import { Photo, PhotoStatus } from '@prisma/client';
 import { UnrecoverableError } from 'bullmq';
 import { randomUUID } from 'node:crypto';
@@ -12,7 +13,7 @@ import type { ImageProcessingConfig } from './image-processing.config.js';
 
 @Injectable()
 export class ImageProcessingService {
-  private readonly logger = new Logger(ImageProcessingService.name);
+  private readonly logger = new AppLogger(ImageProcessingService.name);
 
   constructor(
     private readonly prisma: PrismaService,
@@ -43,12 +44,22 @@ export class ImageProcessingService {
       return;
     }
 
+    this.logger.log({
+      event: 'image_processing_started',
+      photoId: photo.id,
+      galleryId: photo.galleryId,
+    });
     try {
       await this.processPhoto(photo, lockId);
     } catch (error) {
       await this.cleanupDerivatives(photo);
       await this.markFailed(photo.id, lockId);
-      this.logger.error(`Image processing failed for photo ${photo.id}`);
+      this.logger.error({
+        event: 'image_processing_failed',
+        photoId: photo.id,
+        galleryId: photo.galleryId,
+        ...safeErrorDetails(error),
+      });
 
       if (error instanceof TerminalProcessingError) {
         throw new UnrecoverableError(error.message);
@@ -116,6 +127,12 @@ export class ImageProcessingService {
 
     if (updated.count === 0) {
       await this.cleanupDerivativeKeys([thumbnailKey, previewKey]);
+    } else {
+      this.logger.log({
+        event: 'image_processing_completed',
+        photoId: photo.id,
+        galleryId: photo.galleryId,
+      });
     }
   }
 
@@ -151,7 +168,7 @@ export class ImageProcessingService {
   private async cleanupDerivativeKeys(keys: string[]): Promise<void> {
     const results = await Promise.allSettled(keys.map((key) => this.storage.delete(key)));
     if (results.some((result) => result.status === 'rejected')) {
-      this.logger.warn('Could not clean up one or more incomplete image derivatives');
+      this.logger.warn({ event: 'image_cleanup_failed' });
     }
   }
 
@@ -166,4 +183,6 @@ export class ImageProcessingService {
   }
 }
 
-class TerminalProcessingError extends Error {}
+class TerminalProcessingError extends Error {
+  override name = 'TerminalProcessingError';
+}

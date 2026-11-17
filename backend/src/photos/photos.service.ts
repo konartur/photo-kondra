@@ -1,3 +1,5 @@
+import { AppLogger, safeErrorDetails } from '../common/logging/app-logger.js';
+import { jobCorrelation } from '../common/logging/log-context.js';
 import { signedUrlLimits, validateSignedUrlTtl } from '../storage/signed-url-policy.js';
 import {
   BadRequestException,
@@ -27,6 +29,7 @@ import { PHOTO_MIME_EXTENSIONS } from './photo-upload.constants.js';
 
 @Injectable()
 export class PhotosService {
+  private readonly logger = new AppLogger(PhotosService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly galleriesService: GalleriesService,
@@ -69,6 +72,7 @@ export class PhotosService {
       }),
     );
 
+    this.logger.log({ event: 'upload_created', userId: ownerId, galleryId, photoId });
     return { photoId, uploadUrl, expiresIn };
   }
 
@@ -90,7 +94,32 @@ export class PhotosService {
       }),
     );
 
-    await this.imageProcessingQueue.add(PROCESS_PHOTO_JOB_NAME, { photoId });
+    this.logger.log({
+      event: 'upload_completed',
+      userId: ownerId,
+      galleryId: photo.galleryId,
+      photoId,
+    });
+    try {
+      const job = await this.imageProcessingQueue.add(PROCESS_PHOTO_JOB_NAME, {
+        photoId,
+        ...jobCorrelation(),
+      });
+      this.logger.log({
+        event: 'image_job_enqueued',
+        photoId,
+        jobId: job?.id,
+        queue: 'image-processing',
+      });
+    } catch (error) {
+      this.logger.error({
+        event: 'job_enqueue_failed',
+        photoId,
+        queue: 'image-processing',
+        ...safeErrorDetails(error),
+      });
+      throw error;
+    }
 
     return toPhotoResponse(updatedPhoto);
   }

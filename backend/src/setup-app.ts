@@ -14,6 +14,7 @@ import { createHttpSecurityConfig } from './common/http-security.config.js';
 import { createApiRateLimiter } from './common/api-rate-limiter.js';
 import { ApiExceptionFilter } from './common/api-exception.filter.js';
 import { ApiErrorDto } from './common/api-error.dto.js';
+import { requestLogging } from './common/logging/request-logging.js';
 
 // Shared by the HTTP bootstrap and E2E tests so tests exercise the deployed policy.
 export function setupApp(
@@ -27,6 +28,7 @@ export function setupApp(
 ) {
   const expressApp: Express = app.getHttpAdapter().getInstance();
   expressApp.set('trust proxy', security.trustedProxies.length ? security.trustedProxies : false);
+  app.use(requestLogging());
   app.useGlobalFilters(new ApiExceptionFilter());
   app.use(
     helmet({
@@ -102,10 +104,19 @@ export function setupApp(
         operation.responses[status] ??= { description: 'API request error' };
       }
       for (const [status, result] of Object.entries(operation.responses)) {
-        if (Number(status) < 400 || !result || '$ref' in result) continue;
+        if (!result || '$ref' in result) continue;
+        result.headers = {
+          ...result.headers,
+          'X-Request-Id': {
+            description: 'Server-generated request correlation ID',
+            schema: { type: 'string', format: 'uuid' },
+          },
+        };
+        if (Number(status) < 400) continue;
         result.content = { 'application/json': { schema: { $ref: getSchemaPath(ApiErrorDto) } } };
         if (status === '429')
           result.headers = {
+            ...result.headers,
             'Retry-After': { description: 'Seconds until retry', schema: { type: 'integer' } },
           };
       }

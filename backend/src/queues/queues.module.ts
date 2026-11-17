@@ -1,3 +1,4 @@
+import { logTransportError } from '../common/logging/job-logging.js';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
@@ -21,16 +22,25 @@ import { QueuesService } from './queues.service.js';
       provide: IMAGE_PROCESSING_QUEUE,
       inject: [QUEUE_CONFIG],
       useFactory: (config: ReturnType<typeof createQueueInfrastructureConfig>) =>
-        new Queue(IMAGE_PROCESSING_QUEUE_NAME, config),
+        observedQueue(IMAGE_PROCESSING_QUEUE_NAME, config),
     },
     {
       provide: ARCHIVE_GENERATION_QUEUE,
       inject: [QUEUE_CONFIG],
       useFactory: (config: ReturnType<typeof createQueueInfrastructureConfig>) =>
-        new Queue(ARCHIVE_GENERATION_QUEUE_NAME, config),
+        observedQueue(ARCHIVE_GENERATION_QUEUE_NAME, config),
     },
     QueuesService,
   ],
   exports: [IMAGE_PROCESSING_QUEUE, ARCHIVE_GENERATION_QUEUE, QUEUE_CONFIG],
 })
 export class QueuesModule {}
+
+function observedQueue(
+  name: 'image-processing' | 'archive-generation',
+  config: ReturnType<typeof createQueueInfrastructureConfig>,
+): Queue {
+  const queue = new Queue(name, config);
+  queue.on('error', (error) => logTransportError('queue_error', name, error));
+  return queue;
+}

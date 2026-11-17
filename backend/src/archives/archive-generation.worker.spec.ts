@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { Logger } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import type { Job, Processor } from 'bullmq';
 import type { GenerateArchiveJobData } from '../queues/queue.constants.js';
 import type { QueueInfrastructureConfig } from '../queues/queue.config.js';
@@ -6,19 +8,34 @@ import type { ArchiveGenerationService } from './archive-generation.service.js';
 import { ArchiveLeaseBusyError } from './archive-lease-busy.error.js';
 
 const bullmq = await import('bullmq');
-const worker = jest.fn().mockImplementation(() => ({ on: jest.fn(), close: jest.fn() }));
+const on = jest.fn();
+const worker = jest.fn().mockImplementation(() => ({ on, close: jest.fn() }));
 jest.unstable_mockModule('bullmq', () => ({ ...bullmq, Worker: worker }));
 const { ArchiveGenerationWorker } = await import('./archive-generation.worker.js');
 
 describe('archive worker lease conflicts', () => {
   const process = jest.fn<ArchiveGenerationService['process']>();
   const moveToDelayed = jest.fn<Job['moveToDelayed']>();
-  const job = { data: { archiveId: 'id' }, moveToDelayed, updateProgress: jest.fn() } as unknown as Job<GenerateArchiveJobData>;
+  const job = {
+    id: '1',
+    attemptsMade: 0,
+    opts: { attempts: 3 },
+    data: { archiveId: 'id' },
+    moveToDelayed,
+    updateProgress: jest.fn(),
+  } as unknown as Job<GenerateArchiveJobData>;
   let processor: Processor<GenerateArchiveJobData>;
   beforeEach(() => {
-    jest.clearAllMocks(); process.mockReset();
-    new ArchiveGenerationWorker({ process } as unknown as ArchiveGenerationService, {connection:{}} as QueueInfrastructureConfig);
+    jest.clearAllMocks();
+    process.mockReset();
+    new ArchiveGenerationWorker(
+      { process } as unknown as ArchiveGenerationService,
+      { connection: {} } as QueueInfrastructureConfig,
+    );
     processor = worker.mock.calls[0]![1] as Processor<GenerateArchiveJobData>;
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('delays a lease conflict with the BullMQ lock token instead of completing the job', async () => {
@@ -31,5 +48,29 @@ describe('archive worker lease conflicts', () => {
     process.mockRejectedValue(new Error('Storage failed'));
     await expect(processor(job, 'lock-token')).rejects.toThrow('Storage failed');
     expect(moveToDelayed).not.toHaveBeenCalled();
+  });
+  it('logs a final failure emitted before the processor runs', () => {
+    const sink = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    const requestId = randomUUID();
+    const failed = on.mock.calls.find(([event]) => event === 'failed')?.[1] as (
+      job: Pick<Job<GenerateArchiveJobData>, 'id' | 'data' | 'opts' | 'attemptsMade'>,
+      error: Error,
+    ) => void;
+    expect(failed).toBeDefined();
+    failed(
+      { ...job, data: { archiveId: randomUUID(), requestId }, attemptsMade: 1 },
+      new bullmq.UnrecoverableError('private-token'),
+    );
+    expect(process).not.toHaveBeenCalled();
+    expect(sink).toHaveBeenCalledTimes(1);
+    expect(sink).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'job_exhausted',
+        requestId,
+        jobId: '1',
+        queue: 'archive-generation',
+      }),
+    );
+    expect(JSON.stringify(sink.mock.calls)).not.toContain('private-token');
   });
 });

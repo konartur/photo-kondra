@@ -1,3 +1,4 @@
+import { AppLogger } from '../common/logging/app-logger.js';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -8,6 +9,7 @@ import { AuthTokens, JwtPayload, TokenType } from './auth.types.js';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new AppLogger(AuthService.name);
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
@@ -18,7 +20,7 @@ export class AuthService {
     const user = await this.usersService.findAuthUserByEmail(email.toLowerCase());
 
     if (!user || !(await argon2.verify(user.passwordHash, password))) {
-      throw new UnauthorizedException('Invalid email or password');
+      this.rejectAuthentication('login');
     }
 
     const sessionId = randomUUID();
@@ -39,11 +41,11 @@ export class AuthService {
         secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
       });
     } catch {
-      throw new UnauthorizedException('Invalid refresh token');
+      this.rejectAuthentication('refresh');
     }
 
     if (payload.type !== 'refresh') {
-      throw new UnauthorizedException('Invalid refresh token');
+      this.rejectAuthentication('refresh');
     }
 
     const session = await this.usersService.findAuthSession(payload.sessionId, payload.sub);
@@ -52,10 +54,10 @@ export class AuthService {
       session.expiresAt <= new Date() ||
       !(await argon2.verify(session.refreshTokenHash, refreshToken))
     ) {
-      throw new UnauthorizedException('Invalid refresh token');
+      this.rejectAuthentication('refresh');
     }
     const user = await this.usersService.findAuthUserById(payload.sub);
-    if (!user) throw new UnauthorizedException('Invalid refresh token');
+    if (!user) this.rejectAuthentication('refresh');
     const tokens = await this.createTokens(user, session.id);
     await this.usersService.rotateAuthSession(
       session.id,
@@ -75,6 +77,13 @@ export class AuthService {
       throw new UnauthorizedException();
     }
     return this.usersService.toPublicUser(user);
+  }
+
+  private rejectAuthentication(operation: 'login' | 'refresh'): never {
+    this.logger.warn({ event: 'authentication_failed', operation });
+    throw new UnauthorizedException(
+      operation === 'login' ? 'Invalid email or password' : 'Invalid refresh token',
+    );
   }
 
   private async createTokens(user: AuthUser, sessionId: string): Promise<AuthTokens> {

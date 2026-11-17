@@ -327,8 +327,12 @@ The global exception filter returns `{ statusCode, code, message }`. Expected 4x
 messages and explicit application codes remain usable. All 5xx responses use generic
 messages; database/AWS exception details, stack traces, request bodies and tokenized
 URLs are never serialized. Unexpected/server failures log a safe event with a
-generated `X-Request-Id`, status and code; error responses use `Cache-Control: no-store`.
+generated `X-Request-Id`, status and a safe error category; error responses use `Cache-Control: no-store`.
 Swagger documents the common error schema, 413/415/429/5xx responses and retry header.
+
+All requests now receive `X-Request-Id` before routing. The ID follows background jobs
+through BullMQ. See [structured logging and correlation](docs/logging.md) for event names,
+safe fields and `LOG_LEVEL` configuration. Production bootstrap writes JSON logs.
 
 Next.js forwards retry/rate-limit/request-ID headers through an explicit allowlist.
 Login preserves 429/503 instead of converting every failure to 401. Refresh preserves
@@ -439,7 +443,7 @@ expiry and preservation of the full-album archive. Unit tests check ZIP contents
 content changes, job limits and cleanup retries. Playwright covers selection,
 preparation, retry, download and access revocation with mocked public API responses.
 
-Archive progress is logged as `archive_progress` every five seconds and persisted
+Archive progress is logged at debug level as `archive_progress` every five seconds and persisted
 in BullMQ `job.progress`. Fields include `readPercent`, `photoPercent`,
 `readBytesPerSecond`, `uploadBytesPerSecond`, `readIdleSeconds`, `uploadIdleSeconds`,
 `readBytes`, `uploadedBytes` and `phase` (`streaming`, `publishing`, `ready`, `failed`).

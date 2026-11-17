@@ -1,3 +1,5 @@
+import { AppLogger, safeErrorDetails } from '../common/logging/app-logger.js';
+import { jobCorrelation } from '../common/logging/log-context.js';
 import {
   BadRequestException,
   Inject,
@@ -18,6 +20,7 @@ import type { GenerateArchiveJobData } from '../queues/queue.constants.js';
 
 @Injectable()
 export class ArchivesService {
+  private readonly logger = new AppLogger(ArchivesService.name);
   constructor(
     private readonly prisma: PrismaService,
     @Inject(ARCHIVE_GENERATION_QUEUE) private readonly queue: Queue<GenerateArchiveJobData>,
@@ -82,10 +85,23 @@ export class ArchivesService {
     try {
       await this.queue.add(
         GENERATE_ARCHIVE_JOB_NAME,
-        { archiveId: archive.id },
+        { archiveId: archive.id, ...jobCorrelation() },
         { jobId: archive.id },
       );
-    } catch {
+      this.logger.log({
+        event: 'archive_job_enqueued',
+        archiveId: archive.id,
+        galleryId: archive.galleryId,
+        jobId: archive.id,
+        queue: 'archive-generation',
+      });
+    } catch (error) {
+      this.logger.error({
+        event: 'job_enqueue_failed',
+        archiveId: archive.id,
+        queue: 'archive-generation',
+        ...safeErrorDetails(error),
+      });
       await this.prisma.archive.updateMany({
         where: { id: archive.id, status: 'PENDING' },
         data: { status: 'FAILED' },

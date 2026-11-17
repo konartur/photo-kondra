@@ -1,11 +1,12 @@
-import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { AppLogger } from '../common/logging/app-logger.js';
+import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { STORAGE_SERVICE } from '../storage/storage.service.js';
 import type { StorageService } from '../storage/storage.service.js';
 
 @Injectable()
 export class SelectedArchiveCleanupService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(SelectedArchiveCleanupService.name);
+  private readonly logger = new AppLogger(SelectedArchiveCleanupService.name);
   private timer?: ReturnType<typeof setInterval>;
   private running = false;
 

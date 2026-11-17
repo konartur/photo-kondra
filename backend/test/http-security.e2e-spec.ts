@@ -259,11 +259,48 @@ describe('HTTP security boundaries', () => {
     const result = await request(app.getHttpServer()).get('/api/docs-json').expect(200);
     expect(result.body.components.schemas.ApiErrorDto).toBeDefined();
     expect(
+      result.body.paths['/api/v1/health'].get.responses['200'].headers['X-Request-Id'].schema
+        .format,
+    ).toBe('uuid');
+    expect(
       result.body.paths['/api/v1/auth/login'].post.responses['429'].headers['Retry-After'],
     ).toBeDefined();
     expect(
       result.body.paths['/api/v1/auth/login'].post.responses['413'].content['application/json']
         .schema.$ref,
     ).toContain('ApiErrorDto');
+  });
+
+  it('assigns isolated IDs before routing and omits private paths and headers from access logs', async () => {
+    const debug = jest.spyOn(Logger.prototype, 'debug').mockImplementation(() => {});
+    const warning = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    const suppliedId = randomUUID();
+    const [success, missing] = await Promise.all([
+      request(app.getHttpServer()).get('/api/v1/health').set('X-Request-Id', suppliedId),
+      request(app.getHttpServer())
+        .get('/api/v1/missing/private-token?signature=signed-secret')
+        .set('Authorization', 'Bearer jwt-secret'),
+    ]);
+    expect(success.status).toBe(200);
+    expect(missing.status).toBe(404);
+    expect(success.headers['x-request-id']).not.toBe(suppliedId);
+    expect(success.headers['x-request-id']).not.toBe(missing.headers['x-request-id']);
+    expect(debug).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'http_request_completed',
+        requestId: success.headers['x-request-id'],
+        statusCode: 200,
+      }),
+    );
+    expect(warning).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'http_request_completed',
+        requestId: missing.headers['x-request-id'],
+        statusCode: 404,
+      }),
+    );
+    expect(JSON.stringify([debug.mock.calls, warning.mock.calls])).not.toMatch(
+      /private-token|signed-secret|jwt-secret|Authorization/,
+    );
   });
 });

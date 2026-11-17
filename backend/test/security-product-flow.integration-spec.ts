@@ -1,5 +1,6 @@
+import { JobLogger } from '../src/common/logging/job-logging.js';
 import 'reflect-metadata';
-import type { INestApplication } from '@nestjs/common';
+import { Logger, type INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { beforeAll, afterAll, describe, expect, it, jest } from '@jest/globals';
@@ -106,125 +107,184 @@ describe('real product controllers/services with HTTP security enabled', () => {
   });
 
   it('preserves login, direct upload, Sharp processing, private viewing, original/ZIP downloads, refresh and logout', async () => {
-    const http = request(app.getHttpServer());
-    await http.get('/api/v1/galleries').expect(401);
-    const login = await http.post('/api/v1/auth/login').send({ email, password }).expect(201);
-    const bearer = `Bearer ${login.body.accessToken}`;
-    await http.get('/api/v1/auth/me').set('Authorization', bearer).expect(200);
-    await http
-      .post('/api/v1/galleries')
-      .set('Authorization', bearer)
-      .send({ title: 'Security flow', ownerId: 'forbidden' })
-      .expect(400);
-    const gallery = await http
-      .post('/api/v1/galleries')
-      .set('Authorization', bearer)
-      .send({ title: 'Security flow' })
-      .expect(201);
-    const galleryId = gallery.body.id as string;
-    const original = await sharp({
-      create: { width: 32, height: 24, channels: 3, background: '#336699' },
-    })
-      .jpeg()
-      .toBuffer();
-    const upload = await http
-      .post(`/api/v1/galleries/${galleryId}/photos/upload-url`)
-      .set('Authorization', bearer)
-      .send({ filename: 'original.jpg', mimeType: 'image/jpeg', size: original.length })
-      .expect(201);
-    expect(upload.body.uploadUrl).toBe('https://storage.example/upload-signed');
-    const photoId = upload.body.photoId as string;
-    const uploading = await prisma.photo.findUniqueOrThrow({ where: { id: photoId } });
-    objects.set(uploading.originalKey!, original); // Simulate browser PUT directly into private storage.
-    await http
-      .post(`/api/v1/photos/${photoId}/upload-complete`)
-      .set('Authorization', bearer)
-      .expect(201);
-    expect(imageAdd).toHaveBeenCalledWith('process-photo', { photoId });
-    await images.process({ photoId });
-    expect((await prisma.photo.findUniqueOrThrow({ where: { id: photoId } })).status).toBe('READY');
-    await http
-      .post(`/api/v1/galleries/${galleryId}/publish`)
-      .set('Authorization', bearer)
-      .expect(202);
-    const preparing = await http
-      .get(`/api/v1/galleries/${galleryId}/archive`)
-      .set('Authorization', bearer)
-      .expect(200);
-    await archives.process({ archiveId: preparing.body.id as string });
-    const link = await http
-      .post(`/api/v1/galleries/${galleryId}/access-links`)
-      .set('Authorization', bearer)
-      .send({})
-      .expect(201);
-    const token = new URL(link.body.url as string).pathname.split('/').pop()!;
-    // A database ID is never a substitute for the private bearer token.
-    await http.get(`/api/v1/public/galleries/${galleryId}`).expect(404);
-    await http.get(`/api/v1/public/galleries/${photoId}`).expect(404);
-    await http.get(`/api/v1/galleries/${galleryId}`).expect(401);
-    const foreignGallery = await prisma.gallery.create({
-      data: { ownerId, title: 'Other private gallery', status: 'READY' },
-    });
-    const foreignPhoto = await prisma.photo.create({
-      data: {
-        galleryId: foreignGallery.id,
-        filename: 'other.jpg',
-        mimeType: 'image/jpeg',
-        size: original.length,
-        status: 'READY',
-        originalKey: `idor-test/${randomUUID()}.jpg`,
-      },
-    });
-    objects.set(foreignPhoto.originalKey!, original);
-    const foreignArchive = await prisma.archive.create({ data: { galleryId: foreignGallery.id } });
-    await http.get(`/api/v1/public/galleries/${foreignGallery.id}`).expect(404);
-    const deniedPhoto = await http
-      .get(`/api/v1/public/photos/${token}/${foreignPhoto.id}/download`)
-      .expect(404);
-    expect(deniedPhoto.body).not.toHaveProperty('downloadUrl');
-    await http.get(`/api/v1/public/archives/${foreignArchive.id}?token=${token}`).expect(404);
-    await http.get(`/api/v1/public/archives/${foreignArchive.id}`).expect(400);
-    await http
-      .post(`/api/v1/public/galleries/${token}/archives`)
-      .send({ photoIds: [foreignPhoto.id] })
-      .expect(400);
-    const publicGallery = await http
-      .get(`/api/v1/public/galleries/${token}`)
-      .set('Origin', 'https://photos.example')
-      .expect(200);
-    expect(publicGallery.headers['access-control-allow-origin']).toBe('https://photos.example');
-    expect(publicGallery.headers['x-content-type-options']).toBe('nosniff');
-    expect(publicGallery.headers['cache-control']).toBe('no-store');
-    const photos = await http.get(`/api/v1/public/galleries/${token}/photos?limit=1`).expect(200);
-    expect(photos.headers['cache-control']).toBe('no-store');
-    expect(photos.body.items[0].id).toBe(photoId);
-    expect(photos.body.items[0]).not.toHaveProperty('originalKey');
-    const download = await http
-      .get(`/api/v1/public/photos/${token}/${photoId}/download`)
-      .expect(200);
-    expect(download.headers['cache-control']).toBe('no-store');
-    expect(download.body.downloadUrl).toContain('original.jpg');
-    await http.get(`/api/v1/public/galleries/${token}/archive`).expect(200);
-    const selected = await http
-      .post(`/api/v1/public/galleries/${token}/archives`)
-      .send({ photoIds: [photoId] })
-      .expect(202);
-    await archives.process({ archiveId: selected.body.id as string });
-    const ready = await http
-      .get(`/api/v1/public/archives/${selected.body.id}?token=${token}`)
-      .expect(200);
-    expect(ready.body.status).toBe('READY');
-    const refresh = await http
-      .post('/api/v1/auth/refresh')
-      .send({ refreshToken: login.body.refreshToken })
-      .expect(200);
-    await http
-      .post('/api/v1/auth/logout')
-      .set('Authorization', `Bearer ${refresh.body.accessToken}`)
-      .expect(204);
-    await http
-      .post('/api/v1/auth/refresh')
-      .send({ refreshToken: refresh.body.refreshToken })
-      .expect(401);
+    const info = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
+    const warnings = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    try {
+      const http = request(app.getHttpServer());
+      await http.get('/api/v1/galleries').expect(401);
+      const login = await http.post('/api/v1/auth/login').send({ email, password }).expect(201);
+      const bearer = `Bearer ${login.body.accessToken}`;
+      await http.get('/api/v1/auth/me').set('Authorization', bearer).expect(200);
+      await http
+        .post('/api/v1/galleries')
+        .set('Authorization', bearer)
+        .send({ title: 'Security flow', ownerId: 'forbidden' })
+        .expect(400);
+      const gallery = await http
+        .post('/api/v1/galleries')
+        .set('Authorization', bearer)
+        .send({ title: 'Security flow' })
+        .expect(201);
+      const galleryId = gallery.body.id as string;
+      const original = await sharp({
+        create: { width: 32, height: 24, channels: 3, background: '#336699' },
+      })
+        .jpeg()
+        .toBuffer();
+      const upload = await http
+        .post(`/api/v1/galleries/${galleryId}/photos/upload-url`)
+        .set('Authorization', bearer)
+        .send({ filename: 'original.jpg', mimeType: 'image/jpeg', size: original.length })
+        .expect(201);
+      expect(upload.body.uploadUrl).toBe('https://storage.example/upload-signed');
+      const photoId = upload.body.photoId as string;
+      const uploading = await prisma.photo.findUniqueOrThrow({ where: { id: photoId } });
+      objects.set(uploading.originalKey!, original); // Simulate browser PUT directly into private storage.
+      const completion = await http
+        .post(`/api/v1/photos/${photoId}/upload-complete`)
+        .set('Authorization', bearer)
+        .expect(201);
+      const imageData = { photoId, requestId: completion.headers['x-request-id'] as string };
+      expect(imageAdd).toHaveBeenCalledWith('process-photo', imageData);
+      await new JobLogger('image-processing').run(
+        { id: '1', data: imageData, attemptsMade: 0, opts: { attempts: 3 } },
+        () => images.process(imageData),
+      );
+      expect((await prisma.photo.findUniqueOrThrow({ where: { id: photoId } })).status).toBe(
+        'READY',
+      );
+      await http
+        .post(`/api/v1/galleries/${galleryId}/publish`)
+        .set('Authorization', bearer)
+        .expect(202);
+      const preparing = await http
+        .get(`/api/v1/galleries/${galleryId}/archive`)
+        .set('Authorization', bearer)
+        .expect(200);
+      await archives.process({ archiveId: preparing.body.id as string });
+      const link = await http
+        .post(`/api/v1/galleries/${galleryId}/access-links`)
+        .set('Authorization', bearer)
+        .send({})
+        .expect(201);
+      const token = new URL(link.body.url as string).pathname.split('/').pop()!;
+      // A database ID is never a substitute for the private bearer token.
+      await http.get(`/api/v1/public/galleries/${galleryId}`).expect(404);
+      await http.get(`/api/v1/public/galleries/${photoId}`).expect(404);
+      await http.get(`/api/v1/galleries/${galleryId}`).expect(401);
+      const foreignGallery = await prisma.gallery.create({
+        data: { ownerId, title: 'Other private gallery', status: 'READY' },
+      });
+      const foreignPhoto = await prisma.photo.create({
+        data: {
+          galleryId: foreignGallery.id,
+          filename: 'other.jpg',
+          mimeType: 'image/jpeg',
+          size: original.length,
+          status: 'READY',
+          originalKey: `idor-test/${randomUUID()}.jpg`,
+        },
+      });
+      objects.set(foreignPhoto.originalKey!, original);
+      const foreignArchive = await prisma.archive.create({
+        data: { galleryId: foreignGallery.id },
+      });
+      await http.get(`/api/v1/public/galleries/${foreignGallery.id}`).expect(404);
+      const deniedPhoto = await http
+        .get(`/api/v1/public/photos/${token}/${foreignPhoto.id}/download`)
+        .expect(404);
+      expect(deniedPhoto.body).not.toHaveProperty('downloadUrl');
+      await http.get(`/api/v1/public/archives/${foreignArchive.id}?token=${token}`).expect(404);
+      await http.get(`/api/v1/public/archives/${foreignArchive.id}`).expect(400);
+      await http
+        .post(`/api/v1/public/galleries/${token}/archives`)
+        .send({ photoIds: [foreignPhoto.id] })
+        .expect(400);
+      const publicGallery = await http
+        .get(`/api/v1/public/galleries/${token}`)
+        .set('Origin', 'https://photos.example')
+        .expect(200);
+      expect(publicGallery.headers['access-control-allow-origin']).toBe('https://photos.example');
+      expect(publicGallery.headers['x-content-type-options']).toBe('nosniff');
+      expect(publicGallery.headers['cache-control']).toBe('no-store');
+      const photos = await http.get(`/api/v1/public/galleries/${token}/photos?limit=1`).expect(200);
+      expect(photos.headers['cache-control']).toBe('no-store');
+      expect(photos.body.items[0].id).toBe(photoId);
+      expect(photos.body.items[0]).not.toHaveProperty('originalKey');
+      const download = await http
+        .get(`/api/v1/public/photos/${token}/${photoId}/download`)
+        .expect(200);
+      expect(download.headers['cache-control']).toBe('no-store');
+      expect(download.body.downloadUrl).toContain('original.jpg');
+      await http.get(`/api/v1/public/galleries/${token}/archive`).expect(200);
+      const selected = await http
+        .post(`/api/v1/public/galleries/${token}/archives`)
+        .send({ photoIds: [photoId] })
+        .expect(202);
+      await archives.process({ archiveId: selected.body.id as string });
+      const ready = await http
+        .get(`/api/v1/public/archives/${selected.body.id}?token=${token}`)
+        .expect(200);
+      expect(ready.body.status).toBe('READY');
+      await http
+        .delete('/api/v1/access-links/' + String(link.body.id))
+        .set('Authorization', bearer)
+        .expect(204);
+      const refresh = await http
+        .post('/api/v1/auth/refresh')
+        .send({ refreshToken: login.body.refreshToken })
+        .expect(200);
+      await http
+        .post('/api/v1/auth/logout')
+        .set('Authorization', `Bearer ${refresh.body.accessToken}`)
+        .expect(204);
+      await http
+        .post('/api/v1/auth/refresh')
+        .send({ refreshToken: refresh.body.refreshToken })
+        .expect(401);
+      const records = info.mock.calls.map(([record]) => record);
+      for (const event of [
+        'upload_created',
+        'upload_completed',
+        'image_job_enqueued',
+        'archive_job_enqueued',
+        'image_processing_started',
+        'image_processing_completed',
+        'access_link_created',
+        'access_link_revoked',
+      ]) {
+        expect(records).toContainEqual(expect.objectContaining({ event }));
+      }
+      expect(records).toContainEqual(
+        expect.objectContaining({
+          event: 'upload_created',
+          requestId: upload.headers['x-request-id'],
+          photoId,
+          galleryId,
+        }),
+      );
+      expect(imageAdd).toHaveBeenCalledWith(
+        'process-photo',
+        expect.objectContaining({ photoId, requestId: expect.any(String) }),
+      );
+      expect(warnings).toHaveBeenCalledWith(
+        expect.objectContaining({ event: 'authentication_failed', operation: 'refresh' }),
+      );
+      const serialized = JSON.stringify([info.mock.calls, warnings.mock.calls]);
+      for (const secret of [
+        password,
+        email,
+        login.body.accessToken as string,
+        login.body.refreshToken as string,
+        token,
+        'galleries/',
+        'storage.example',
+        'original.jpg',
+      ])
+        expect(serialized).not.toContain(secret);
+    } finally {
+      info.mockRestore();
+      warnings.mockRestore();
+    }
   });
 });

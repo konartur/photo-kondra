@@ -1,4 +1,4 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { UserRole } from '@prisma/client';
@@ -37,14 +37,21 @@ describe('AuthService', () => {
   });
 
   it('rejects invalid credentials without revealing which field failed', async () => {
-    const usersService = {
-      findAuthUserByEmail: jest.fn<() => Promise<AuthUser | null>>().mockResolvedValue(null),
-    } as unknown as UsersService;
-    const service = new AuthService(usersService, new JwtService(), configService);
+    const log = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    try {
+      const usersService = {
+        findAuthUserByEmail: jest.fn<() => Promise<AuthUser | null>>().mockResolvedValue(null),
+      } as unknown as UsersService;
+      const service = new AuthService(usersService, new JwtService(), configService);
 
-    await expect(service.login('admin@example.com', 'incorrect password')).rejects.toBeInstanceOf(
-      UnauthorizedException,
-    );
+      await expect(service.login('admin@example.com', 'incorrect password')).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+      expect(log).toHaveBeenCalledWith({ event: 'authentication_failed', operation: 'login' });
+      expect(JSON.stringify(log.mock.calls)).not.toMatch(/admin@example.com|incorrect password/);
+    } finally {
+      log.mockRestore();
+    }
   });
 
   it('rotates a valid refresh token', async () => {

@@ -1,3 +1,4 @@
+import { AppLogger } from '../common/logging/app-logger.js';
 import {
   BadRequestException,
   ConflictException,
@@ -17,6 +18,7 @@ import {
 
 @Injectable()
 export class GalleryAccessService {
+  private readonly logger = new AppLogger(GalleryAccessService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly galleriesService: GalleriesService,
@@ -42,6 +44,12 @@ export class GalleryAccessService {
           data: { galleryId, tokenHash: hashToken(token), expiresAt },
         });
 
+        this.logger.log({
+          event: 'access_link_created',
+          userId: ownerId,
+          galleryId,
+          accessLinkId: access.id,
+        });
         return { ...toResponse(access), url: `${this.appUrl}/g/${token}` };
       } catch (error) {
         if (!isTokenHashConflict(error) || attempt === 2) throw error;
@@ -72,6 +80,12 @@ export class GalleryAccessService {
     await this.prisma.galleryAccess.update({
       where: { id: accessLinkId },
       data: { isActive: false },
+    });
+    this.logger.log({
+      event: 'access_link_revoked',
+      userId: ownerId,
+      galleryId: accessLink.galleryId,
+      accessLinkId,
     });
   }
 

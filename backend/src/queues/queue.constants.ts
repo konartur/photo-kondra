@@ -7,9 +7,11 @@ export const IMAGE_PROCESSING_QUEUE = Symbol('IMAGE_PROCESSING_QUEUE');
 export const ARCHIVE_GENERATION_QUEUE = Symbol('ARCHIVE_GENERATION_QUEUE');
 
 export interface ProcessPhotoJobData {
+  requestId?: string;
   photoId: string;
 }
 
 export interface GenerateArchiveJobData {
+  requestId?: string;
   archiveId: string;
 }

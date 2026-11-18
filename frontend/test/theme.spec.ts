@@ -1,22 +1,21 @@
 import { expect, test } from '@playwright/test';
 
-test('keeps an accessible fixed toggle and saved choice across home, login, admin and 404', async ({
+test('keeps an accessible fixed toggle and saved choice across Photo Cloud routes', async ({
   page,
   context,
 }, testInfo) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.emulateMedia({ colorScheme: 'dark' });
-  await page.goto('/');
+  await page.goto('/login');
   const toggle = page.getByRole('switch', { name: 'Dark mode' });
   await expect(toggle).toBeChecked();
-  await expect(page.locator('main')).toHaveCSS('background-color', 'rgb(9, 9, 11)');
+  await expect(page.locator('section')).toHaveCSS('background-color', 'rgb(24, 24, 27)');
   await toggle.click();
   await expect(toggle).not.toBeChecked();
-  await expect(page.locator('main')).toHaveCSS('background-color', 'rgb(250, 250, 250)');
+  await expect(page.locator('section')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
   await page.reload();
   await expect(toggle).not.toBeChecked();
-  await page.goto('/login');
   await expect(toggle).toBeVisible();
   await expect(page.locator('section')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
   await page.screenshot({ path: testInfo.outputPath('login-light.png') });
@@ -53,7 +52,7 @@ test('follows system preference until selected and syncs changes between tabs', 
   context,
 }) => {
   await page.emulateMedia({ colorScheme: 'light' });
-  await page.goto('/');
+  await page.goto('/login');
   const toggle = page.getByRole('switch', { name: 'Dark mode' });
   await expect(toggle).not.toBeChecked();
   await page.emulateMedia({ colorScheme: 'dark' });
@@ -63,7 +62,7 @@ test('follows system preference until selected and syncs changes between tabs', 
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect(toggle).not.toBeChecked();
   const second = await context.newPage();
-  await second.goto('/');
+  await second.goto('/login');
   await expect(second.getByRole('switch', { name: 'Dark mode' })).not.toBeChecked();
   await second.getByRole('switch', { name: 'Dark mode' }).click();
   await expect(toggle).toBeChecked();

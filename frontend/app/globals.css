@@ -99,7 +99,7 @@ body > main {
   bottom: calc(1rem + env(safe-area-inset-bottom));
   z-index: 40;
 }
-body:has([data-photo-viewer]) .global-theme-toggle {
+body:has([data-photo-viewer], [data-portfolio]) .global-theme-toggle {
   display: none;
 }
 @media (prefers-reduced-motion: reduce) {

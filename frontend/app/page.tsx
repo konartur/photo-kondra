@@ -1,15 +1,18 @@
+import type { Metadata, Viewport } from 'next';
+import { PortfolioHome } from './_portfolio/portfolio-home';
+import PortfolioLayout from './_portfolio/portfolio-layout';
+
+export const metadata: Metadata = {
+  title: 'Invisible Gallery — Photography',
+  description: 'Invisible Gallery — авторське портфоліо фотографа. Ваші історії в кадрах.',
+};
+
+export const viewport: Viewport = { themeColor: '#F7F7F4', viewportFit: 'cover' };
+
 export default function Home() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-50 p-8">
-      <section className="max-w-xl rounded-xl bg-white p-10 shadow-sm">
-        <p className="text-sm font-medium uppercase tracking-widest text-zinc-500">
-          M0 — Project Foundation
-        </p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight">Photo Cloud</h1>
-        <p className="mt-4 text-lg text-zinc-600">
-          The application foundation is ready. Product features will be added in the next milestones.
-        </p>
-      </section>
-      </main>
+    <PortfolioLayout>
+      <PortfolioHome />
+    </PortfolioLayout>
   );
 }

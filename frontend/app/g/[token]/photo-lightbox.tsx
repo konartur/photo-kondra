@@ -4,6 +4,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { KeyboardEvent, MouseEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { ThemeToggle } from '@/app/theme-toggle';
 import { requestPublicPhotoDownload } from '@/lib/api/public-galleries';
 import type { PublicPhoto } from '@/lib/api/public-galleries';
 
@@ -33,7 +34,8 @@ export function PhotoLightbox({
   useEffect(() => {
     const body = document.body;
     const scrollY = window.scrollY;
-    const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const activeElement =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousStyles = {
       position: body.style.position,
       top: body.style.top,
@@ -127,7 +129,8 @@ export function PhotoLightbox({
       aria-describedby="photo-lightbox-position"
       aria-labelledby="photo-lightbox-title"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex bg-black/95 p-3 text-white sm:p-6"
+      data-photo-viewer
+      className="fixed inset-0 z-50 flex bg-background/95 p-3 text-foreground sm:p-6"
       onClick={handleBackdropClick}
       onKeyDown={handleKeyDown}
       ref={dialogRef}
@@ -135,6 +138,9 @@ export function PhotoLightbox({
       tabIndex={-1}
     >
       <div className="relative flex min-h-0 w-full flex-1 items-center justify-center">
+        <div className="absolute bottom-3 right-3 z-10 sm:bottom-5 sm:right-5">
+          <ThemeToggle />
+        </div>
         <img
           alt={currentPhoto.filename}
           className="max-h-full max-w-full select-none object-contain"
@@ -148,19 +154,22 @@ export function PhotoLightbox({
         <p className="sr-only" id="photo-lightbox-position">
           {positionLabel}
         </p>
-        <div aria-live="polite" className="absolute left-3 top-3 rounded bg-black/60 px-3 py-1.5 text-xs sm:left-5 sm:top-5">
+        <div
+          aria-live="polite"
+          className="absolute left-3 top-3 rounded bg-white/95 px-3 py-1.5 text-xs sm:left-5 sm:top-5"
+        >
           {positionLabel}
         </div>
         <button
           aria-label="Close photo viewer"
-          className="absolute right-3 top-3 flex size-10 items-center justify-center rounded-full bg-black/60 text-2xl transition hover:bg-black/80 focus:outline-none focus:ring-2 focus:ring-white sm:right-5 sm:top-5"
+          className="absolute right-3 top-3 flex size-10 items-center justify-center rounded-full bg-white/95 text-2xl transition hover:bg-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-950 sm:right-5 sm:top-5"
           onClick={onClose}
           type="button"
         >
           ×
         </button>
         <button
-          className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-lg bg-black/60 px-4 py-2 text-sm font-medium transition hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-white sm:bottom-5"
+          className="absolute bottom-3 left-3 rounded-lg bg-white/95 px-4 py-2 text-sm font-medium transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-zinc-950 sm:bottom-5 sm:left-5"
           disabled={isDownloading}
           onClick={() => void downloadOriginal()}
           type="button"
@@ -168,13 +177,16 @@ export function PhotoLightbox({
           {isDownloading ? 'Preparing download…' : 'Download original'}
         </button>
         {downloadError ? (
-          <p aria-live="polite" className="absolute bottom-14 left-1/2 max-w-[calc(100%-2rem)] -translate-x-1/2 rounded bg-red-950/90 px-3 py-2 text-center text-xs text-red-100 sm:bottom-16">
+          <p
+            aria-live="polite"
+            className="absolute bottom-14 left-1/2 max-w-[calc(100%-2rem)] -translate-x-1/2 rounded bg-red-50 px-3 py-2 text-center text-xs text-red-700 sm:bottom-16"
+          >
             {downloadError}
           </p>
         ) : null}
         <button
           aria-label="Previous photo"
-          className="absolute left-2 rounded-full bg-black/60 px-3 py-2 text-2xl transition hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-30 focus:outline-none focus:ring-2 focus:ring-white sm:left-5"
+          className="absolute left-2 rounded-full bg-white/95 px-3 py-2 text-2xl transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-30 focus:outline-none focus:ring-2 focus:ring-zinc-950 sm:left-5"
           disabled={!previousPhoto}
           onClick={goToPrevious}
           type="button"
@@ -183,7 +195,7 @@ export function PhotoLightbox({
         </button>
         <button
           aria-label="Next photo"
-          className="absolute right-2 rounded-full bg-black/60 px-3 py-2 text-2xl transition hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-30 focus:outline-none focus:ring-2 focus:ring-white sm:right-5"
+          className="absolute right-2 rounded-full bg-white/95 px-3 py-2 text-2xl transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-30 focus:outline-none focus:ring-2 focus:ring-zinc-950 sm:right-5"
           disabled={!nextPhoto}
           onClick={goToNext}
           type="button"
@@ -199,7 +211,9 @@ function trapFocus(event: KeyboardEvent<HTMLDivElement>, dialog: HTMLDivElement 
   if (!dialog) return;
 
   const focusable = Array.from(
-    dialog.querySelectorAll<HTMLElement>('button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'),
+    dialog.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    ),
   ).filter((element) => !element.hasAttribute('disabled'));
   if (!focusable.length) {
     event.preventDefault();

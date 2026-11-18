@@ -76,6 +76,14 @@ docker compose down
 
 `docker compose down -v` also deletes the PostgreSQL and Redis volumes. This permanently removes local database data; use it only when you intentionally want a clean database. Afterward, start services and run the migration and seed steps again.
 
+## Frontend theme
+
+The frontend has a fixed light/dark theme switch on every page and inside the photo
+viewer. It follows the system theme until the user chooses one, then remembers the
+choice in browser localStorage (`photo-cloud-theme`) and syncs it across tabs.
+Storage-disabled browsers can still switch for the current page session. The shared
+palette uses CSS `light-dark()`; photos themselves are not recolored.
+
 ## Object storage configuration
 
 See the [storage and private-link security audit](docs/security/storage-private-links-audit.md)

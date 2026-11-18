@@ -1,16 +1,26 @@
-import type { Metadata } from "next";
-import "./globals.css";
-import { Providers } from "./providers";
+import type { Metadata } from 'next';
+import './globals.css';
+import { Providers } from './providers';
+import { ThemeToggle } from './theme-toggle';
+import { themeInitializationScript } from '@/lib/theme';
 
 export const metadata: Metadata = {
-  title: "Photo Cloud",
-  description: "Private photo delivery for photographers",
+  title: 'Photo Cloud',
+  description: 'Private photo delivery for photographers',
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col"><Providers>{children}</Providers></body>
+    <html lang="en" className="h-full antialiased" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitializationScript }} />
+      </head>
+      <body className="min-h-full flex flex-col">
+        <Providers>
+          {children}
+          <ThemeToggle className="global-theme-toggle" />
+        </Providers>
+      </body>
     </html>
   );
 }

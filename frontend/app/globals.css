@@ -1,26 +1,109 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light dark;
+  --background: light-dark(#ffffff, #09090b);
+  --foreground: light-dark(#171717, #f4f4f5);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: Arial, Helvetica, sans-serif;
-  --font-mono: "Courier New", monospace;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-mono: 'Courier New', monospace;
+  /* Shared UI palette: existing surfaces, text and filled buttons stay paired in both themes. */
+  --color-white: light-dark(#ffffff, #18181b);
+  --color-zinc-50: light-dark(#fafafa, #09090b);
+  --color-zinc-100: light-dark(#f4f4f5, #18181b);
+  --color-zinc-200: light-dark(#e4e4e7, #27272a);
+  --color-zinc-300: light-dark(#d4d4d8, #3f3f46);
+  --color-zinc-400: light-dark(#a1a1aa, #71717a);
+  --color-zinc-500: light-dark(#71717a, #a1a1aa);
+  --color-zinc-600: light-dark(#52525b, #a1a1aa);
+  --color-zinc-700: light-dark(#3f3f46, #d4d4d8);
+  --color-zinc-800: light-dark(#27272a, #e4e4e7);
+  --color-zinc-900: light-dark(#18181b, #f4f4f5);
+  --color-zinc-950: light-dark(#09090b, #fafafa);
+  --color-slate-200: light-dark(#e2e8f0, #334155);
+  --color-slate-700: light-dark(#334155, #e2e8f0);
+  --color-red-50: light-dark(#fef2f2, #450a0a);
+  --color-red-100: light-dark(#fee2e2, #7f1d1d);
+  --color-red-200: light-dark(#fecaca, #7f1d1d);
+  --color-red-400: light-dark(#f87171, #ef4444);
+  --color-red-700: light-dark(#b91c1c, #fca5a5);
+  --color-red-800: light-dark(#991b1b, #fecaca);
+  --color-red-950: light-dark(#450a0a, #fef2f2);
+  --color-amber-100: light-dark(#fef3c7, #451a03);
+  --color-amber-800: light-dark(#92400e, #fde68a);
+  --color-emerald-100: light-dark(#d1fae5, #022c22);
+  --color-emerald-800: light-dark(#065f46, #a7f3d0);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Keep final page controls clear of the floating switch without adding an empty footer. */
+body > main {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+}
+
+.theme-toggle {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-around;
+  width: 88px;
+  height: 44px;
+  border: 1px solid light-dark(#d4d4d8, #52525b);
+  border-radius: 999px;
+  background: light-dark(#ffffff, #18181b);
+  color: light-dark(#52525b, #a1a1aa);
+  box-shadow: 0 4px 20px #0002;
+  cursor: pointer;
+}
+.theme-toggle svg {
+  position: relative;
+  width: 20px;
+  height: 20px;
+}
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 4px;
+}
+.theme-toggle-thumb {
+  position: absolute;
+  left: 4px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: light-dark(#f4f4f5, #3f3f46);
+  transition: transform 150ms ease;
+}
+:root[data-theme='dark'] .theme-toggle-thumb {
+  transform: translateX(44px);
+}
+.global-theme-toggle {
+  position: fixed;
+  right: calc(1rem + env(safe-area-inset-right));
+  bottom: calc(1rem + env(safe-area-inset-bottom));
+  z-index: 40;
+}
+body:has([data-photo-viewer]) .global-theme-toggle {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme-toggle-thumb {
+    transition: none;
+  }
 }

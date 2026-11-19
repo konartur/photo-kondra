@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { BookingTrigger } from './portfolio-booking';
+import { portfolioBrand } from './portfolio-brand';
 import styles from './portfolio.module.css';
 
 const sections = [
@@ -101,7 +102,7 @@ export function PortfolioNavigation({ storySlug }: { storySlug?: string }) {
         data-menu-open={menuOpen}
       >
         <a className={styles.brand} href={storyPage ? '/' : '#home'}>
-          ІМ&apos;Я ФОТОГРАФА<span>PHOTOGRAPHY</span>
+          {portfolioBrand}<span>PHOTOGRAPHY</span>
         </a>
         <BookingTrigger className={styles.headerBook} slug={storySlug}>
           <span>Забронювати <span className={styles.headerBookIcon} aria-hidden="true">↗&#xFE0E;</span></span>

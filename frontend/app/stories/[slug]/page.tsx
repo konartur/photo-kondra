@@ -2,8 +2,10 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { BookingTrigger } from '../../_portfolio/portfolio-booking';
+import { portfolioBrand } from '../../_portfolio/portfolio-brand';
 import { PortfolioFooter } from '../../_portfolio/portfolio-footer';
 import PortfolioLayout from '../../_portfolio/portfolio-layout';
+import { portfolioMetadata } from '../../_portfolio/portfolio-metadata';
 import { PortfolioNavigation } from '../../_portfolio/portfolio-navigation';
 import { PortfolioPhoto } from '../../_portfolio/portfolio-photo';
 import { portfolioPrice, portfolioStories } from '../../_portfolio/portfolio-stories';
@@ -21,7 +23,7 @@ export async function generateMetadata({ params }: StoryPageProps): Promise<Meta
   const { slug } = await params;
   const story = portfolioStories.find((item) => item.slug === slug);
   if (!story) return {};
-  return { title: `${story.title} — Invisible Gallery`, description: story.subtitle };
+  return portfolioMetadata({ title: `${story.title} — ${portfolioBrand}`, description: story.subtitle, path: `/stories/${story.slug}` });
 }
 
 export default async function StoryPage({ params }: StoryPageProps) {

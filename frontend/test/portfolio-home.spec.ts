@@ -20,6 +20,7 @@ test('serves all six public stories and returns 404 for an unknown story', async
   for (const [slug, title] of stories) {
     expect((await page.goto(`/stories/${slug}`))?.status()).toBe(200);
     await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
+    await expect(page).toHaveTitle(`${title} — PhotoKondra`);
     await expect(page.locator('main img')).toHaveCount(5);
     await expect(page.getByRole('button', { name: 'Забронювати фотосесію' })).toHaveAttribute('aria-controls', 'portfolio-booking');
   }
@@ -54,7 +55,8 @@ test('shows the portfolio sections, six services and its own theme', async ({ pa
     return faces.some((face) => face.status === 'loaded');
   });
   expect(fontLoaded).toBe(true);
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Invisible Gallery — портфоліо фотографа');
+  await expect(page).toHaveTitle('PhotoKondra — Photography');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('PhotoKondra — портфоліо фотографа');
   await expect(page.locator('main > section')).toHaveCount(4);
   expect(await page.locator('main > section').evaluateAll((sections) => sections.map((section) => section.id)))
     .toEqual(['home', 'services', 'stories', 'contact']);

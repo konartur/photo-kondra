@@ -8,6 +8,7 @@ import { portfolioViewportInitializationScript } from '@/lib/portfolio-viewport'
 export const metadata: Metadata = {
   title: 'Photo Cloud',
   description: 'Private photo delivery for photographers',
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {

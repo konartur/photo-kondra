@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { BookingTrigger } from './portfolio-booking';
+import { portfolioBrand } from './portfolio-brand';
 import { LegacyStoryRedirect } from './legacy-story-redirect';
 import { PortfolioFooter } from './portfolio-footer';
 import { PortfolioNavigation } from './portfolio-navigation';
@@ -47,7 +48,7 @@ export function PortfolioHome() {
       <LegacyStoryRedirect slugs={portfolioStories.map(({ slug }) => slug)} />
       <PortfolioNavigation />
       <main>
-        <h1 className="sr-only">Invisible Gallery — портфоліо фотографа</h1>
+        <h1 className="sr-only">{portfolioBrand} — портфоліо фотографа</h1>
         <section className={styles.hero} id="home" tabIndex={-1} aria-label="Головна фотографія">
           <div className={styles.heroSticky}>
             <picture className={styles.heroImage}>

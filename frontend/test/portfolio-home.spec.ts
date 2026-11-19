@@ -8,6 +8,40 @@ test.beforeEach(async ({ page }) => {
   }));
 });
 
+test('serves all six public stories and returns 404 for an unknown story', async ({ page }) => {
+  const stories = [
+    ['love', 'Love Story'], ['portrait', 'Portrait'], ['family', 'Family'],
+    ['events', 'Events / Lifestyle'], ['brand', 'Brand / Commercial'], ['pets', 'Фотосесія з улюбленцем'],
+  ];
+  await page.goto('/');
+  for (const [slug] of stories) {
+    await expect(page.locator(`#services a[href="/stories/${slug}"]`)).toHaveCount(1);
+  }
+  for (const [slug, title] of stories) {
+    expect((await page.goto(`/stories/${slug}`))?.status()).toBe(200);
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
+    await expect(page.locator('main img')).toHaveCount(5);
+    await expect(page.getByRole('button', { name: 'Забронювати фотосесію' })).toHaveAttribute('aria-controls', 'portfolio-booking');
+  }
+  expect((await page.goto('/stories/unknown'))?.status()).toBe(404);
+});
+
+test('redirects legacy story URLs and preserves navigation history', async ({ page }) => {
+  await page.goto('/#story/pets');
+  await expect(page).toHaveURL(/\/stories\/pets$/);
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1, name: 'Фотосесія з улюбленцем' })).toBeVisible();
+  const next = page.getByRole('region', { name: 'НАСТУПНА ІСТОРІЯ →' });
+  await next.getByRole('link').click();
+  await expect(page).toHaveURL(/\/stories\/love$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/stories\/pets$/);
+  await page.goForward();
+  await expect(page).toHaveURL(/\/stories\/love$/);
+  await page.getByRole('link', { name: /ПОВЕРНУТИСЯ НА ГОЛОВНУ/ }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/портфоліо фотографа/);
+});
+
 test('shows the portfolio sections, six services and its own theme', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto('/');
@@ -64,8 +98,8 @@ test('uses the reference booking styles and animates each menu opening', async (
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/');
 
-  const headerBooking = page.getByRole('banner').locator('a[href="#contact"]');
-  const finaleBooking = page.locator('#contact a');
+  const headerBooking = page.getByRole('banner').getByRole('button', { name: 'Забронювати', exact: true });
+  const finaleBooking = page.locator('#contact').getByRole('button', { name: 'Забронювати фотосесію' });
   await expect(headerBooking).toHaveCSS('min-height', '44px');
   await expect(headerBooking).toHaveCSS('border-bottom-width', '1px');
   await expect(headerBooking).toHaveCSS('padding', '8px 0px');
@@ -349,8 +383,8 @@ test('keeps the mobile hero full height and the header visible throughout it', a
   })).toEqual([0, 874, 874]);
   await expect(back).toBeHidden();
 
-  const booking = await header.locator('a[href="#contact"]').boundingBox();
-  const menu = await header.locator('button').boundingBox();
+  const booking = await header.getByRole('button', { name: 'Забронювати', exact: true }).boundingBox();
+  const menu = await header.getByRole('button', { name: 'Меню', exact: true }).boundingBox();
   expect(booking?.y).toBe(menu?.y);
 
   await page.evaluate(async () => {

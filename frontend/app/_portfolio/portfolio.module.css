@@ -28,11 +28,11 @@
   scroll-behavior: smooth;
 }
 
-:global(html):has(.menu[open]) {
+:global(html):has(.menu[open], .booking[open]) {
   overflow: hidden;
 }
 
-.portfolio :is(a, button):focus-visible {
+.portfolio :is(a, button, input, select, textarea):focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 4px;
 }
@@ -582,7 +582,7 @@
 }
 
 @media (hover: hover) {
-  .portfolio a:hover .arrow {
+  .portfolio :is(a, button):hover .arrow {
     transform: translate(4px, -4px);
   }
 
@@ -703,6 +703,160 @@
   background: var(--stone);
 }
 
+.storyPage {
+  padding-top: 135px;
+}
+
+.storyContainer {
+  max-width: 1440px;
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.storyBack {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: var(--text-index);
+  letter-spacing: .08em;
+}
+
+.storyHeading {
+  padding-block: 45px 80px;
+}
+
+.storyHeading h1 {
+  margin-block: 14px;
+  font-size: clamp(50px, 7vw, 110px);
+  font-weight: 300;
+  line-height: 1.3;
+  letter-spacing: -.025em;
+  overflow-wrap: anywhere;
+}
+
+.storySubtitle {
+  color: var(--muted);
+  font-size: var(--text-label);
+}
+
+.storyHero { aspect-ratio: 2; }
+.storyHero .media { height: 100%; }
+
+.storyEditorial {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 24px;
+  align-items: start;
+  padding-block: 110px;
+}
+
+.storyEditorial .media:nth-child(1) { grid-column: 2 / span 5; aspect-ratio: 3 / 4; }
+.storyEditorial .media:nth-child(2) { grid-column: 8 / span 4; aspect-ratio: 3 / 4; margin-top: 145px; }
+.storyEditorial .media:nth-child(3) { grid-column: 1 / -1; aspect-ratio: 2; margin-top: 80px; }
+
+.storyBooking {
+  padding: 100px 25px;
+  background: var(--surface);
+  text-align: center;
+}
+
+.storyBooking h2 {
+  font-size: clamp(32px, 5vw, 65px);
+  font-weight: 300;
+  line-height: 1.3;
+  letter-spacing: -.02em;
+}
+
+.storyBooking .primaryAction { background: var(--ink); color: white; }
+.storyPrice { margin-bottom: 32px; color: var(--muted); }
+.nextStory { padding-block: 80px; }
+.nextStory h2 { margin-bottom: 25px; }
+.nextStory a { display: block; }
+.nextStory .media { aspect-ratio: 16 / 7; }
+
+.headerBook,
+.primaryAction,
+.booking button { cursor: pointer; }
+
+.booking {
+  position: fixed;
+  inset: 0 0 auto auto;
+  margin: 0;
+  width: min(540px, 100%);
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--ivory);
+  color: var(--ink);
+  padding: 42px clamp(23px, 4vw, 55px);
+}
+
+.booking::backdrop { background: rgb(25 32 27 / .42); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .booking[open] { animation: bookingIn .5s var(--ease) both; }
+  .booking[open]::backdrop { animation: bookingBackdropIn .35s ease both; }
+}
+
+@keyframes bookingIn { from { transform: translateX(100%); } }
+@keyframes bookingBackdropIn { from { opacity: 0; } }
+
+.bookingHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.bookingHead .eyebrow { color: var(--muted); }
+.bookingClose { min-width: 44px; min-height: 44px; font-size: 28px; font-weight: 300; }
+.booking h2 { margin: 45px 0 14px; font-size: clamp(32px, 3vw, 46px); font-weight: 300; line-height: 1.3; letter-spacing: -.02em; }
+.booking p { color: var(--muted); font-size: var(--text-small); line-height: 1.75; }
+.booking form { display: grid; gap: 24px; margin-top: 24px; }
+.bookingField { display: grid; gap: 9px; min-width: 0; }
+.bookingField label { font-size: var(--text-small); letter-spacing: .03em; }
+
+.bookingField :is(input, select, textarea) {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 2px 13px;
+  border-bottom: 1px solid var(--muted);
+  font-size: 16px;
+}
+
+.bookingField textarea { min-height: 75px; resize: vertical; }
+.bookingField :is(input, textarea)::placeholder { color: var(--muted); opacity: 1; }
+.bookingField [aria-invalid='true'] { border-color: #923f35; }
+.bookingField .bookingError { color: #923f35; font-size: var(--text-index); }
+
+.bookingSubmit {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 18px;
+  background: var(--ink);
+  color: white;
+  font-size: var(--text-index);
+}
+
+.bookingSubmit:hover { background: #3c443d; }
+.bookingPreview { padding: 20px; background: #e5eae2; font-size: var(--text-label); }
+.bookingPreview label { display: block; margin-top: 12px; }
+.bookingPreview textarea {
+  width: 100%;
+  min-height: 230px;
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid var(--stone);
+  background: var(--ivory);
+  font-size: 16px;
+  resize: vertical;
+}
+.bookingPreview button { margin-top: 12px; min-height: 44px; padding: 12px; border: 1px solid var(--ink); }
+.bookingPreview button:hover { background: var(--surface); }
+.bookingContacts { margin-top: 30px; }
+
 @media (max-width: 760px) {
   .header {
     --portfolio-header-height: calc(85px + env(safe-area-inset-top));
@@ -777,6 +931,20 @@
     padding: 0;
   }
   .backLabel { display: none; }
+  .storyPage { padding-top: calc(140px + env(safe-area-inset-top)); }
+  .storyHeading { padding-block: 25px 50px; }
+  .storyHero { aspect-ratio: 4 / 5; }
+  .storyEditorial { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding-block: 65px; }
+  .storyEditorial .media:nth-child(1) { grid-column: 1; }
+  .storyEditorial .media:nth-child(2) { grid-column: 2; margin-top: 60px; }
+  .storyEditorial .media:nth-child(3) { aspect-ratio: 4 / 5; margin-top: 25px; }
+  .storyBooking { padding: 64px var(--gutter); }
+  .booking {
+    width: 100%;
+    height: var(--portfolio-visible-height, 100dvh);
+    padding: max(24px, env(safe-area-inset-top)) max(22px, env(safe-area-inset-right)) max(50px, env(safe-area-inset-bottom)) max(22px, env(safe-area-inset-left));
+  }
+  .booking h2 { margin-top: 24px; }
 }
 
 @media (max-width: 600px) {
@@ -807,7 +975,7 @@
   :global(html):has(.portfolio) { scroll-behavior: auto; }
   .hero { height: var(--hero-viewport-height); }
   .header, .burger::before, .burger::after, .arrow, .media img, .primaryAction { transition: none; }
-  .portfolio a:hover .arrow,
+  .portfolio :is(a, button):hover .arrow,
   .portfolio .media:hover img,
   .portfolio :is(.serviceCard, .featuredStory, .storyCard):focus-visible img { transform: none; }
 }

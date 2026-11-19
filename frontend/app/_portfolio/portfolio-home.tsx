@@ -1,48 +1,26 @@
-/* eslint-disable @next/next/no-img-element -- The supplied demo URLs already provide responsive crops. */
 import Link from 'next/link';
+import { BookingTrigger } from './portfolio-booking';
+import { LegacyStoryRedirect } from './legacy-story-redirect';
+import { PortfolioFooter } from './portfolio-footer';
 import { PortfolioNavigation } from './portfolio-navigation';
+import { demoPhoto, PortfolioPhoto } from './portfolio-photo';
+import { portfolioPrice, portfolioStories } from './portfolio-stories';
 import styles from './portfolio.module.css';
 
-const price = '3 000 грн / 1 год';
+const [love, portrait, family, ...otherServices] = portfolioStories;
 const serviceCards = [
-  { slug: 'love', title: 'Love Story', photo: '1529636798458-92182e662485', alt: 'Квітковий букет у руках' },
-  { slug: 'portrait', title: 'Portrait', photo: '1524504388940-b1c1722653e1', alt: 'Жіночий портрет у м’якому світлі' },
-  { slug: 'family', title: 'Family', photo: '1511895426328-dc8714191300', alt: 'Родина проводить час разом на природі' },
-];
-const otherServices = [
-  { slug: 'events', title: 'Events / Lifestyle' },
-  { slug: 'brand', title: 'Brand / Commercial' },
-  { slug: 'pets', title: 'Фотосесія з улюбленцем' },
+  { slug: love.slug, title: love.title, ...love.photos[0] },
+  { slug: portrait.slug, title: portrait.title, ...portrait.photos[1] },
+  { slug: family.slug, title: family.title, ...family.photos[0] },
 ];
 const featuredStories = [
-  { ...serviceCards[0], photo: '1537633552985-df8429e8048b', alt: 'Емоційний момент пари', heading: 'Двоє. Одна історія.' },
-  { ...serviceCards[2], photo: '1503454537195-1dcabb73ffb9', alt: 'Дитина на прогулянці', heading: 'Найрідніші миті.' },
-  { ...serviceCards[1], photo: '1544005313-94ddf0286df2', alt: 'Крупний план жіночого портрета', heading: 'Бути собою.' },
+  { ...serviceCards[0], ...love.photos[3], heading: 'Двоє. Одна історія.' },
+  { ...serviceCards[2], ...family.photos[2], heading: 'Найрідніші миті.' },
+  { ...serviceCards[1], ...portrait.photos[2], heading: 'Бути собою.' },
 ];
 const serviceSizes = '(max-width: 760px) calc(100vw - 40px), (max-width: 1440px) 30vw, 432px';
 const storySizes = '(max-width: 760px) calc(100vw - 40px), (max-width: 1440px) 90vw, 1344px';
 const pairedSizes = '(max-width: 760px) calc(100vw - 40px), (max-width: 1440px) 44vw, 635px';
-
-function demoPhoto(id: string, width: number, quality = 82) {
-  return `https://images.unsplash.com/photo-${id}?auto=format&w=${width}&q=${quality}&fit=crop`;
-}
-
-function PortfolioPhoto({ photo, alt, sizes }: { photo: string; alt: string; sizes: string }) {
-  const widths = [400, 700, 1000, 1500, 2000];
-  return (
-    <div className={styles.media}>
-      <span className={styles.imageFallback} aria-hidden="true">Фотографія</span>
-      <img
-        src={demoPhoto(photo, 1000)}
-        srcSet={widths.map((width) => `${demoPhoto(photo, width)} ${width}w`).join(', ')}
-        sizes={sizes}
-        alt={alt}
-        loading="lazy"
-        decoding="async"
-      />
-    </div>
-  );
-}
 
 function StoryCard({
   story,
@@ -66,6 +44,7 @@ export function PortfolioHome() {
   const hero = '1519741497674-611481863552';
   return (
     <>
+      <LegacyStoryRedirect slugs={portfolioStories.map(({ slug }) => slug)} />
       <PortfolioNavigation />
       <main>
         <h1 className="sr-only">Invisible Gallery — портфоліо фотографа</h1>
@@ -96,7 +75,7 @@ export function PortfolioHome() {
                   <span className={styles.serviceTitle}>{service.title}</span>
                   <span className={styles.arrow} aria-hidden="true">↗&#xFE0E;</span>
                 </div>
-                <p className={styles.price}>{price}</p>
+                <p className={styles.price}>{portfolioPrice}</p>
                 <p className={styles.serviceAction}>Переглянути серію <span aria-hidden="true">↗</span></p>
               </Link>
             ))}
@@ -106,7 +85,7 @@ export function PortfolioHome() {
               <Link key={service.slug} href={`/stories/${service.slug}`} prefetch={false}>
                 <span>
                   {service.title}
-                  <small className={styles.price}>{price}</small>
+                  <small className={styles.price}>{portfolioPrice}</small>
                   <span className={styles.serviceAction}>Переглянути серію</span>
                 </span>
                 <span className={styles.arrow} aria-hidden="true">↗&#xFE0E;</span>
@@ -135,21 +114,12 @@ export function PortfolioHome() {
             <p className={styles.finaleEyebrow}>Ваша історія починається тут</p>
             <h2 id="contact-title">Найважливіше<br />варто зберегти.</h2>
             <p className={styles.finaleDescription}>Давайте створимо фотографії, до яких захочеться повертатися знову і знову.</p>
-            <a className={styles.primaryAction} href="#contacts">Забронювати фотосесію <span className={styles.arrow} aria-hidden="true">↗&#xFE0E;</span></a>
+            <BookingTrigger className={styles.primaryAction}>Забронювати фотосесію <span className={styles.arrow} aria-hidden="true">↗&#xFE0E;</span></BookingTrigger>
           </div>
         </section>
       </main>
-      <footer className={styles.footer} id="contacts" tabIndex={-1}>
-        <div className={styles.footerRow}>
-          <div className={styles.brand}>ІМ&apos;Я ФОТОГРАФА<span>PHOTOGRAPHY</span></div>
-          <div className={styles.footerContacts}><span>EMAIL ↗</span><span>INSTAGRAM ↗</span><span>TELEGRAM ↗</span></div>
-        </div>
-        <div className={styles.footerDivider} />
-        <div className={styles.footerRow}>
-          <p>© {new Date().getUTCFullYear()} INVISIBLE GALLERY · КОНЦЕПТ ДИЗАЙНУ</p>
-          <p>ДЕМО-ФОТО / ДЕМО-КОНТАКТИ · ПОТРІБНА ЗАМІНА</p>
-        </div>
-      </footer>
+      <PortfolioFooter />
     </>
   );
 }
+

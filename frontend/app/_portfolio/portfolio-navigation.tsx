@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { BookingTrigger } from './portfolio-booking';
 import styles from './portfolio.module.css';
 
 const sections = [
@@ -10,7 +11,8 @@ const sections = [
   { href: '#contact', label: 'Контакти' },
 ];
 
-export function PortfolioNavigation() {
+export function PortfolioNavigation({ storySlug }: { storySlug?: string }) {
+  const storyPage = Boolean(storySlug);
   const dialog = useRef<HTMLDialogElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [header, setHeader] = useState({ scrolled: false, hidden: false, canGoTop: false });
@@ -89,19 +91,21 @@ export function PortfolioNavigation() {
 
   return (
     <>
-      <a className={styles.skipLink} href="#services">Перейти до послуг</a>
+      <a className={styles.skipLink} href={storyPage ? '#home' : '#services'}>
+        {storyPage ? 'Перейти до історії' : 'Перейти до послуг'}
+      </a>
       <header
         className={styles.header}
-        data-scrolled={header.scrolled || menuOpen}
+        data-scrolled={storyPage || header.scrolled || menuOpen}
         data-hidden={header.hidden && !menuOpen}
         data-menu-open={menuOpen}
       >
-        <a className={styles.brand} href="#home">
+        <a className={styles.brand} href={storyPage ? '/' : '#home'}>
           ІМ&apos;Я ФОТОГРАФА<span>PHOTOGRAPHY</span>
         </a>
-        <a className={styles.headerBook} href="#contact">
+        <BookingTrigger className={styles.headerBook} slug={storySlug}>
           <span>Забронювати <span className={styles.headerBookIcon} aria-hidden="true">↗&#xFE0E;</span></span>
-        </a>
+        </BookingTrigger>
         <button
           className={styles.menuToggle}
           type="button"
@@ -136,7 +140,7 @@ export function PortfolioNavigation() {
         </button>
         <nav aria-label="Портфоліо">
           {sections.map(({ href, label }, index) => (
-            <a key={href} href={href} onClick={() => dialog.current?.close()}>
+            <a key={href} href={storyPage ? `/${href}` : href} onClick={() => dialog.current?.close()}>
               {label}<span aria-hidden="true">0{index + 1}</span>
             </a>
           ))}

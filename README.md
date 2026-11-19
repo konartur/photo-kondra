@@ -50,6 +50,16 @@ Run every command below from the repository root unless a command specifies `bac
 
 The frontend is at http://localhost:3001. The API is at http://localhost:3000, Swagger is at http://localhost:3000/api/docs, and the health endpoint is `GET /api/v1/health`.
 
+### Test on the same local network
+
+From the repository root, run the frontend in LAN mode:
+
+```powershell
+npm --prefix frontend run dev -- --hostname 0.0.0.0
+```
+
+Connect your phone to the same Wi-Fi network and open `http://<computer-ip>:3001` using the computer's LAN IPv4 address. On Windows, run `ipconfig` to find it. Restart the frontend after the computer changes networks so Next.js can pick up its current private IPv4 address.
+
 ## Local database workflow
 
 The Docker Compose PostgreSQL service uses the connection settings in `.env`; `DATABASE_URL` must point to `localhost:5432` for the default setup.

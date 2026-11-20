@@ -1,0 +1,72 @@
+{
+  "capturedAt": "2026-11-20",
+  "scope": "portfolio",
+  "source": "frontend/app/_portfolio/portfolio-stories.ts",
+  "sourceProvider": "unsplash",
+  "uniqueSourcePhotos": 21,
+  "storyCount": 6,
+  "baselineIsGlobalLimit": false,
+  "maxUniquePhotosPerStory": 10,
+  "stories": [
+    {
+      "slug": "love",
+      "sourcePhotoIds": [
+        "1529636798458-92182e662485",
+        "1519741497674-611481863552",
+        "1523438885200-e635ba2c371e",
+        "1537633552985-df8429e8048b"
+      ]
+    },
+    {
+      "slug": "portrait",
+      "sourcePhotoIds": [
+        "1534528741775-53994a69daeb",
+        "1524504388940-b1c1722653e1",
+        "1544005313-94ddf0286df2",
+        "1506794778202-cad84cf45f1d"
+      ]
+    },
+    {
+      "slug": "family",
+      "sourcePhotoIds": [
+        "1511895426328-dc8714191300",
+        "1592711491694-e85f60a7773a",
+        "1503454537195-1dcabb73ffb9"
+      ]
+    },
+    {
+      "slug": "events",
+      "sourcePhotoIds": [
+        "1492684223066-81342ee5ff30",
+        "1511795409834-ef04bbd61622",
+        "1506157786151-b8491531f063"
+      ]
+    },
+    {
+      "slug": "brand",
+      "sourcePhotoIds": [
+        "1490481651871-ab68de25d43d",
+        "1483985988355-763728e1935b",
+        "1441986300917-64674bd600d8"
+      ]
+    },
+    {
+      "slug": "pets",
+      "sourcePhotoIds": [
+        "1662987610442-2f9c4a90a6dd",
+        "1667386447971-398b6527a393",
+        "1667386440443-cb2dcb02c882",
+        "1540869438371-f8aad4b6a0d7"
+      ]
+    }
+  ],
+  "homeReferences": {
+    "hero": "1519741497674-611481863552",
+    "contactBackground": "1592711491694-e85f60a7773a"
+  },
+  "notes": [
+    "Home cards reference the same story photo IDs; no additional unique source photos.",
+    "Mobile/desktop crops and responsive variants are not additional source images.",
+    "Import every listed source photo once; reuse media IDs across placements."
+  ]
+}

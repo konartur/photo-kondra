@@ -8,6 +8,12 @@ async function bootstrap() {
   app.useLogger(createApplicationLogger());
   setupApp(app);
 
-  await app.listen(process.env.PORT ?? 3000);
+  const port = process.env.PORT ?? 3000;
+  const host = process.env.API_HOST;
+  if (host) {
+    await app.listen(port, host);
+  } else {
+    await app.listen(port);
+  }
 }
 await bootstrap();

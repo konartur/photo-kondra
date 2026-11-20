@@ -1,0 +1,32 @@
+# Overlay for a dedicated Linux staging host. Run Next.js and NestJS on host loopback.
+services:
+  postgres:
+    ports: !override
+      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
+
+  redis:
+    ports: !override
+      - '127.0.0.1:${REDIS_PORT:-6379}:6379'
+
+  ingress:
+    image: nginx:stable-alpine
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      STAGING_HOST: ${STAGING_HOST:?Set the staging DNS hostname}
+      BFF_TRUST_SECRET: ${BFF_TRUST_SECRET:?Set the shared ingress secret}
+      NGINX_ENVSUBST_FILTER: '^(STAGING_HOST|BFF_TRUST_SECRET)$'
+      NGINX_ENTRYPOINT_QUIET_LOGS: '1'
+    volumes:
+      - type: bind
+        source: ./infra/docker/nginx/staging.conf.template
+        target: /etc/nginx/templates/default.conf.template
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${STAGING_TLS_DIR:?Set the staging TLS directory}
+        target: /etc/nginx/staging-tls
+        read_only: true
+        bind:
+          create_host_path: false

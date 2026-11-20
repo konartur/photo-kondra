@@ -43,3 +43,7 @@ Next.js звертається до NestJS за внутрішнім `API_URL`. 
 - [Шаблон Nginx](../infra/docker/nginx/frontend.conf.template) спрямовує всі шляхи до Next.js і встановлює службові заголовки ingress. Опис [production CORS](production-cors.md) і [README](../README.md) визначають окремі налаштування застосунку та S3.
 - [Серверний клієнт Next.js](../frontend/lib/auth/server.ts) читає `API_URL`. [GalleryAccessService](../backend/src/gallery-access/gallery-access.service.ts) формує нові URL із `APP_URL` і перевіряє чинність посилання за хешем токена, активністю та строком дії.
 - Фактичні DNS, сертифікати, мережа production і доступність старих URL підлягають підтвердженню на реальному середовищі.
+
+## Наступний етап контенту — підтверджене рішення від 2026-11-20
+
+[Архітектура контенту портфоліо](portfolio-content/README.md) деталізує наступний етап: контент у PostgreSQL, медіа в приватному object storage, публікація через PortfolioModule. Підтверджено [рішення квізу](portfolio-content/decisions.md): 10 фото на історію, базовий імпорт усіх 21 демофото, обов’язковий Redis з PostgreSQL fallback. Реалізація ще не починалася. Поточна домовленість про public/portfolio/ діє до перевіреного перемикання; це не паралельне постійне джерело істини. Канонічні URL історій, приватні галереї, ingress/BFF та відкладення деплою зберігаються.

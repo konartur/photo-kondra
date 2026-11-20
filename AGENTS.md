@@ -1,5 +1,9 @@
 # Photo Cloud — Codex Development Instructions
 
+## Hosting and deployment continuity
+
+Before hosting preparation, deployment readiness assessment, staging setup, or production launch, read [the sequential hosting and deployment plan](docs/hosting-and-deployment-plan.md). It records the owner's 2026-11-19 decision to defer deployment, required checks, completion criteria, and the next step. Resume execution only on a new hosting/deployment instruction; update the plan's progress record after each completed stage.
+
 ## 1. Project overview
 
 Build a cloud-based photo delivery platform for photographers.

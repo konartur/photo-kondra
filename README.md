@@ -101,6 +101,8 @@ for signed URL limits, deployment checks, residual risks and the required condit
 
 Production setup: [покрокова інструкція CORS для HTTPS-домену](docs/production-cors.md).
 
+Staging setup: [HTTPS deployment and storage checks](docs/staging-https.md).
+
 The API starts without cloud credentials so that health checks and local database work remain available. Storage operations require `AWS_REGION` and `AWS_S3_BUCKET`; set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` together when using static AWS credentials. The application otherwise uses the AWS SDK default credential provider chain.
 
 For an S3-compatible provider such as MinIO or Cloudflare R2, configure `AWS_S3_ENDPOINT`. Set `AWS_S3_FORCE_PATH_STYLE=true` when the provider requires path-style bucket URLs. The bucket must remain private; the API will use short-lived signed URLs when upload and download endpoints are introduced.
@@ -479,6 +481,50 @@ npm test
 npm run test:e2e
 npm run build
 ```
+
+## План хостингу й деплою
+
+Деплой відкладено власником. [Послідовний план](docs/hosting-and-deployment-plan.md) зберігає вимоги до хостингу, порядок підготовки, перевірки, критерії запуску та відкату. Виконання відновлюється за окремим дорученням.
+
+## Safari на iPhone 7 Plus
+
+Для портфоліо задано Browserslist у `frontend/package.json` із ціллю Safari/iOS 15.4+.
+Це перетворює, зокрема, статичні блоки класів Next.js, через які Safari iOS 15.8.8
+не міг виконати клієнтський код і підключити кнопки меню та бронювання.
+Меню явно утримує клавіатурний фокус і перемикає всі пункти через Tab/Shift+Tab,
+включно з WebKit, де стандартний порядок Tab може пропускати посилання.
+Після зміни цільових браузерів потрібна чиста збірка: попередній кеш Webpack може
+зберігати несумісні файли. Для локальної перевірки зупини попередній dev-сервер
+і запусти з кореня в PowerShell із новим каталогом результатів:
+
+```powershell
+$env:PHOTO_CLOUD_NEXT_DIST_DIR='.next-safari15'
+npm --prefix frontend run dev
+```
+
+Після запуску перезавантаж сторінку на телефоні. Для production збірка і запуск
+мають використовувати той самий каталог результатів.
+
+Регресійні перевірки: `frontend/test/portfolio-iphone.spec.ts` перевіряє всі клієнтські
+JS-файли на несумісні статичні блоки й натискає меню та обидві кнопки бронювання
+на головній і всіх шести історіях у розмірі iPhone 7 Plus. Приклад запуску:
+
+```powershell
+$env:PHOTO_CLOUD_E2E_DIST_DIR='.next-e2e-safari15'
+npm --prefix frontend run test:e2e -- test/portfolio-iphone.spec.ts test/portfolio-booking.spec.ts test/portfolio-home.spec.ts --browser webkit
+```
+
+Для Chromium повтори з `--browser chromium`. Потрібні встановлені браузери Playwright.
+Тести використовують сучасний WebKit і окремо моделюють відмову Safari 15 розбирати
+статичні блоки; це не запуск фізичного iPhone або точного рушія iOS 15.8.8.
+
+Форма бронювання також враховує `visualViewport.height` і `offsetTop` під час
+відкриття клавіатури: Safari може зменшити й змістити видиму область, залишивши
+layout viewport незмінним ([VisualViewport](https://developer.mozilla.org/en-US/docs/Web/API/VisualViewport)).
+Активне поле прокручується лише всередині форми, а її шапка з кнопкою закриття
+залишається доступною. `portfolio-booking.spec.ts` моделює відкриття клавіатури,
+перемикання полів зі зміщенням без resize та закриття клавіатури; перевіряє
+розміщення форми, доступність полів і збереження введеного тексту.
 
 ## Repository layout
 

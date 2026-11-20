@@ -81,6 +81,10 @@ test('supports keyboard menu navigation, Escape and focus restoration', async ({
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   await expect(close).toBeFocused();
   await expect(dialog).toHaveCSS('animation-name', 'none');
+  await page.keyboard.press('Shift+Tab');
+  await expect(dialog.getByRole('link', { name: 'Контакти' })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(close).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(dialog.getByRole('link', { name: 'Головна' })).toBeFocused();
   await page.keyboard.press('Escape');
@@ -107,8 +111,10 @@ test('uses the reference booking styles and animates each menu opening', async (
   await expect(headerBooking).toHaveCSS('padding', '8px 0px');
   await expect(headerBooking).toHaveCSS('font-size', '12px');
   await expect(finaleBooking).toHaveCSS('column-gap', '45px');
-  await expect(page.locator('#services')).toHaveCSS('padding-top', '115.2px');
-  await expect(page.locator('#services-title')).toHaveCSS('letter-spacing', '0px');
+  await expect.poll(() => page.locator('#services').evaluate((element) =>
+    parseFloat(getComputedStyle(element).paddingTop))).toBeCloseTo(115.2, 2);
+  // CSS optimization can serialize zero tracking as either 0px or normal.
+  await expect(page.locator('#services-title')).toHaveCSS('letter-spacing', /^(0px|normal)$/);
   await expect(page.locator('#services-title')).toHaveCSS('font-optical-sizing', 'none');
 
   const toggle = page.locator('button[aria-controls="portfolio-menu"]');
@@ -356,6 +362,8 @@ test('sizes the phone hero before hydration and keeps its size when hydration fi
   try {
     await page.goto('/', { waitUntil: 'commit' });
     await expect(page.locator('#home')).toHaveCSS('height', '714px');
+    // Compare hydration with the same font, rather than racing font-display: swap.
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
     const before = await page.locator('#home img').boundingBox();
     const hintBefore = await page.locator('#home a[href="#services"]').boundingBox();
     releaseScripts();

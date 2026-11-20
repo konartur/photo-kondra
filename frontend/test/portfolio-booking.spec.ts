@@ -5,6 +5,84 @@ test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
 });
 
+test.describe('booking with the iPhone keyboard open', () => {
+  test.use({ viewport: { width: 414, height: 628 }, isMobile: true, hasTouch: true });
+
+  for (const path of ['/', '/stories/pets']) {
+    test(`keeps the form and focused field inside the visible viewport on ${path}`, async ({ page }) => {
+      await page.addInitScript(() => {
+        const viewport = window.visualViewport;
+        if (!viewport) throw new Error('VisualViewport is required by this regression scenario');
+        let height = window.innerHeight;
+        let offsetTop = 0;
+        // Desktop WebKit does not open an iOS keyboard. Model both viewport
+        // shrinkage and Safari's focus-induced panning, keeping the layout fixed.
+        Object.defineProperties(viewport, {
+          height: { get: () => height },
+          offsetTop: { get: () => offsetTop },
+        });
+        window.addEventListener('test-keyboard-viewport', (event) => {
+          if (!(event instanceof CustomEvent)) return;
+          height = event.detail.height;
+          offsetTop = event.detail.offsetTop;
+          viewport.dispatchEvent(new Event(event.detail.event ?? 'resize'));
+        });
+      });
+      await page.goto(path);
+      await page.getByRole('button', { name: 'Забронювати', exact: true }).tap();
+      const dialog = page.getByRole('dialog', { name: /Розкажіть.*свою історію/ });
+      const scrollPanel = dialog.locator(':scope > div');
+      const name = dialog.getByLabel(/Ваше ім’я/);
+      const note = dialog.getByLabel(/Ваші побажання/);
+      await name.fill('Марія');
+      // Safari can scroll the layout document to reveal a focused input even
+      // with overflow:hidden. The background must stay locked under the modal.
+      const lockedScroll = await page.evaluate(() => window.scrollY);
+      await page.evaluate(() => window.scrollTo({ top: 300, behavior: 'instant' }));
+      expect(await page.evaluate(() => window.scrollY)).toBe(lockedScroll);
+      await page.evaluate(() => window.dispatchEvent(new CustomEvent('test-keyboard-viewport', {
+        detail: { height: 300, offsetTop: 120 },
+      })));
+      await expect(dialog).toHaveCSS('top', '0px');
+      await expect(dialog).toHaveCSS('height', '628px');
+      await expect(scrollPanel).toHaveCSS('top', '120px');
+      await expect(scrollPanel).toHaveCSS('height', '300px');
+      const expectFieldVisible = async (field: typeof name) => {
+        await expect.poll(async () => {
+          const panel = await scrollPanel.boundingBox();
+          const input = await field.boundingBox();
+          return Boolean(panel && input && input.y >= panel.y && input.y + input.height <= panel.y + panel.height);
+        }).toBe(true);
+      };
+      await expectFieldVisible(name);
+      await note.fill('Зйомка на природі');
+      // Safari can pan without a resize while switching between fields.
+      await page.evaluate(() => window.dispatchEvent(new CustomEvent('test-keyboard-viewport', {
+        detail: { height: 280, offsetTop: 170, event: 'scroll' },
+      })));
+      await expect(dialog).toHaveCSS('top', '0px');
+      await expect(scrollPanel).toHaveCSS('top', '170px');
+      await expect(scrollPanel).toHaveCSS('height', '280px');
+      await expectFieldVisible(note);
+      await expect(dialog.getByRole('button', { name: 'Закрити форму' })).toBeInViewport();
+      await expect(page.locator('html')).toHaveCSS('overflow', 'hidden');
+      await note.evaluate((element) => element.blur());
+      await page.evaluate(() => window.dispatchEvent(new CustomEvent('test-keyboard-viewport', {
+        detail: { height: 628, offsetTop: 0 },
+      })));
+      await expect(dialog).toHaveCSS('top', '0px');
+      await expect(dialog).toHaveCSS('height', '628px');
+      await expect(scrollPanel).toHaveCSS('top', '0px');
+      await expect(scrollPanel).toHaveCSS('height', '628px');
+      await expect(name).toHaveValue('Марія');
+      await expect(note).toHaveValue('Зйомка на природі');
+      await dialog.getByRole('button', { name: 'Закрити форму' }).tap();
+      await expect(dialog).toBeHidden();
+      await expect(page.locator('html')).not.toHaveCSS('overflow', 'hidden');
+    });
+  }
+});
+
 test('opens the same booking form from both CTAs and returns focus', async ({ page }) => {
   for (const path of ['/', '/stories/pets']) {
     await page.goto(path);

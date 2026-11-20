@@ -97,6 +97,7 @@ export function PortfolioMotion({ className, children }: { className: string; ch
           phone.matches ? window.screen.height : 0,
         );
         element.style.setProperty('--portfolio-visible-height', `${Math.ceil(viewport.height)}px`);
+        element.style.setProperty('--portfolio-visible-top', `${Math.max(0, viewport.offsetTop)}px`);
         element.style.setProperty('--portfolio-hero-height', `${heroHeight}px`);
         element.style.setProperty('--portfolio-photo-height', `${photoHeight}px`);
       }
@@ -117,6 +118,7 @@ export function PortfolioMotion({ className, children }: { className: string; ch
       window.removeEventListener('pageshow', updateViewportHeight);
       phone.removeEventListener('change', updateViewportHeight);
       element.style.removeProperty('--portfolio-visible-height');
+      element.style.removeProperty('--portfolio-visible-top');
       element.style.removeProperty('--portfolio-hero-height');
       element.style.removeProperty('--portfolio-photo-height');
       element.removeAttribute('data-portfolio-scrolled');

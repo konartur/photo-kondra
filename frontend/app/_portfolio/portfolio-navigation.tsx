@@ -130,6 +130,16 @@ export function PortfolioNavigation({ storySlug }: { storySlug?: string }) {
         aria-label="Навігація"
         ref={dialog}
         onClose={() => setMenuOpen(false)}
+        onKeyDown={(event) => {
+          if (event.key !== 'Tab' || event.altKey || event.ctrlKey || event.metaKey) return;
+          const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button, a[href]'));
+          const current = controls.findIndex((control) => control === document.activeElement);
+          const next = event.shiftKey
+            ? (current <= 0 ? controls.length - 1 : current - 1)
+            : (current + 1) % controls.length;
+          event.preventDefault();
+          controls[next]?.focus();
+        }}
       >
         <button
           className={styles.closeMenu}

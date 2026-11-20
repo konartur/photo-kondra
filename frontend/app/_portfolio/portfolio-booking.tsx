@@ -35,6 +35,8 @@ export function PortfolioBooking({ children, shootTypes, price }: {
   price: string;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const scrollPanel = useRef<HTMLDivElement>(null);
+  const unlockPage = useRef<(() => void) | null>(null);
   const form = useRef<HTMLFormElement>(null);
   const typeSelect = useRef<HTMLSelectElement>(null);
   const opener = useRef<HTMLButtonElement>(null);
@@ -42,6 +44,48 @@ export function PortfolioBooking({ children, shootTypes, price }: {
   const [errors, setErrors] = useState<RequiredField[]>([]);
   const [preview, setPreview] = useState<Preview | null>(null);
   const preparedText = preview?.text;
+
+  useEffect(() => () => unlockPage.current?.(), []);
+
+  useEffect(() => {
+    const panel = scrollPanel.current;
+    const viewport = window.visualViewport;
+    if (!panel || !viewport) return;
+    let frame: number | undefined;
+
+    function keepFieldVisible() {
+      frame = undefined;
+      if (!panel || !dialog.current?.open || viewport?.scale !== 1 || !window.matchMedia('(max-width: 760px)').matches) return;
+      const field = document.activeElement;
+      if (!(field instanceof HTMLElement) || !panel.contains(field) || !field.matches('input, select, textarea')) return;
+      const bounds = panel.getBoundingClientRect();
+      const head = panel.querySelector(`.${styles.bookingHead}`)?.getBoundingClientRect();
+      const top = Math.max(bounds.top + 16, (head?.bottom ?? bounds.top) + 16);
+      const bottom = bounds.bottom - 16;
+      const input = field.getBoundingClientRect();
+      // Scroll only the panel, so Safari's keyboard pan cannot move the page.
+      // A textarea taller than the available space is aligned at its top.
+      if (input.top < top || input.height > bottom - top) {
+        panel.scrollTop += input.top - top;
+      } else if (input.bottom > bottom) {
+        panel.scrollTop += input.bottom - bottom;
+      }
+    }
+
+    function schedule() {
+      if (frame === undefined) frame = window.requestAnimationFrame(keepFieldVisible);
+    }
+
+    panel.addEventListener('focusin', schedule);
+    viewport.addEventListener('resize', schedule);
+    viewport.addEventListener('scroll', schedule, { passive: true });
+    return () => {
+      panel.removeEventListener('focusin', schedule);
+      viewport.removeEventListener('resize', schedule);
+      viewport.removeEventListener('scroll', schedule);
+      if (frame !== undefined) window.cancelAnimationFrame(frame);
+    };
+  }, []);
 
   useEffect(() => {
     if (preparedText) messagePreview.current?.scrollIntoView({ block: 'nearest' });
@@ -52,9 +96,36 @@ export function PortfolioBooking({ children, shootTypes, price }: {
     opener.current = trigger;
     form.current.reset();
     typeSelect.current.value = slug ?? '';
-    dialog.current.scrollTop = 0;
+    if (scrollPanel.current) scrollPanel.current.scrollTop = 0;
     setErrors([]);
     setPreview(null);
+    if (window.matchMedia('(max-width: 760px)').matches) {
+      const body = document.body;
+      const root = document.documentElement;
+      const x = window.scrollX;
+      const y = window.scrollY;
+      const previous = {
+        position: body.style.position,
+        top: body.style.top,
+        left: body.style.left,
+        width: body.style.width,
+        scrollBehavior: root.style.scrollBehavior,
+      };
+      root.style.scrollBehavior = 'auto';
+      body.style.position = 'fixed';
+      body.style.top = `${-y}px`;
+      body.style.left = `${-x}px`;
+      body.style.width = '100%';
+      unlockPage.current = () => {
+        body.style.position = previous.position;
+        body.style.top = previous.top;
+        body.style.left = previous.left;
+        body.style.width = previous.width;
+        window.scrollTo(x, y);
+        root.style.scrollBehavior = previous.scrollBehavior;
+        unlockPage.current = null;
+      };
+    }
     dialog.current.showModal();
   }
 
@@ -121,7 +192,10 @@ export function PortfolioBooking({ children, shootTypes, price }: {
     <BookingContext.Provider value={openBooking}>
       {children}
       <dialog id={dialogId} ref={dialog} className={styles.booking} aria-labelledby="booking-title"
-        onClose={() => opener.current?.focus({ preventScroll: true })}
+        onClose={() => {
+          unlockPage.current?.();
+          opener.current?.focus({ preventScroll: true });
+        }}
         onClick={(event) => {
           const { left, right, top, bottom } = event.currentTarget.getBoundingClientRect();
           if (event.target === event.currentTarget && (event.clientX < left || event.clientX > right || event.clientY < top || event.clientY > bottom)) {
@@ -141,61 +215,63 @@ export function PortfolioBooking({ children, shootTypes, price }: {
             first.focus();
           }
         }}>
-        <div className={styles.bookingHead}>
-          <span className={styles.eyebrow}>ЗАПИТ НА ФОТОСЕСІЮ</span>
-          <button className={styles.bookingClose} type="button" aria-label="Закрити форму" onClick={() => dialog.current?.close()}>×</button>
-        </div>
-        <h2 id="booking-title">Розкажіть<br />свою історію.</h2>
-        <p>Кілька деталей про вашу ідею, щоб обговорити фотосесію.</p>
-        <form ref={form} noValidate onSubmit={prepareMessage} onChange={(event) => {
-          setPreview(null);
-          const field = event.target;
-          if ((field instanceof HTMLInputElement || field instanceof HTMLSelectElement) && field.value.trim()) {
-            setErrors((current) => current.filter((key) => key !== field.name));
-          }
-        }}>
-          <div className={styles.bookingField}>
-            <label htmlFor="booking-name">Ваше ім’я *</label>
-            <input id="booking-name" name="name" autoComplete="name" placeholder="Як до вас звертатися?" {...validation('name')} />
-            {error('name')}
+        <div ref={scrollPanel} className={styles.bookingPanel}>
+          <div className={styles.bookingHead}>
+            <span className={styles.eyebrow}>ЗАПИТ НА ФОТОСЕСІЮ</span>
+            <button className={styles.bookingClose} type="button" aria-label="Закрити форму" onClick={() => dialog.current?.close()}>×</button>
           </div>
-          <div className={styles.bookingField}>
-            <label htmlFor="booking-contact">Email або месенджер *</label>
-            <input id="booking-contact" name="contact" placeholder="Контакт для відповіді" {...validation('contact')} />
-            {error('contact')}
-          </div>
-          <div className={styles.bookingField}>
-            <label htmlFor="booking-type">Тип фотосесії *</label>
-            <select ref={typeSelect} id="booking-type" name="type" defaultValue="" {...validation('type')}>
-              <option value="" disabled>Оберіть напрямок</option>
-              {shootTypes.map(({ slug, title }) => <option key={slug} value={slug}>{title}</option>)}
-            </select>
-            {error('type')}
-          </div>
-          <div className={styles.bookingField}>
-            <label htmlFor="booking-date">Бажана дата (необов’язково)</label>
-            <input id="booking-date" name="date" type="date" />
-          </div>
-          <div className={styles.bookingField}>
-            <label htmlFor="booking-note">Ваші побажання (необов’язково)</label>
-            <textarea id="booking-note" name="note" placeholder="Яку історію ви хочете зберегти?" />
-          </div>
-          <p id="booking-hint">Підготуємо текст для копіювання. Ви зможете самостійно надіслати його фотографу.</p>
-          <button className={styles.bookingSubmit} type="submit" aria-describedby="booking-hint">
-            ПІДГОТУВАТИ ЗАЯВКУ <span aria-hidden="true">↗</span>
-          </button>
-          {preview && (
-            <div className={styles.bookingPreview}>
-              <p role="status">{preview.status === 'copied' ? 'Текст скопійовано. Перешліть його фотографу.'
-                : preview.status === 'manual' ? 'Текст виділено. Скопіюйте його вручну через меню пристрою або Ctrl/Cmd+C.'
-                  : 'Текст заявки готовий. Скопіюйте його для самостійного надсилання.'}</p>
-              <label htmlFor="booking-message">Текст вашої заявки</label>
-              <textarea id="booking-message" ref={messagePreview} value={preview.text} readOnly />
-              <button type="button" onClick={() => void copyMessage(preview.text)}>Скопіювати текст заявки</button>
+          <h2 id="booking-title">Розкажіть<br />свою історію.</h2>
+          <p>Кілька деталей про вашу ідею, щоб обговорити фотосесію.</p>
+          <form ref={form} noValidate onSubmit={prepareMessage} onChange={(event) => {
+            setPreview(null);
+            const field = event.target;
+            if ((field instanceof HTMLInputElement || field instanceof HTMLSelectElement) && field.value.trim()) {
+              setErrors((current) => current.filter((key) => key !== field.name));
+            }
+          }}>
+            <div className={styles.bookingField}>
+              <label htmlFor="booking-name">Ваше ім’я *</label>
+              <input id="booking-name" name="name" autoComplete="name" placeholder="Як до вас звертатися?" {...validation('name')} />
+              {error('name')}
             </div>
-          )}
-        </form>
-        <p className={styles.bookingContacts}>Канали зв’язку після запуску · Instagram · Telegram · Email</p>
+            <div className={styles.bookingField}>
+              <label htmlFor="booking-contact">Email або месенджер *</label>
+              <input id="booking-contact" name="contact" placeholder="Контакт для відповіді" {...validation('contact')} />
+              {error('contact')}
+            </div>
+            <div className={styles.bookingField}>
+              <label htmlFor="booking-type">Тип фотосесії *</label>
+              <select ref={typeSelect} id="booking-type" name="type" defaultValue="" {...validation('type')}>
+                <option value="" disabled>Оберіть напрямок</option>
+                {shootTypes.map(({ slug, title }) => <option key={slug} value={slug}>{title}</option>)}
+              </select>
+              {error('type')}
+            </div>
+            <div className={styles.bookingField}>
+              <label htmlFor="booking-date">Бажана дата (необов’язково)</label>
+              <input id="booking-date" name="date" type="date" />
+            </div>
+            <div className={styles.bookingField}>
+              <label htmlFor="booking-note">Ваші побажання (необов’язково)</label>
+              <textarea id="booking-note" name="note" placeholder="Яку історію ви хочете зберегти?" />
+            </div>
+            <p id="booking-hint">Підготуємо текст для копіювання. Ви зможете самостійно надіслати його фотографу.</p>
+            <button className={styles.bookingSubmit} type="submit" aria-describedby="booking-hint">
+              ПІДГОТУВАТИ ЗАЯВКУ <span aria-hidden="true">↗</span>
+            </button>
+            {preview && (
+              <div className={styles.bookingPreview}>
+                <p role="status">{preview.status === 'copied' ? 'Текст скопійовано. Перешліть його фотографу.'
+                  : preview.status === 'manual' ? 'Текст виділено. Скопіюйте його вручну через меню пристрою або Ctrl/Cmd+C.'
+                    : 'Текст заявки готовий. Скопіюйте його для самостійного надсилання.'}</p>
+                <label htmlFor="booking-message">Текст вашої заявки</label>
+                <textarea id="booking-message" ref={messagePreview} value={preview.text} readOnly />
+                <button type="button" onClick={() => void copyMessage(preview.text)}>Скопіювати текст заявки</button>
+              </div>
+            )}
+          </form>
+          <p className={styles.bookingContacts}>Канали зв’язку після запуску · Instagram · Telegram · Email</p>
+        </div>
       </dialog>
     </BookingContext.Provider>
   );

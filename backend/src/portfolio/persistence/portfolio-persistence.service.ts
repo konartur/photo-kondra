@@ -48,7 +48,8 @@ export class PortfolioPersistenceService {
           },
         );
       } catch (error) {
-        if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2034')
+        if (!(error instanceof Prisma.PrismaClientKnownRequestError) ||
+          !(error.code === 'P2034' || (error.code === 'P2010' && error.meta?.code === '40001')))
           throw error;
         if (attempt < 4) await setTimeout(25 * (attempt + 1));
       }

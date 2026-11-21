@@ -1,3 +1,6 @@
+import { PortfolioPublicationService } from '../src/portfolio/portfolio-publication.service.js';
+import { PortfolioAdminService } from '../src/portfolio/portfolio-admin.service.js';
+import { ConfigService } from '@nestjs/config';
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import { ConflictException } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
@@ -79,6 +82,71 @@ describe('Portfolio persistence on migrated PostgreSQL', () => {
     }
   });
 
+  it('keeps edits private, rolls back incomplete publications and serializes archive against story publication', async () => {
+    const service = randomUUID();
+    const story = randomUUID();
+    const media = randomUUID();
+    const publication = new PortfolioPublicationService(prisma as PrismaService, persistence);
+    const admin = new PortfolioAdminService(prisma as PrismaService, persistence, new ConfigService());
+    const content = {
+      titleUk: 'Серія', titleEn: 'Series', descriptionUk: 'Опис', descriptionEn: 'Description',
+      seoTitleUk: 'Назва', seoTitleEn: 'Title', seoDescriptionUk: 'Опис', seoDescriptionEn: 'Description',
+    };
+    const document = () => prisma.portfolioPublishedDocument.findFirst({ where: { entityType: 'SERVICE', entityId: service } });
+    const state = () => prisma.portfolioContentState.findUniqueOrThrow({ where: { id: 1 } });
+    try {
+      await prisma.portfolioMedia.create({ data: { id: media, uploadedById: runId, filename: 'sample.jpg', mimeType: 'image/jpeg', sizeBytes: 123n, status: 'READY' } });
+      await prisma.portfolioService.create({ data: { ...content, id: service, slug: service, cardMediaId: media, cardAltEn: 'Frame', cardAltUk: 'Кадр' } });
+      await expect(publication.publish('SERVICE', service, 1)).rejects.toBeInstanceOf(ConflictException);
+      const variant = await prisma.portfolioMediaVariant.create({ data: { mediaId: media, key: 'portfolio/media/' + media + '/variants/sample.webp', width: 480, height: 320 } });
+      const published = await publication.publish('SERVICE', service, 1);
+      changedVersions.push(BigInt(published.contentVersion));
+      expect(await prisma.portfolioCacheInvalidation.count({ where: { contentVersion: BigInt(published.contentVersion) } })).toBe(1);
+      const original = await document();
+      expect(original?.snapshot).toMatchObject({ data: { title: { en: 'Series' } } });
+      const current = await admin.getService(service);
+      expect(current.hasUnpublishedChanges).toBe(false);
+      const edited = await admin.updateService(runId, service, 1, { ...current.draft, title: { uk: 'Зміна', en: '' } });
+      expect(edited.hasUnpublishedChanges).toBe(true);
+      await expect(publication.publish('SERVICE', service, 2)).rejects.toBeInstanceOf(ConflictException);
+      expect(await document()).toEqual(original);
+      expect((await state()).contentVersion).toBe(BigInt(published.contentVersion));
+      await admin.updateService(runId, service, 2, { ...edited.draft, title: { uk: 'Зміна', en: 'Revision' } });
+      const preview = await publication.preview('SERVICE', service, { locale: 'uk' });
+      expect(preview.page).toMatchObject({ title: 'Зміна', cardImage: { url: '/api/portfolio/media/' + media + '/variants/' + variant.id } });
+      expect(await document()).toEqual(original);
+      const revision = await publication.publish('SERVICE', service, 3);
+      changedVersions.push(BigInt(revision.contentVersion));
+      expect((await admin.getService(service)).hasUnpublishedChanges).toBe(false);
+      await prisma.portfolioStory.create({ data: { ...content, id: story, slug: story, serviceId: service, subtitleUk: 'Серія', subtitleEn: 'Series', coverMediaId: media, coverAltUk: 'Кадр', coverAltEn: 'Frame' } });
+      const results = await Promise.allSettled([publication.publish('STORY', story, 1), publication.archive('SERVICE', service, 3)]);
+      for (const result of results) {
+        if (result.status === 'fulfilled') changedVersions.push(BigInt(result.value.contentVersion));
+        else expect(result.reason).toBeInstanceOf(ConflictException);
+      }
+      expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
+      const storyWon = results[0].status === 'fulfilled';
+      expect(Boolean(await document())).toBe(storyWon);
+      expect(await prisma.portfolioPublishedServiceReference.count({ where: { serviceId: service } })).toBe(storyWon ? 1 : 0);
+      if (!storyWon) {
+        changedVersions.push(BigInt((await publication.publish('SERVICE', service, 3)).contentVersion));
+        changedVersions.push(BigInt((await publication.publish('STORY', story, 1)).contentVersion));
+      }
+      await expect(publication.archive('SERVICE', service, 3)).rejects.toBeInstanceOf(ConflictException);
+      await expect(admin.removeService(service, 3)).rejects.toBeInstanceOf(ConflictException);
+      expect((await publication.preview('STORY', story, { locale: 'en' })).page).toMatchObject({ title: 'Series' });
+      changedVersions.push(BigInt((await publication.archive('STORY', story, 1)).contentVersion));
+      changedVersions.push(BigInt((await publication.archive('SERVICE', service, 3)).contentVersion));
+      const archived = await state();
+      expect((await publication.archive('SERVICE', service, 3)).contentVersion).toBe(Number(archived.contentVersion));
+    } finally {
+      await prisma.portfolioPublishedDocument.deleteMany({ where: { entityId: { in: [story, service] } } });
+      await prisma.portfolioStory.deleteMany({ where: { id: story } });
+      await prisma.portfolioService.deleteMany({ where: { id: service } });
+      await prisma.portfolioMediaVariant.deleteMany({ where: { mediaId: media } });
+      await prisma.portfolioMedia.deleteMany({ where: { id: media } });
+    }
+  }, 30000);
   it('has migration-seeded singleton fence/settings and rejects a second settings row', async () => {
     expect(await prisma.portfolioContentState.count()).toBe(1);
     expect(await prisma.portfolioSettings.count()).toBe(1);

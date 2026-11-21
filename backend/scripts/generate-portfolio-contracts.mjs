@@ -9,6 +9,7 @@ import { PortfolioMediaController } from '../dist/portfolio/portfolio-media.cont
 import { PortfolioAdminController } from '../dist/portfolio/portfolio-admin.controller.js';
 import { PortfolioMediaService } from '../dist/portfolio/media/portfolio-media.service.js';
 import { PortfolioAdminService } from '../dist/portfolio/portfolio-admin.service.js';
+import { PortfolioPublicationService } from '../dist/portfolio/portfolio-publication.service.js';
 import { ApiErrorDto } from '../dist/common/api-error.dto.js';
 import { format } from 'prettier';
 
@@ -21,6 +22,7 @@ Module({
   providers: [
     { provide: PortfolioMediaService, useValue: Object.freeze({}) },
     { provide: PortfolioAdminService, useValue: Object.freeze({}) },
+    { provide: PortfolioPublicationService, useValue: Object.freeze({}) },
   ],
 })(ContractModule);
 const app = await NestFactory.create(ContractModule, { logger: false, abortOnError: false });

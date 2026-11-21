@@ -10,6 +10,7 @@ import { PortfolioPersistenceModule } from './persistence/portfolio-persistence.
 import { PortfolioMediaController } from './portfolio-media.controller.js';
 import { PortfolioAdminController } from './portfolio-admin.controller.js';
 import { PortfolioAdminService } from './portfolio-admin.service.js';
+import { PortfolioPublicationService } from './portfolio-publication.service.js';
 import { PortfolioMediaService } from './media/portfolio-media.service.js';
 import { PortfolioMediaJobs } from './media/portfolio-media.jobs.js';
 import { PortfolioMediaWorker } from './media/portfolio-media.worker.js';
@@ -40,7 +41,6 @@ import {
             enableOfflineQueue: false,
             connectTimeout: 5000,
           },
-          skipWaitingForReady: true,
         }),
     },
     {
@@ -50,6 +50,7 @@ import {
     },
     PortfolioMediaService,
     PortfolioAdminService,
+    PortfolioPublicationService,
     PortfolioMediaJobs,
     PortfolioMediaWorker,
     PortfolioImageProcessor,

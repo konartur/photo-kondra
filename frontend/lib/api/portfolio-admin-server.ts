@@ -60,3 +60,13 @@ export async function forwardPortfolioSettings(request?: Request) {
   if (!request) return noStore(forwardAdminRequest('/portfolio/settings'));
   return forwardJson(request, '/portfolio/settings', 'PUT');
 }
+export function forwardPortfolioLifecycle(request: Request, resource: 'services' | 'stories' | 'settings', action: 'publish' | 'archive', id?: string) {
+  if (resource !== 'settings' && (!id || !uuid.test(id))) return Promise.resolve(invalid());
+  const path = resource === 'settings' ? `/portfolio/settings/${action}` : `/portfolio/${resource}/${id}/${action}`;
+  return forwardJson(request, path, 'POST');
+}
+export async function forwardPortfolioDraftPreview(resource: 'services' | 'stories' | 'settings', search: string, id?: string) {
+  if (resource !== 'settings' && (!id || !uuid.test(id))) return invalid();
+  const path = resource === 'settings' ? `/portfolio/settings/preview${search}` : `/portfolio/${resource}/${id}/preview${search}`;
+  return noStore(forwardAdminRequest(path));
+}

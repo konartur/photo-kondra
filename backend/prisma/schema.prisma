@@ -34,14 +34,15 @@ enum ArchiveStatus {
 }
 
 model User {
-  id           String        @id @default(uuid())
-  email        String        @unique
-  passwordHash String
-  role         UserRole      @default(ADMIN)
-  sessions     AuthSession[]
-  galleries    Gallery[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id             String           @id @default(uuid())
+  email          String           @unique
+  passwordHash   String
+  role           UserRole         @default(ADMIN)
+  sessions       AuthSession[]
+  galleries      Gallery[]
+  portfolioMedia PortfolioMedia[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 }
 
 model AuthSession {
@@ -130,4 +131,358 @@ model Archive {
   @@index([galleryId, contentHash])
   @@index([status])
   @@index([processingLockExpiresAt])
+}
+
+// Portfolio is independent of private Gallery/Photo and their lifecycle.
+enum PortfolioPublicationStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum PortfolioMediaStatus {
+  UPLOADING
+  PROCESSING
+  READY
+  FAILED
+  DELETED
+}
+
+enum PortfolioEntityType {
+  SERVICE
+  STORY
+  SETTINGS
+}
+
+enum PortfolioContactType {
+  instagram
+  telegram
+  email
+}
+
+model PortfolioService {
+  id                  String                               @id @default(uuid())
+  slug                String                               @unique @db.VarChar(80)
+  titleUk             String                               @default("") @db.VarChar(120)
+  titleEn             String                               @default("") @db.VarChar(120)
+  descriptionUk       String                               @default("") @db.VarChar(4000)
+  descriptionEn       String                               @default("") @db.VarChar(4000)
+  amountMinor         Int?
+  currency            String?                              @db.VarChar(3)
+  durationMinutes     Int?
+  bookingEnabled      Boolean                              @default(false)
+  cardMediaId         String?
+  cardMedia           PortfolioMedia?                      @relation("ServiceCard", fields: [cardMediaId], references: [id], onDelete: Restrict)
+  cardAltUk           String                               @default("") @db.VarChar(500)
+  cardAltEn           String                               @default("") @db.VarChar(500)
+  cardFocalX          Float?
+  cardFocalY          Float?
+  seoTitleUk          String                               @default("") @db.VarChar(120)
+  seoTitleEn          String                               @default("") @db.VarChar(120)
+  seoDescriptionUk    String                               @default("") @db.VarChar(320)
+  seoDescriptionEn    String                               @default("") @db.VarChar(320)
+  shareMediaId        String?
+  shareMedia          PortfolioMedia?                      @relation("ServiceShare", fields: [shareMediaId], references: [id], onDelete: Restrict)
+  shareAltUk          String                               @default("") @db.VarChar(500)
+  shareAltEn          String                               @default("") @db.VarChar(500)
+  shareFocalX         Float?
+  shareFocalY         Float?
+  status              PortfolioPublicationStatus           @default(DRAFT)
+  draftVersion        BigInt                               @default(1)
+  publishedVersion    BigInt?
+  publishedAt         DateTime?
+  sortOrder           Int                                  @default(0)
+  createdAt           DateTime                             @default(now())
+  updatedAt           DateTime                             @updatedAt
+  stories             PortfolioStory[]
+  homePlacements      PortfolioHomeService[]
+  publishedDocument   PortfolioPublishedDocument?          @relation("PublishedService")
+  publishedReferences PortfolioPublishedServiceReference[]
+
+  @@index([status, sortOrder, id])
+  @@index([cardMediaId])
+  @@index([shareMediaId])
+}
+
+model PortfolioStory {
+  id                  String                             @id @default(uuid())
+  slug                String                             @unique @db.VarChar(80)
+  serviceId           String
+  service             PortfolioService                   @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  titleUk             String                             @default("") @db.VarChar(120)
+  titleEn             String                             @default("") @db.VarChar(120)
+  subtitleUk          String                             @default("") @db.VarChar(200)
+  subtitleEn          String                             @default("") @db.VarChar(200)
+  descriptionUk       String                             @default("") @db.VarChar(4000)
+  descriptionEn       String                             @default("") @db.VarChar(4000)
+  coverMediaId        String?
+  coverMedia          PortfolioMedia?                    @relation("StoryCover", fields: [coverMediaId], references: [id], onDelete: Restrict)
+  coverAltUk          String                             @default("") @db.VarChar(500)
+  coverAltEn          String                             @default("") @db.VarChar(500)
+  coverFocalX         Float?
+  coverFocalY         Float?
+  seoTitleUk          String                             @default("") @db.VarChar(120)
+  seoTitleEn          String                             @default("") @db.VarChar(120)
+  seoDescriptionUk    String                             @default("") @db.VarChar(320)
+  seoDescriptionEn    String                             @default("") @db.VarChar(320)
+  shareMediaId        String?
+  shareMedia          PortfolioMedia?                    @relation("StoryShare", fields: [shareMediaId], references: [id], onDelete: Restrict)
+  shareAltUk          String                             @default("") @db.VarChar(500)
+  shareAltEn          String                             @default("") @db.VarChar(500)
+  shareFocalX         Float?
+  shareFocalY         Float?
+  status              PortfolioPublicationStatus         @default(DRAFT)
+  draftVersion        BigInt                             @default(1)
+  publishedVersion    BigInt?
+  publishedAt         DateTime?
+  sortOrder           Int                                @default(0)
+  createdAt           DateTime                           @default(now())
+  updatedAt           DateTime                           @updatedAt
+  photos              PortfolioStoryPhoto[]
+  featuredPlacements  PortfolioFeaturedStory[]
+  publishedDocument   PortfolioPublishedDocument?        @relation("PublishedStory")
+  publishedReferences PortfolioPublishedStoryReference[]
+
+  @@index([serviceId, status, sortOrder, id])
+  @@index([status, sortOrder, id])
+  @@index([coverMediaId])
+  @@index([shareMediaId])
+}
+
+model PortfolioMedia {
+  id                      String                             @id @default(uuid())
+  uploadedById            String
+  uploadedBy              User                               @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  originalKey             String?                            @unique
+  filename                String                             @db.VarChar(255)
+  mimeType                String                             @db.VarChar(32)
+  sizeBytes               BigInt
+  width                   Int?
+  height                  Int?
+  status                  PortfolioMediaStatus               @default(UPLOADING)
+  processingLockId        String?
+  processingLockExpiresAt DateTime?
+  createdAt               DateTime                           @default(now())
+  updatedAt               DateTime                           @updatedAt
+  variants                PortfolioMediaVariant[]
+  storyPhotos             PortfolioStoryPhoto[]
+  serviceCards            PortfolioService[]                 @relation("ServiceCard")
+  serviceShares           PortfolioService[]                 @relation("ServiceShare")
+  storyCovers             PortfolioStory[]                   @relation("StoryCover")
+  storyShares             PortfolioStory[]                   @relation("StoryShare")
+  desktopHeroes           PortfolioSettings[]                @relation("HomeDesktop")
+  mobileHeroes            PortfolioSettings[]                @relation("HomeMobile")
+  contactBackgrounds      PortfolioSettings[]                @relation("HomeBackground")
+  homeShares              PortfolioSettings[]                @relation("HomeShare")
+  publishedReferences     PortfolioPublishedMediaReference[]
+
+  @@index([uploadedById])
+  @@index([status, createdAt, id])
+  @@index([processingLockExpiresAt])
+}
+
+model PortfolioMediaVariant {
+  id        String         @id @default(uuid())
+  mediaId   String
+  media     PortfolioMedia @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+  key       String         @unique
+  width     Int
+  height    Int
+  format    String         @default("webp") @db.VarChar(16)
+  createdAt DateTime       @default(now())
+
+  @@unique([mediaId, width, format])
+}
+
+model PortfolioStoryPhoto {
+  id        String         @id
+  storyId   String
+  story     PortfolioStory @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  mediaId   String
+  media     PortfolioMedia @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+  altUk     String         @default("") @db.VarChar(500)
+  altEn     String         @default("") @db.VarChar(500)
+  focalX    Float?
+  focalY    Float?
+  sortOrder Int
+
+  @@unique([storyId, mediaId])
+  @@unique([storyId, sortOrder])
+  @@index([mediaId])
+}
+
+model PortfolioSettings {
+  id                    String                      @id @default("00000000-0000-4000-8000-000000000001")
+  brand                 String                      @default("") @db.VarChar(120)
+  bookingIntroUk        String                      @default("") @db.VarChar(4000)
+  bookingIntroEn        String                      @default("") @db.VarChar(4000)
+  servicesTitleUk       String                      @default("") @db.VarChar(120)
+  servicesTitleEn       String                      @default("") @db.VarChar(120)
+  servicesDescriptionUk String                      @default("") @db.VarChar(4000)
+  servicesDescriptionEn String                      @default("") @db.VarChar(4000)
+  storiesTitleUk        String                      @default("") @db.VarChar(120)
+  storiesTitleEn        String                      @default("") @db.VarChar(120)
+  contactTitleUk        String                      @default("") @db.VarChar(120)
+  contactTitleEn        String                      @default("") @db.VarChar(120)
+  contactDescriptionUk  String                      @default("") @db.VarChar(4000)
+  contactDescriptionEn  String                      @default("") @db.VarChar(4000)
+  contactButtonLabelUk  String                      @default("") @db.VarChar(120)
+  contactButtonLabelEn  String                      @default("") @db.VarChar(120)
+  desktopMediaId        String?
+  desktopMedia          PortfolioMedia?             @relation("HomeDesktop", fields: [desktopMediaId], references: [id], onDelete: Restrict)
+  desktopAltUk          String                      @default("") @db.VarChar(500)
+  desktopAltEn          String                      @default("") @db.VarChar(500)
+  desktopFocalX         Float?
+  desktopFocalY         Float?
+  mobileMediaId         String?
+  mobileMedia           PortfolioMedia?             @relation("HomeMobile", fields: [mobileMediaId], references: [id], onDelete: Restrict)
+  mobileAltUk           String                      @default("") @db.VarChar(500)
+  mobileAltEn           String                      @default("") @db.VarChar(500)
+  mobileFocalX          Float?
+  mobileFocalY          Float?
+  backgroundMediaId     String?
+  backgroundMedia       PortfolioMedia?             @relation("HomeBackground", fields: [backgroundMediaId], references: [id], onDelete: Restrict)
+  backgroundAltUk       String                      @default("") @db.VarChar(500)
+  backgroundAltEn       String                      @default("") @db.VarChar(500)
+  backgroundFocalX      Float?
+  backgroundFocalY      Float?
+  seoTitleUk            String                      @default("") @db.VarChar(120)
+  seoTitleEn            String                      @default("") @db.VarChar(120)
+  seoDescriptionUk      String                      @default("") @db.VarChar(320)
+  seoDescriptionEn      String                      @default("") @db.VarChar(320)
+  shareMediaId          String?
+  shareMedia            PortfolioMedia?             @relation("HomeShare", fields: [shareMediaId], references: [id], onDelete: Restrict)
+  shareAltUk            String                      @default("") @db.VarChar(500)
+  shareAltEn            String                      @default("") @db.VarChar(500)
+  shareFocalX           Float?
+  shareFocalY           Float?
+  status                PortfolioPublicationStatus  @default(DRAFT)
+  draftVersion          BigInt                      @default(1)
+  publishedVersion      BigInt?
+  publishedAt           DateTime?
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+  contacts              PortfolioContact[]
+  services              PortfolioHomeService[]
+  featuredStories       PortfolioFeaturedStory[]
+  publishedDocument     PortfolioPublishedDocument? @relation("PublishedSettings")
+
+  @@index([desktopMediaId])
+  @@index([mobileMediaId])
+  @@index([backgroundMediaId])
+  @@index([shareMediaId])
+}
+
+model PortfolioContact {
+  id         String               @id @default(uuid())
+  settingsId String
+  settings   PortfolioSettings    @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  type       PortfolioContactType
+  labelUk    String               @default("") @db.VarChar(120)
+  labelEn    String               @default("") @db.VarChar(120)
+  address    String               @db.VarChar(2048)
+  visible    Boolean              @default(false)
+  sortOrder  Int
+
+  @@unique([settingsId, type])
+  @@unique([settingsId, sortOrder])
+}
+
+model PortfolioHomeService {
+  id         String            @id @default(uuid())
+  settingsId String
+  settings   PortfolioSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  serviceId  String
+  service    PortfolioService  @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  sortOrder  Int
+
+  @@unique([settingsId, serviceId])
+  @@unique([settingsId, sortOrder])
+  @@index([serviceId])
+}
+
+model PortfolioFeaturedStory {
+  id         String            @id @default(uuid())
+  settingsId String
+  settings   PortfolioSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  storyId    String
+  story      PortfolioStory    @relation(fields: [storyId], references: [id], onDelete: Restrict)
+  captionUk  String            @default("") @db.VarChar(4000)
+  captionEn  String            @default("") @db.VarChar(4000)
+  sortOrder  Int
+
+  @@unique([settingsId, storyId])
+  @@unique([settingsId, sortOrder])
+  @@index([storyId])
+}
+
+// Only active publications. A replacement must use a newer draft version.
+// Explicit owner FKs and SQL CHECK enforce the polymorphic entityType/entityId.
+model PortfolioPublishedDocument {
+  id                 String                               @id @default(uuid())
+  entityType         PortfolioEntityType
+  entityId           String
+  serviceId          String?                              @unique
+  service            PortfolioService?                    @relation("PublishedService", fields: [serviceId], references: [id], onDelete: Restrict)
+  storyId            String?                              @unique
+  story              PortfolioStory?                      @relation("PublishedStory", fields: [storyId], references: [id], onDelete: Restrict)
+  settingsId         String?                              @unique
+  settings           PortfolioSettings?                   @relation("PublishedSettings", fields: [settingsId], references: [id], onDelete: Restrict)
+  schemaVersion      Int
+  sourceDraftVersion BigInt
+  snapshot           Json
+  publishedAt        DateTime                             @default(now())
+  mediaReferences    PortfolioPublishedMediaReference[]
+  serviceReferences  PortfolioPublishedServiceReference[]
+  storyReferences    PortfolioPublishedStoryReference[]
+
+  @@unique([entityType, entityId])
+  @@index([entityType, publishedAt, id])
+}
+
+model PortfolioPublishedMediaReference {
+  documentId String
+  document   PortfolioPublishedDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  mediaId    String
+  media      PortfolioMedia             @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+
+  @@id([documentId, mediaId])
+  @@index([mediaId])
+}
+
+model PortfolioPublishedServiceReference {
+  documentId String
+  document   PortfolioPublishedDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  serviceId  String
+  service    PortfolioService           @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  @@id([documentId, serviceId])
+  @@index([serviceId])
+}
+
+model PortfolioPublishedStoryReference {
+  documentId String
+  document   PortfolioPublishedDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  storyId    String
+  story      PortfolioStory             @relation(fields: [storyId], references: [id], onDelete: Restrict)
+
+  @@id([documentId, storyId])
+  @@index([storyId])
+}
+
+model PortfolioContentState {
+  id             Int      @id @default(1)
+  contentVersion BigInt   @default(0)
+  updatedAt      DateTime @updatedAt
+}
+
+model PortfolioCacheInvalidation {
+  id             String    @id @default(uuid())
+  contentVersion BigInt    @unique
+  attempts       Int       @default(0)
+  nextAttemptAt  DateTime  @default(now())
+  processedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([processedAt, nextAttemptAt, id])
 }

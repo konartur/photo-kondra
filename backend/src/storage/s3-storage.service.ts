@@ -15,6 +15,7 @@ import {
   UploadObjectParams,
 } from './storage.service.js';
 import type { StorageService } from './storage.service.js';
+import { StorageObjectNotFoundError } from './storage.service.js';
 import { S3_CLIENT, S3_PRESIGNED_URL_SIGNER, S3_STORAGE_CONFIG } from './s3-storage.config.js';
 import type { S3StorageConfig } from './s3-storage.config.js';
 import { signedUrlLimits, validateSignedUrlTtl } from './signed-url-policy.js';
@@ -33,8 +34,15 @@ export class S3StorageService implements StorageService {
     @Inject(S3_PRESIGNED_URL_SIGNER) private readonly signUrl: PresignedUrlSigner,
   ) {}
 
-  async createUploadUrl({ key, contentType, expiresIn }: CreateUploadUrlParams): Promise<string> {
+  async createUploadUrl({
+    key,
+    contentType,
+    expiresIn,
+    contentLength,
+  }: CreateUploadUrlParams): Promise<string> {
     validateSignedUrlTtl(expiresIn, signedUrlLimits.upload);
+    if (contentLength !== undefined && (!Number.isSafeInteger(contentLength) || contentLength < 1))
+      throw new ServiceUnavailableException('Invalid upload content length');
     return this.signUrl(
       this.client,
       new PutObjectCommand({
@@ -42,12 +50,25 @@ export class S3StorageService implements StorageService {
         Key: key,
         ContentType: contentType,
         IfNoneMatch: '*',
+        ...(contentLength !== undefined && { ContentLength: contentLength }),
       }),
-      { expiresIn, signableHeaders: new Set(['if-none-match', 'content-type']) },
+      {
+        expiresIn,
+        signableHeaders: new Set([
+          'if-none-match',
+          'content-type',
+          ...(contentLength !== undefined ? ['content-length'] : []),
+        ]),
+      },
     );
   }
 
-  async createDownloadUrl({ key, expiresIn, filename }: CreateDownloadUrlParams): Promise<string> {
+  async createDownloadUrl({
+    key,
+    expiresIn,
+    filename,
+    cacheControl,
+  }: CreateDownloadUrlParams): Promise<string> {
     validateSignedUrlTtl(expiresIn, signedUrlLimits.preview);
     return this.signUrl(
       this.client,
@@ -55,39 +76,71 @@ export class S3StorageService implements StorageService {
         Bucket: this.bucket,
         Key: key,
         ...(filename && { ResponseContentDisposition: contentDisposition(filename) }),
+        ...(cacheControl && { ResponseCacheControl: cacheControl }),
       }),
       { expiresIn },
     );
   }
 
-  async upload({ key, body, contentType, onProgress }: UploadObjectParams): Promise<void> {
+  async upload({
+    key,
+    body,
+    contentType,
+    onProgress,
+    signal,
+    cacheControl,
+  }: UploadObjectParams): Promise<void> {
+    signal?.throwIfAborted();
     if (body instanceof Readable) {
       const upload = new Upload({
         client: this.client,
-        params: { Bucket: this.bucket, Key: key, Body: body, ContentType: contentType },
+        params: {
+          Bucket: this.bucket,
+          Key: key,
+          Body: body,
+          ContentType: contentType,
+          ...(cacheControl && { CacheControl: cacheControl }),
+        },
         queueSize: 2,
         partSize: 5 * 1024 * 1024,
         leavePartsOnError: false,
       });
       if (onProgress) upload.on('httpUploadProgress', ({ loaded }) => onProgress(loaded ?? 0));
-      await upload.done();
+      const abort = () => {
+        void upload.abort().catch(() => undefined);
+      };
+      signal?.addEventListener('abort', abort, { once: true });
+      try {
+        if (signal?.aborted) abort();
+        await upload.done();
+      } finally {
+        signal?.removeEventListener('abort', abort);
+      }
       return;
     }
-    await this.client.send(
-      new PutObjectCommand({
-        Bucket: this.bucket,
-        Key: key,
-        Body: body as Buffer | Readable,
-        ContentType: contentType,
-      }),
-    );
+    const command = new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      Body: body as Buffer | Readable,
+      ContentType: contentType,
+      ...(cacheControl && { CacheControl: cacheControl }),
+    });
+    if (signal) await this.client.send(command, { abortSignal: signal });
+    else await this.client.send(command);
     onProgress?.(body.length);
   }
 
-  async download(key: string): Promise<Readable> {
-    const response = await this.client.send(
-      new GetObjectCommand({ Bucket: this.bucket, Key: key }),
-    );
+  async download(key: string, signal?: AbortSignal): Promise<Readable> {
+    const command = new GetObjectCommand({ Bucket: this.bucket, Key: key });
+    let response;
+    try {
+      response = signal
+        ? await this.client.send(command, { abortSignal: signal })
+        : await this.client.send(command);
+    } catch (error) {
+      if (isNotFound(error)) throw new StorageObjectNotFoundError();
+      throw error;
+    }
 
     if (!(response.Body instanceof Readable)) {
       throw new Error('Storage object body is not a readable stream');
@@ -96,8 +149,10 @@ export class S3StorageService implements StorageService {
     return response.Body;
   }
 
-  async delete(key: string): Promise<void> {
-    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+  async delete(key: string, signal?: AbortSignal): Promise<void> {
+    const command = new DeleteObjectCommand({ Bucket: this.bucket, Key: key });
+    if (signal) await this.client.send(command, { abortSignal: signal });
+    else await this.client.send(command);
   }
 
   async exists(key: string): Promise<boolean> {

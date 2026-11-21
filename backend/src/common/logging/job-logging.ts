@@ -3,7 +3,7 @@ import type { Job } from 'bullmq';
 import { AppLogger, safeErrorDetails } from './app-logger.js';
 import { correlationId, withLogContext } from './log-context.js';
 
-type QueueName = 'image-processing' | 'archive-generation';
+type QueueName = 'image-processing' | 'archive-generation' | 'portfolio-media-processing';
 type CorrelatedJob<T> = Pick<
   Job<T & { requestId?: string }>,
   'id' | 'data' | 'opts' | 'attemptsMade'

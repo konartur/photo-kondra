@@ -22,7 +22,7 @@
 3. `writeSnapshot(tx,id,sourceVersion,payload)` перевіряє формат і відповідність поточній draftVersion, записує snapshot та заміщує всі normalized dependency refs. Той самий payload/sourceVersion ідемпотентний; інший payload під тією самою або нижчою версією — conflict. Додатковий SQL trigger забороняє зміну замороженого payload у межах revision.
 4. `advanceContentVersion(tx)` збільшує public version і створює унікальний `PortfolioCacheInvalidation` у тій самій транзакції. Викликати **лише для фактичної зміни публічної версії** після domain/idempotency checks. Реалізація publish/archive, перевірка повноти обох мов, lifecycle rows і негайна Redis invalidation — PF-CONTENT-05/06A.
 
-Всі draft/reference edits, publish/archive/delete мають використовувати спільний fence; інакше сервіси можуть обійти semantic checks. Helpers не авторизують зовнішній запит. [PersistenceModule](../../backend/src/portfolio/persistence/portfolio-persistence.module.ts) ще не імпортовано до AppModule; активних endpoints/jobs немає.
+Всі draft/reference edits, publish/archive/delete мають використовувати спільний fence; інакше сервіси можуть обійти semantic checks. Helpers не авторизують зовнішній запит. У PF-CONTENT-03 [PersistenceModule](../../backend/src/portfolio/persistence/portfolio-persistence.module.ts) підключений через PortfolioModule до AppModule для [media API/worker](media-pipeline.md); migration перед їх runtime-використанням обов'язкова, її тут не застосовували.
 
 ## Snapshot schema 1
 

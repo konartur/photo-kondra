@@ -1,6 +1,6 @@
 # Послідовність реалізації портфоліо
 
-**Стан:** PF-CONTENT-01 виконано (DTO/OpenAPI/types; обмеження перевірок записані в тікеті). PF-CONTENT-02 у роботі: реалізація підготовлена, DB-приймання відкладено за дорученням 2026-11-21 не запускати тести. Решта лишається Backlog. Контракти — у [DTO-архітектурі](../dto-architecture.md), генерація — у [runtime workflow](../contracts-workflow.md), схема й транзакції — у [persistence design](../persistence.md).
+**Стан:** PF-CONTENT-01 виконано. PF-CONTENT-02 запушено (`efc9a70`), DB-приймання відкладено. PF-CONTENT-03/04 підготовлені локально; runtime/DB приймання не виконано, тести не запускалися за вказівкою власника. PF-CONTENT-05 та далі лишаються Backlog. Контракти — у [DTO-архітектурі](../dto-architecture.md), генерація — у [runtime workflow](../contracts-workflow.md), схема — у [persistence design](../persistence.md), медіа — у [pipeline](../media-pipeline.md).
 
 | Крок | Тікет | Залежить від |
 | --- | --- | --- |

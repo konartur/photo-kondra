@@ -10,6 +10,7 @@ import { STORAGE_SERVICE } from '../storage/storage.service.js';
 import type { StorageService } from '../storage/storage.service.js';
 import { IMAGE_PROCESSING_CONFIG } from './image-processing.config.js';
 import type { ImageProcessingConfig } from './image-processing.config.js';
+import { webpTransform } from './webp-transform.js';
 
 @Injectable()
 export class ImageProcessingService {
@@ -93,16 +94,8 @@ export class ImageProcessingService {
       width = metadata.width;
       height = metadata.height;
       [thumbnail, preview] = await Promise.all([
-        image
-          .clone()
-          .resize({ width: this.config.thumbnailWidth, withoutEnlargement: true })
-          .webp()
-          .toBuffer(),
-        image
-          .clone()
-          .resize({ width: this.config.previewWidth, withoutEnlargement: true })
-          .webp()
-          .toBuffer(),
+        webpTransform(image, this.config.thumbnailWidth).toBuffer(),
+        webpTransform(image, this.config.previewWidth).toBuffer(),
       ]);
     } catch {
       throw new TerminalProcessingError('Photo original is malformed or cannot be processed');

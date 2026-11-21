@@ -482,6 +482,14 @@ npm run test:e2e
 npm run build
 ```
 
+## Portfolio media API (PF-CONTENT-03)
+
+Підготовлено незалежні admin upload/complete/retry/list/preview/delete та BullMQ worker
+для портфоліо; public media ще не відкриті. [Pipeline і приймання](docs/portfolio-content/media-pipeline.md)
+описують прямий S3 PUT, WebP variants, конфігурацію та cleanup.
+Перед використанням потрібна migration PF-CONTENT-02. Її тут не застосовано;
+runtime-тести відкладені за вказівкою власника. Нових package dependencies немає.
+
 ## План хостингу й деплою
 
 Деплой відкладено власником. [Послідовний план](docs/hosting-and-deployment-plan.md) зберігає вимоги до хостингу, порядок підготовки, перевірки, критерії запуску та відкату. Виконання відновлюється за окремим дорученням.

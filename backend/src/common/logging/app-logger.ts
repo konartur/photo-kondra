@@ -31,6 +31,13 @@ const events = [
   'archive_photo_completed',
   'archive_cleanup_failed',
   'selected_archive_cleanup_failed',
+  'portfolio_media_upload_created',
+  'portfolio_media_upload_completed',
+  'portfolio_media_processing_started',
+  'portfolio_media_processing_completed',
+  'portfolio_media_processing_failed',
+  'portfolio_media_cleanup_deferred',
+  'portfolio_media_deleted',
 ] as const;
 type LogEvent = (typeof events)[number];
 export interface LogEntry {
@@ -38,7 +45,15 @@ export interface LogEntry {
   [field: string]: unknown;
 }
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const ids = new Set(['requestId', 'photoId', 'galleryId', 'archiveId', 'accessLinkId', 'userId']);
+const ids = new Set([
+  'requestId',
+  'photoId',
+  'galleryId',
+  'archiveId',
+  'accessLinkId',
+  'userId',
+  'mediaId',
+]);
 const numbers = new Set([
   'statusCode',
   'durationMs',
@@ -60,7 +75,7 @@ const numbers = new Set([
   'originalBytes',
 ]);
 const enums: Record<string, readonly string[]> = {
-  queue: ['image-processing', 'archive-generation'],
+  queue: ['image-processing', 'archive-generation', 'portfolio-media-processing'],
   phase: ['streaming', 'publishing', 'ready', 'failed'],
   operation: ['login', 'refresh', 'upload', 'archive'],
   method: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -72,6 +87,7 @@ const enums: Record<string, readonly string[]> = {
     'UnknownError',
     'TerminalProcessingError',
     'TerminalArchiveError',
+    'TerminalPortfolioMediaError',
   ],
   errorCode: [
     'ACCESS_DENIED',
@@ -108,6 +124,7 @@ export function safeErrorDetails(error: unknown): { errorName: string; errorCode
         'ECONNRESET',
         'TerminalProcessingError',
         'TerminalArchiveError',
+        'TerminalPortfolioMediaError',
       ].includes(value),
   );
   const codes: Record<string, string> = {
@@ -120,6 +137,7 @@ export function safeErrorDetails(error: unknown): { errorName: string; errorCode
     ECONNRESET: 'CONNECTION_FAILED',
     TerminalProcessingError: 'INVALID_IMAGE',
     TerminalArchiveError: 'ARCHIVE_INPUT_INVALID',
+    TerminalPortfolioMediaError: 'INVALID_IMAGE',
   };
   return {
     errorName: typeof name === 'string' && enums.errorName.includes(name) ? name : 'UnknownError',

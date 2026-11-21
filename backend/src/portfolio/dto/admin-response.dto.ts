@@ -120,7 +120,7 @@ export class PortfolioValidationErrorDto {
 export class PortfolioApiErrorDto extends ApiErrorDto {
   @ApiProperty({
     description:
-      'Stable error code: VALIDATION_FAILED (400); UNAUTHORIZED/FORBIDDEN (401/403); PORTFOLIO_CONTENT_NOT_FOUND (404); PORTFOLIO_VERSION_CONFLICT, PORTFOLIO_NOT_READY, PORTFOLIO_CONTENT_REFERENCED, PORTFOLIO_SLUG_IMMUTABLE, PORTFOLIO_CURSOR_STALE (409); PORTFOLIO_UNAVAILABLE (503). Error mapping is implemented alongside the corresponding endpoints.',
+      'Stable error code: VALIDATION_FAILED (400); UNAUTHORIZED/FORBIDDEN (401/403); PORTFOLIO_CONTENT_NOT_FOUND (404); PORTFOLIO_VERSION_CONFLICT, PORTFOLIO_NOT_READY, PORTFOLIO_CONTENT_REFERENCED, PORTFOLIO_SLUG_IMMUTABLE, PORTFOLIO_SLUG_TAKEN, PORTFOLIO_CURSOR_STALE (409); PORTFOLIO_UNAVAILABLE (503). Error mapping is implemented alongside the corresponding endpoints.',
   })
   declare code: string;
   @ApiProperty({ required: false, type: () => [PortfolioValidationErrorDto] })

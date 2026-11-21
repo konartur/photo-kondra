@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   ArrayMaxSize,
+  ArrayMinSize,
   ArrayUnique,
   IsArray,
   IsBoolean,
@@ -166,8 +167,10 @@ export class ReplaceStoryPhotosDto extends PublicationCommandDto {
   @ApiProperty({
     description:
       'Unique placement IDs and media IDs; cover + items union must contain at most 10 media IDs. Checked atomically against the stored cover in the draft service.',
+    minItems: 1,
   })
   @NestedList(PortfolioStoryPhotoInputDto, 10)
+  @ArrayMinSize(1)
   @ArrayUnique((item: PortfolioStoryPhotoInputDto) => item?.id)
   @ArrayUnique((item: PortfolioStoryPhotoInputDto) => item?.image?.mediaId)
   items!: PortfolioStoryPhotoInputDto[];

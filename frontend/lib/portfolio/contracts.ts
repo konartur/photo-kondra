@@ -84,6 +84,12 @@ export type AdminPortfolioSummaryDto = {
   title: LocalizedTitleDto;
 };
 
+export type ApiErrorDto = {
+  statusCode: number;
+  code: string;
+  message: string;
+};
+
 export type FeaturedPortfolioStoryDto = {
   story: PortfolioStoryCardDto;
   caption: string;

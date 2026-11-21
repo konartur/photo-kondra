@@ -13,6 +13,7 @@ import { GalleryAccessModule } from './gallery-access/gallery-access.module.js';
 import { PublicGalleryModule } from './public-gallery/public-gallery.module.js';
 import { UsersModule } from './users/users.module.js';
 import { ArchivesModule } from './archives/archives.module.js';
+import { PortfolioModule } from './portfolio/portfolio.module.js';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { ArchivesModule } from './archives/archives.module.js';
     GalleryAccessModule,
     PublicGalleryModule,
     ArchivesModule,
+    PortfolioModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -2,20 +2,47 @@ import 'reflect-metadata';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { PassportModule } from '@nestjs/passport';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { portfolioModels } from '../dist/portfolio/portfolio-openapi.js';
+import { PortfolioMediaController } from '../dist/portfolio/portfolio-media.controller.js';
+import { PortfolioAdminController } from '../dist/portfolio/portfolio-admin.controller.js';
+import { PortfolioMediaService } from '../dist/portfolio/media/portfolio-media.service.js';
+import { PortfolioAdminService } from '../dist/portfolio/portfolio-admin.service.js';
+import { ApiErrorDto } from '../dist/common/api-error.dto.js';
 import { format } from 'prettier';
 
-// Schema-only build: no AppModule, database, Redis, storage credentials or stub API.
+// Documentation-only build: real controller metadata, no listeners, AppModule,
+// database, Redis, worker or storage credentials. Service methods are never invoked.
 class ContractModule {}
-Module({})(ContractModule);
-const app = await NestFactory.create(ContractModule, { logger: false });
+Module({
+  imports: [PassportModule.register({ defaultStrategy: 'jwt' })],
+  controllers: [PortfolioMediaController, PortfolioAdminController],
+  providers: [
+    { provide: PortfolioMediaService, useValue: Object.freeze({}) },
+    { provide: PortfolioAdminService, useValue: Object.freeze({}) },
+  ],
+})(ContractModule);
+const app = await NestFactory.create(ContractModule, { logger: false, abortOnError: false });
+app.setGlobalPrefix('api/v1');
 try {
   const document = SwaggerModule.createDocument(
     app,
-    new DocumentBuilder().setTitle('Portfolio contracts').setVersion('1').build(),
-    { extraModels: portfolioModels },
+    new DocumentBuilder().setTitle('Portfolio contracts').setVersion('1').addBearerAuth().build(),
+    { extraModels: [ApiErrorDto, ...portfolioModels] },
   );
+  for (const path of Object.values(document.paths)) {
+    for (const method of ['get', 'post', 'delete']) {
+      const operation = path[method];
+      if (!operation) continue;
+      for (const [status, response] of Object.entries(operation.responses)) {
+        if (Number(status) >= 400 && !('$ref' in response))
+          response.content = {
+            'application/json': { schema: { $ref: '#/components/schemas/ApiErrorDto' } },
+          };
+      }
+    }
+  }
   const schemas = document.components.schemas;
 
   // Deliberately small converter for the schema constructs emitted by these DTOs.

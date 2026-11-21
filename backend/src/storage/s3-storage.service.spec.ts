@@ -90,6 +90,26 @@ describe('S3StorageService', () => {
     await expect(service.createDownloadUrl({ key: 'private', expiresIn: 86400 })).rejects.toThrow();
   });
 
+  it('binds portfolio Content-Length and private derivative cache policy when explicitly requested', async () => {
+    await service.createUploadUrl({
+      key: 'portfolio/media/test/original.jpg',
+      contentType: 'image/jpeg',
+      expiresIn: 900,
+      contentLength: 10_000_000,
+    });
+    expect(signUrl.mock.calls.at(-1)?.[1].input).toHaveProperty('ContentLength', 10_000_000);
+    expect(signUrl.mock.calls.at(-1)?.[2].signableHeaders).toContain('content-length');
+    await service.createDownloadUrl({
+      key: 'portfolio/media/test/variant.webp',
+      expiresIn: 300,
+      cacheControl: 'private, no-store',
+    });
+    expect(signUrl.mock.calls.at(-1)?.[1].input).toHaveProperty(
+      'ResponseCacheControl',
+      'private, no-store',
+    );
+  });
+
   it('cryptographically signs the create-only and content-type headers', async () => {
     const offlineClient = new S3Client({
       region: 'eu-central-1',

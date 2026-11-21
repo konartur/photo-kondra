@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 export interface LogContext {
   requestId?: string;
   jobId?: string;
-  queue?: 'image-processing' | 'archive-generation';
+  queue?: 'image-processing' | 'archive-generation' | 'portfolio-media-processing';
   attemptsMade?: number;
 }
 

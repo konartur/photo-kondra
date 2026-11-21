@@ -83,6 +83,7 @@ PortfolioImageDto є спільним контрактом: mediaId, url, width/
 | GET /portfolio/{services,stories}/:id/preview або /portfolio/settings/preview | Авторизований preview відповідної page projection |
 | POST /portfolio/media/upload-url | RequestPortfolioUploadDto → 201 PortfolioUploadResponseDto |
 | POST /portfolio/media/:id/upload-complete | 202 AdminPortfolioMediaDto; повторне завершення — чинний стан |
+| POST /portfolio/media/:id/retry | 202 AdminPortfolioMediaDto; explicit retry FAILED/recovery PROCESSING, READY незмінний |
 | GET /portfolio/media?limit&cursor та /portfolio/media/:id | Admin media list/detail |
 | GET /portfolio/media/:id/variants/:variantId | Авторизований preview redirect, no-store |
 | DELETE /portfolio/media/:id | 204; лише якщо немає draft/published посилань |

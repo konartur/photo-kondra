@@ -1,6 +1,1823 @@
 {
   "openapi": "3.0.0",
-  "paths": {},
+  "paths": {
+    "/api/v1/portfolio/media/upload-url": {
+      "post": {
+        "operationId": "PortfolioMediaController_requestUpload",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestPortfolioUploadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioUploadResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: invalid metadata, ID or cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PORTFOLIO_CONTENT_NOT_FOUND: missing, deleted or foreign media",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database, storage or processing queue unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create an independent portfolio upload; PUT bytes directly to private storage using requiredHeaders",
+        "tags": [
+          "portfolio media"
+        ]
+      }
+    },
+    "/api/v1/portfolio/media/{id}/upload-complete": {
+      "post": {
+        "operationId": "PortfolioMediaController_complete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPortfolioMediaDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: invalid metadata, ID or cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PORTFOLIO_CONTENT_NOT_FOUND: missing, deleted or foreign media",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database, storage or processing queue unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Idempotently complete upload; actual file validation and derivatives run asynchronously",
+        "tags": [
+          "portfolio media"
+        ]
+      }
+    },
+    "/api/v1/portfolio/media/{id}/retry": {
+      "post": {
+        "operationId": "PortfolioMediaController_retry",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPortfolioMediaDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: invalid metadata, ID or cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PORTFOLIO_CONTENT_NOT_FOUND: missing, deleted or foreign media",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PORTFOLIO_NOT_READY: original upload is not completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database, storage or processing queue unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Retry failed portfolio processing or recover a stalled request; never changes a READY derivative",
+        "tags": [
+          "portfolio media"
+        ]
+      }
+    },
+    "/api/v1/portfolio/media": {
+      "get": {
+        "operationId": "PortfolioMediaController_list",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 24,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Opaque version/context-bound cursor",
+            "schema": {
+              "maxLength": 2048,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPortfolioMediaListDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: invalid metadata, ID or cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PORTFOLIO_CONTENT_NOT_FOUND: missing, deleted or foreign media",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PORTFOLIO_CURSOR_STALE: restart pagination after publication changes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database, storage or processing queue unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List own portfolio media with an authenticated context/version-bound cursor",
+        "tags": [
+          "portfolio media"
+        ]
+      }
+    },
+    "/api/v1/portfolio/media/{id}": {
+      "get": {
+        "operationId": "PortfolioMediaController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPortfolioMediaDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: invalid metadata, ID or cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PORTFOLIO_CONTENT_NOT_FOUND: missing, deleted or foreign media",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database, storage or processing queue unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Read own media processing state, dimensions and authenticated preview route",
+        "tags": [
+          "portfolio media"
+        ]
+      },
+      "delete": {
+        "operationId": "PortfolioMediaController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Media hidden immediately; storage cleanup is idempotent and retried"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: invalid metadata, ID or cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PORTFOLIO_CONTENT_NOT_FOUND: missing, deleted or foreign media",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PORTFOLIO_CONTENT_REFERENCED: used by draft or active publication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database, storage or processing queue unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Soft-delete unreferenced media; revoke processing claims and retry private-object cleanup in maintenance",
+        "tags": [
+          "portfolio media"
+        ]
+      }
+    },
+    "/api/v1/portfolio/media/{id}/variants/{variantId}": {
+      "get": {
+        "operationId": "PortfolioMediaController_preview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "variantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Private derivative redirect",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Short-lived signed derivative GET"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: invalid metadata, ID or cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PORTFOLIO_CONTENT_NOT_FOUND: missing, deleted or foreign media",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database, storage or processing queue unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Authorize an immutable READY derivative and redirect to short-lived signed storage GET; originals are never returned",
+        "tags": [
+          "portfolio media"
+        ]
+      }
+    },
+    "/api/v1/portfolio/services": {
+      "get": {
+        "operationId": "PortfolioAdminController_listServices",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 24,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Opaque version/context-bound cursor",
+            "schema": {
+              "maxLength": 2048,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPortfolioServiceListDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: invalid DTO, UUID or pagination",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PORTFOLIO_CONTENT_NOT_FOUND: entity or reference not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PORTFOLIO_VERSION_CONFLICT, PORTFOLIO_SLUG_IMMUTABLE or PORTFOLIO_CONTENT_REFERENCED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "portfolio admin drafts"
+        ]
+      },
+      "post": {
+        "operationId": "PortfolioAdminController_createService",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortfolioServiceDraftInputDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPortfolioServiceDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: invalid DTO, UUID or pagination",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PORTFOLIO_CONTENT_NOT_FOUND: entity or reference not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PORTFOLIO_VERSION_CONFLICT, PORTFOLIO_SLUG_IMMUTABLE or PORTFOLIO_CONTENT_REFERENCED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create an incomplete or complete bilingual service draft",
+        "tags": [
+          "portfolio admin drafts"
+        ]
+      }
+    },
+    "/api/v1/portfolio/services/{id}": {
+      "get": {
+        "operationId": "PortfolioAdminController_getService",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPortfolioServiceDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: invalid DTO, UUID or pagination",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PORTFOLIO_CONTENT_NOT_FOUND: entity or reference not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PORTFOLIO_VERSION_CONFLICT, PORTFOLIO_SLUG_IMMUTABLE or PORTFOLIO_CONTENT_REFERENCED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "portfolio admin drafts"
+        ]
+      },
+      "put": {
+        "operationId": "PortfolioAdminController_updateService",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortfolioServiceDraftUpdateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPortfolioServiceDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: invalid DTO, UUID or pagination",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PORTFOLIO_CONTENT_NOT_FOUND: entity or reference not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PORTFOLIO_VERSION_CONFLICT, PORTFOLIO_SLUG_IMMUTABLE or PORTFOLIO_CONTENT_REFERENCED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "portfolio admin drafts"
+        ]
+      },
+      "delete": {
+        "operationId": "PortfolioAdminController_removeService",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicationCommandDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Deleted an unpublished, unreferenced service draft"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: invalid DTO, UUID or pagination",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PORTFOLIO_CONTENT_NOT_FOUND: entity or reference not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PORTFOLIO_VERSION_CONFLICT, PORTFOLIO_SLUG_IMMUTABLE or PORTFOLIO_CONTENT_REFERENCED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "portfolio admin drafts"
+        ]
+      }
+    },
+    "/api/v1/portfolio/stories": {
+      "get": {
+        "operationId": "PortfolioAdminController_listStories",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 24,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Opaque version/context-bound cursor",
+            "schema": {
+              "maxLength": 2048,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPortfolioStoryListDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: invalid DTO, UUID or pagination",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PORTFOLIO_CONTENT_NOT_FOUND: entity or reference not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PORTFOLIO_VERSION_CONFLICT, PORTFOLIO_SLUG_IMMUTABLE or PORTFOLIO_CONTENT_REFERENCED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "portfolio admin drafts"
+        ]
+      },
+      "post": {
+        "operationId": "PortfolioAdminController_createStory",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortfolioStoryDraftInputDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPortfolioStoryDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: invalid DTO, UUID or pagination",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PORTFOLIO_CONTENT_NOT_FOUND: entity or reference not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PORTFOLIO_VERSION_CONFLICT, PORTFOLIO_SLUG_IMMUTABLE or PORTFOLIO_CONTENT_REFERENCED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create an incomplete or complete bilingual story draft",
+        "tags": [
+          "portfolio admin drafts"
+        ]
+      }
+    },
+    "/api/v1/portfolio/stories/{id}": {
+      "get": {
+        "operationId": "PortfolioAdminController_getStory",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPortfolioStoryDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: invalid DTO, UUID or pagination",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PORTFOLIO_CONTENT_NOT_FOUND: entity or reference not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PORTFOLIO_VERSION_CONFLICT, PORTFOLIO_SLUG_IMMUTABLE or PORTFOLIO_CONTENT_REFERENCED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "portfolio admin drafts"
+        ]
+      },
+      "put": {
+        "operationId": "PortfolioAdminController_updateStory",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortfolioStoryDraftUpdateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPortfolioStoryDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: invalid DTO, UUID or pagination",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PORTFOLIO_CONTENT_NOT_FOUND: entity or reference not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PORTFOLIO_VERSION_CONFLICT, PORTFOLIO_SLUG_IMMUTABLE or PORTFOLIO_CONTENT_REFERENCED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "portfolio admin drafts"
+        ]
+      },
+      "delete": {
+        "operationId": "PortfolioAdminController_removeStory",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicationCommandDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Deleted an unpublished, unreferenced story draft"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: invalid DTO, UUID or pagination",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PORTFOLIO_CONTENT_NOT_FOUND: entity or reference not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PORTFOLIO_VERSION_CONFLICT, PORTFOLIO_SLUG_IMMUTABLE or PORTFOLIO_CONTENT_REFERENCED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "portfolio admin drafts"
+        ]
+      }
+    },
+    "/api/v1/portfolio/stories/{id}/photos": {
+      "put": {
+        "operationId": "PortfolioAdminController_replacePhotos",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceStoryPhotosDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPortfolioStoryDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: invalid DTO, UUID or pagination",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PORTFOLIO_CONTENT_NOT_FOUND: entity or reference not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PORTFOLIO_VERSION_CONFLICT, PORTFOLIO_SLUG_IMMUTABLE or PORTFOLIO_CONTENT_REFERENCED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "portfolio admin drafts"
+        ]
+      }
+    },
+    "/api/v1/portfolio/settings": {
+      "get": {
+        "operationId": "PortfolioAdminController_getSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPortfolioSettingsDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: invalid DTO, UUID or pagination",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PORTFOLIO_CONTENT_NOT_FOUND: entity or reference not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PORTFOLIO_VERSION_CONFLICT, PORTFOLIO_SLUG_IMMUTABLE or PORTFOLIO_CONTENT_REFERENCED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "portfolio admin drafts"
+        ]
+      },
+      "put": {
+        "operationId": "PortfolioAdminController_updateSettings",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortfolioHomeDraftUpdateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPortfolioSettingsDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: invalid DTO, UUID or pagination",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PORTFOLIO_CONTENT_NOT_FOUND: entity or reference not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PORTFOLIO_VERSION_CONFLICT, PORTFOLIO_SLUG_IMMUTABLE or PORTFOLIO_CONTENT_REFERENCED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "portfolio admin drafts"
+        ]
+      }
+    }
+  },
   "info": {
     "title": "Portfolio contracts",
     "description": "",
@@ -10,54 +1827,84 @@
   "tags": [],
   "servers": [],
   "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
     "schemas": {
-      "AdminPortfolioEntityBaseDto": {
+      "RequestPortfolioUploadDto": {
         "type": "object",
         "properties": {
-          "id": {
+          "filename": {
             "type": "string",
-            "format": "uuid"
+            "maxLength": 255,
+            "minLength": 1,
+            "pattern": "^[^\\u0000-\\u001f\\u007f/\\\\]+$"
           },
-          "status": {
+          "mimeType": {
             "type": "string",
             "enum": [
-              "DRAFT",
-              "PUBLISHED",
-              "ARCHIVED"
+              "image/jpeg",
+              "image/png",
+              "image/webp"
             ]
           },
-          "draftVersion": {
+          "sizeBytes": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 9007199254740991
-          },
-          "publishedVersion": {
-            "type": "integer",
-            "nullable": true,
-            "minimum": 1,
-            "maximum": 9007199254740991
-          },
-          "hasUnpublishedChanges": {
-            "type": "boolean"
-          },
-          "publishedAt": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
+            "maximum": 10000000
           }
         },
         "required": [
-          "id",
-          "status",
-          "draftVersion",
-          "publishedVersion",
-          "hasUnpublishedChanges",
-          "publishedAt",
-          "updatedAt"
+          "filename",
+          "mimeType",
+          "sizeBytes"
+        ]
+      },
+      "PortfolioUploadHeadersDto": {
+        "type": "object",
+        "properties": {
+          "Content-Type": {
+            "type": "string"
+          },
+          "If-None-Match": {
+            "type": "string",
+            "enum": [
+              "*"
+            ]
+          }
+        },
+        "required": [
+          "Content-Type",
+          "If-None-Match"
+        ]
+      },
+      "PortfolioUploadResponseDto": {
+        "type": "object",
+        "properties": {
+          "mediaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "uploadUrl": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "requiredHeaders": {
+            "$ref": "#/components/schemas/PortfolioUploadHeadersDto"
+          }
+        },
+        "required": [
+          "mediaId",
+          "uploadUrl",
+          "expiresIn",
+          "requiredHeaders"
         ]
       },
       "AdminPortfolioMediaDto": {
@@ -154,6 +2001,82 @@
         "required": [
           "uk",
           "en"
+        ]
+      },
+      "AdminPortfolioSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "ARCHIVED"
+            ]
+          },
+          "draftVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "publishedVersion": {
+            "type": "integer",
+            "nullable": true,
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "hasUnpublishedChanges": {
+            "type": "boolean"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "$ref": "#/components/schemas/LocalizedTitleDto"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "draftVersion",
+          "publishedVersion",
+          "hasUnpublishedChanges",
+          "publishedAt",
+          "updatedAt",
+          "slug",
+          "title"
+        ]
+      },
+      "AdminPortfolioServiceListDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminPortfolioSummaryDto"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
         ]
       },
       "LocalizedTextDto": {
@@ -436,7 +2359,165 @@
           "draft"
         ]
       },
-      "AdminPortfolioSummaryDto": {
+      "PortfolioServiceDraftUpdateDto": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "data": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioServiceDraftInputDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "data"
+        ]
+      },
+      "PublicationCommandDto": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "expectedVersion"
+        ]
+      },
+      "AdminPortfolioStoryListDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminPortfolioSummaryDto"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "LocalizedSubtitleDto": {
+        "type": "object",
+        "properties": {
+          "uk": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "en": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "uk",
+          "en"
+        ]
+      },
+      "PortfolioStoryDraftInputDto": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+          },
+          "title": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LocalizedTitleDto"
+              }
+            ]
+          },
+          "subtitle": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LocalizedSubtitleDto"
+              }
+            ]
+          },
+          "description": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LocalizedTextDto"
+              }
+            ]
+          },
+          "serviceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cover": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioImageRefDto"
+              }
+            ]
+          },
+          "seo": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioSeoInputDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "slug",
+          "title",
+          "subtitle",
+          "description",
+          "serviceId",
+          "cover",
+          "seo"
+        ]
+      },
+      "PortfolioStoryPhotoInputDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Client-generated stable placement ID"
+          },
+          "image": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioImageRefDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "image"
+        ]
+      },
+      "AdminPortfolioStoryDto": {
         "type": "object",
         "properties": {
           "id": {
@@ -474,11 +2555,15 @@
             "type": "string",
             "format": "date-time"
           },
-          "slug": {
-            "type": "string"
+          "draft": {
+            "$ref": "#/components/schemas/PortfolioStoryDraftInputDto"
           },
-          "title": {
-            "$ref": "#/components/schemas/LocalizedTitleDto"
+          "photos": {
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortfolioStoryPhotoInputDto"
+            }
           }
         },
         "required": [
@@ -489,27 +2574,53 @@
           "hasUnpublishedChanges",
           "publishedAt",
           "updatedAt",
-          "slug",
-          "title"
+          "draft",
+          "photos"
         ]
       },
-      "AdminPortfolioServiceListDto": {
+      "PortfolioStoryDraftUpdateDto": {
         "type": "object",
         "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/AdminPortfolioSummaryDto"
-            }
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
           },
-          "nextCursor": {
-            "type": "string",
-            "nullable": true
+          "data": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioStoryDraftInputDto"
+              }
+            ]
           }
         },
         "required": [
-          "items",
-          "nextCursor"
+          "expectedVersion",
+          "data"
+        ]
+      },
+      "ReplaceStoryPhotosDto": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "items": {
+            "maxItems": 10,
+            "description": "Unique placement IDs and media IDs; cover + items union must contain at most 10 media IDs. Checked atomically against the stored cover in the draft service.",
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortfolioStoryPhotoInputDto"
+            }
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "items"
         ]
       },
       "PortfolioContactInputDto": {
@@ -824,111 +2935,51 @@
           "draft"
         ]
       },
-      "LocalizedSubtitleDto": {
+      "PortfolioHomeDraftUpdateDto": {
         "type": "object",
         "properties": {
-          "uk": {
-            "type": "string",
-            "maxLength": 200
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
           },
-          "en": {
-            "type": "string",
-            "maxLength": 200
-          }
-        },
-        "required": [
-          "uk",
-          "en"
-        ]
-      },
-      "PortfolioStoryDraftInputDto": {
-        "type": "object",
-        "properties": {
-          "slug": {
-            "type": "string",
-            "maxLength": 80,
-            "minLength": 1,
-            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
-          },
-          "title": {
+          "data": {
             "nullable": false,
             "allOf": [
               {
-                "$ref": "#/components/schemas/LocalizedTitleDto"
-              }
-            ]
-          },
-          "subtitle": {
-            "nullable": false,
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/LocalizedSubtitleDto"
-              }
-            ]
-          },
-          "description": {
-            "nullable": false,
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/LocalizedTextDto"
-              }
-            ]
-          },
-          "serviceId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "cover": {
-            "nullable": true,
-            "type": "object",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PortfolioImageRefDto"
-              }
-            ]
-          },
-          "seo": {
-            "nullable": false,
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PortfolioSeoInputDto"
+                "$ref": "#/components/schemas/PortfolioHomeDraftInputDto"
               }
             ]
           }
         },
         "required": [
-          "slug",
-          "title",
-          "subtitle",
-          "description",
-          "serviceId",
-          "cover",
-          "seo"
+          "expectedVersion",
+          "data"
         ]
       },
-      "PortfolioStoryPhotoInputDto": {
+      "ApiErrorDto": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "Client-generated stable placement ID"
+          "statusCode": {
+            "type": "number",
+            "example": 400
           },
-          "image": {
-            "nullable": false,
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PortfolioImageRefDto"
-              }
-            ]
+          "code": {
+            "type": "string",
+            "example": "VALIDATION_FAILED"
+          },
+          "message": {
+            "type": "string",
+            "example": "Request validation failed"
           }
         },
         "required": [
-          "id",
-          "image"
+          "statusCode",
+          "code",
+          "message"
         ]
       },
-      "AdminPortfolioStoryDto": {
+      "AdminPortfolioEntityBaseDto": {
         "type": "object",
         "properties": {
           "id": {
@@ -965,16 +3016,6 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
-          },
-          "draft": {
-            "$ref": "#/components/schemas/PortfolioStoryDraftInputDto"
-          },
-          "photos": {
-            "maxItems": 10,
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PortfolioStoryPhotoInputDto"
-            }
           }
         },
         "required": [
@@ -984,28 +3025,7 @@
           "publishedVersion",
           "hasUnpublishedChanges",
           "publishedAt",
-          "updatedAt",
-          "draft",
-          "photos"
-        ]
-      },
-      "AdminPortfolioStoryListDto": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/AdminPortfolioSummaryDto"
-            }
-          },
-          "nextCursor": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "required": [
-          "items",
-          "nextCursor"
+          "updatedAt"
         ]
       },
       "ImageVariantDto": {
@@ -1160,7 +3180,7 @@
           "code": {
             "type": "string",
             "example": "VALIDATION_FAILED",
-            "description": "Stable error code: VALIDATION_FAILED (400); UNAUTHORIZED/FORBIDDEN (401/403); PORTFOLIO_CONTENT_NOT_FOUND (404); PORTFOLIO_VERSION_CONFLICT, PORTFOLIO_NOT_READY, PORTFOLIO_CONTENT_REFERENCED, PORTFOLIO_SLUG_IMMUTABLE, PORTFOLIO_CURSOR_STALE (409); PORTFOLIO_UNAVAILABLE (503). Error mapping is implemented alongside the corresponding endpoints."
+            "description": "Stable error code: VALIDATION_FAILED (400); UNAUTHORIZED/FORBIDDEN (401/403); PORTFOLIO_CONTENT_NOT_FOUND (404); PORTFOLIO_VERSION_CONFLICT, PORTFOLIO_NOT_READY, PORTFOLIO_CONTENT_REFERENCED, PORTFOLIO_SLUG_IMMUTABLE, PORTFOLIO_SLUG_TAKEN, PORTFOLIO_CURSOR_STALE (409); PORTFOLIO_UNAVAILABLE (503). Error mapping is implemented alongside the corresponding endpoints."
           },
           "message": {
             "type": "string",
@@ -1288,28 +3308,6 @@
         "required": [
           "desktop",
           "mobile"
-        ]
-      },
-      "PortfolioHomeDraftUpdateDto": {
-        "type": "object",
-        "properties": {
-          "expectedVersion": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 9007199254740991
-          },
-          "data": {
-            "nullable": false,
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PortfolioHomeDraftInputDto"
-              }
-            ]
-          }
-        },
-        "required": [
-          "expectedVersion",
-          "data"
         ]
       },
       "PortfolioServiceCardDto": {
@@ -1669,28 +3667,6 @@
           "publishedAt"
         ]
       },
-      "PortfolioServiceDraftUpdateDto": {
-        "type": "object",
-        "properties": {
-          "expectedVersion": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 9007199254740991
-          },
-          "data": {
-            "nullable": false,
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PortfolioServiceDraftInputDto"
-              }
-            ]
-          }
-        },
-        "required": [
-          "expectedVersion",
-          "data"
-        ]
-      },
       "PortfolioStoryCardPageDto": {
         "type": "object",
         "properties": {
@@ -1918,28 +3894,6 @@
           "items"
         ]
       },
-      "PortfolioStoryDraftUpdateDto": {
-        "type": "object",
-        "properties": {
-          "expectedVersion": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 9007199254740991
-          },
-          "data": {
-            "nullable": false,
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PortfolioStoryDraftInputDto"
-              }
-            ]
-          }
-        },
-        "required": [
-          "expectedVersion",
-          "data"
-        ]
-      },
       "PortfolioStoryPhotoDto": {
         "type": "object",
         "properties": {
@@ -2054,113 +4008,6 @@
           "draftVersion",
           "site",
           "page"
-        ]
-      },
-      "PortfolioUploadHeadersDto": {
-        "type": "object",
-        "properties": {
-          "Content-Type": {
-            "type": "string"
-          },
-          "If-None-Match": {
-            "type": "string",
-            "enum": [
-              "*"
-            ]
-          }
-        },
-        "required": [
-          "Content-Type",
-          "If-None-Match"
-        ]
-      },
-      "PortfolioUploadResponseDto": {
-        "type": "object",
-        "properties": {
-          "mediaId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "uploadUrl": {
-            "type": "string"
-          },
-          "expiresIn": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "requiredHeaders": {
-            "$ref": "#/components/schemas/PortfolioUploadHeadersDto"
-          }
-        },
-        "required": [
-          "mediaId",
-          "uploadUrl",
-          "expiresIn",
-          "requiredHeaders"
-        ]
-      },
-      "PublicationCommandDto": {
-        "type": "object",
-        "properties": {
-          "expectedVersion": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 9007199254740991
-          }
-        },
-        "required": [
-          "expectedVersion"
-        ]
-      },
-      "ReplaceStoryPhotosDto": {
-        "type": "object",
-        "properties": {
-          "expectedVersion": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 9007199254740991
-          },
-          "items": {
-            "maxItems": 10,
-            "description": "Unique placement IDs and media IDs; cover + items union must contain at most 10 media IDs. Checked atomically against the stored cover in the draft service.",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PortfolioStoryPhotoInputDto"
-            }
-          }
-        },
-        "required": [
-          "expectedVersion",
-          "items"
-        ]
-      },
-      "RequestPortfolioUploadDto": {
-        "type": "object",
-        "properties": {
-          "filename": {
-            "type": "string",
-            "maxLength": 255,
-            "minLength": 1,
-            "pattern": "^[^\\u0000-\\u001f\\u007f/\\\\]+$"
-          },
-          "mimeType": {
-            "type": "string",
-            "enum": [
-              "image/jpeg",
-              "image/png",
-              "image/webp"
-            ]
-          },
-          "sizeBytes": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 10000000
-          }
-        },
-        "required": [
-          "filename",
-          "mimeType",
-          "sizeBytes"
         ]
       }
     }

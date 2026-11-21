@@ -1,0 +1,2168 @@
+{
+  "openapi": "3.0.0",
+  "paths": {},
+  "info": {
+    "title": "Portfolio contracts",
+    "description": "",
+    "version": "1",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "schemas": {
+      "AdminPortfolioEntityBaseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "ARCHIVED"
+            ]
+          },
+          "draftVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "publishedVersion": {
+            "type": "integer",
+            "nullable": true,
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "hasUnpublishedChanges": {
+            "type": "boolean"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "draftVersion",
+          "publishedVersion",
+          "hasUnpublishedChanges",
+          "publishedAt",
+          "updatedAt"
+        ]
+      },
+      "AdminPortfolioMediaDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "string",
+            "pattern": "^\\d+$",
+            "description": "BigInt serialized as decimal bytes"
+          },
+          "width": {
+            "type": "integer",
+            "minimum": 1,
+            "nullable": true
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 1,
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "UPLOADING",
+              "PROCESSING",
+              "READY",
+              "FAILED",
+              "DELETED"
+            ]
+          },
+          "previewUrl": {
+            "type": "string",
+            "nullable": true,
+            "description": "Authenticated media route; never public draft access"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "filename",
+          "mimeType",
+          "sizeBytes",
+          "width",
+          "height",
+          "status",
+          "previewUrl",
+          "createdAt"
+        ]
+      },
+      "AdminPortfolioMediaListDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminPortfolioMediaDto"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "LocalizedTitleDto": {
+        "type": "object",
+        "properties": {
+          "uk": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "en": {
+            "type": "string",
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "uk",
+          "en"
+        ]
+      },
+      "LocalizedTextDto": {
+        "type": "object",
+        "properties": {
+          "uk": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "en": {
+            "type": "string",
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "uk",
+          "en"
+        ]
+      },
+      "PortfolioPriceDto": {
+        "type": "object",
+        "properties": {
+          "amountMinor": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000000
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "UAH"
+            ]
+          },
+          "durationMinutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1440
+          }
+        },
+        "required": [
+          "amountMinor",
+          "currency",
+          "durationMinutes"
+        ]
+      },
+      "LocalizedAltDto": {
+        "type": "object",
+        "properties": {
+          "uk": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "en": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "uk",
+          "en"
+        ]
+      },
+      "FocalPointDto": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "y": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ]
+      },
+      "PortfolioImageRefDto": {
+        "type": "object",
+        "properties": {
+          "mediaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "alt": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LocalizedAltDto"
+              }
+            ]
+          },
+          "focalPoint": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FocalPointDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "mediaId",
+          "alt",
+          "focalPoint"
+        ]
+      },
+      "LocalizedSeoDescriptionDto": {
+        "type": "object",
+        "properties": {
+          "uk": {
+            "type": "string",
+            "maxLength": 320
+          },
+          "en": {
+            "type": "string",
+            "maxLength": 320
+          }
+        },
+        "required": [
+          "uk",
+          "en"
+        ]
+      },
+      "PortfolioSeoInputDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LocalizedTitleDto"
+              }
+            ]
+          },
+          "description": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LocalizedSeoDescriptionDto"
+              }
+            ]
+          },
+          "shareImage": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioImageRefDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "shareImage"
+        ]
+      },
+      "PortfolioServiceDraftInputDto": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+          },
+          "title": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LocalizedTitleDto"
+              }
+            ]
+          },
+          "description": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LocalizedTextDto"
+              }
+            ]
+          },
+          "price": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioPriceDto"
+              }
+            ]
+          },
+          "cardImage": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioImageRefDto"
+              }
+            ]
+          },
+          "bookingEnabled": {
+            "type": "boolean"
+          },
+          "seo": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioSeoInputDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "slug",
+          "title",
+          "description",
+          "price",
+          "cardImage",
+          "bookingEnabled",
+          "seo"
+        ]
+      },
+      "AdminPortfolioServiceDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "ARCHIVED"
+            ]
+          },
+          "draftVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "publishedVersion": {
+            "type": "integer",
+            "nullable": true,
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "hasUnpublishedChanges": {
+            "type": "boolean"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "draft": {
+            "$ref": "#/components/schemas/PortfolioServiceDraftInputDto"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "draftVersion",
+          "publishedVersion",
+          "hasUnpublishedChanges",
+          "publishedAt",
+          "updatedAt",
+          "draft"
+        ]
+      },
+      "AdminPortfolioSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "ARCHIVED"
+            ]
+          },
+          "draftVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "publishedVersion": {
+            "type": "integer",
+            "nullable": true,
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "hasUnpublishedChanges": {
+            "type": "boolean"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "$ref": "#/components/schemas/LocalizedTitleDto"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "draftVersion",
+          "publishedVersion",
+          "hasUnpublishedChanges",
+          "publishedAt",
+          "updatedAt",
+          "slug",
+          "title"
+        ]
+      },
+      "AdminPortfolioServiceListDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminPortfolioSummaryDto"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "PortfolioContactInputDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "instagram",
+              "telegram",
+              "email"
+            ]
+          },
+          "label": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LocalizedTitleDto"
+              }
+            ]
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "visible": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "type",
+          "label",
+          "address",
+          "visible"
+        ]
+      },
+      "PortfolioHeroInputDto": {
+        "type": "object",
+        "properties": {
+          "desktop": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioImageRefDto"
+              }
+            ]
+          },
+          "mobile": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioImageRefDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "desktop",
+          "mobile"
+        ]
+      },
+      "PortfolioServicesSectionInputDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LocalizedTitleDto"
+              }
+            ]
+          },
+          "description": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LocalizedTextDto"
+              }
+            ]
+          },
+          "serviceIds": {
+            "maxItems": 20,
+            "uniqueItems": true,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "serviceIds"
+        ]
+      },
+      "PortfolioFeaturedStoryInputDto": {
+        "type": "object",
+        "properties": {
+          "storyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "caption": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LocalizedTextDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "storyId",
+          "caption"
+        ]
+      },
+      "PortfolioStoriesSectionInputDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LocalizedTitleDto"
+              }
+            ]
+          },
+          "items": {
+            "maxItems": 12,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortfolioFeaturedStoryInputDto"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "items"
+        ]
+      },
+      "PortfolioContactSectionInputDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LocalizedTitleDto"
+              }
+            ]
+          },
+          "description": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LocalizedTextDto"
+              }
+            ]
+          },
+          "buttonLabel": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LocalizedTitleDto"
+              }
+            ]
+          },
+          "background": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioImageRefDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "buttonLabel",
+          "background"
+        ]
+      },
+      "PortfolioHomeDraftInputDto": {
+        "type": "object",
+        "properties": {
+          "brand": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "contacts": {
+            "maxItems": 3,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortfolioContactInputDto"
+            }
+          },
+          "bookingIntro": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LocalizedTextDto"
+              }
+            ]
+          },
+          "hero": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioHeroInputDto"
+              }
+            ]
+          },
+          "servicesSection": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioServicesSectionInputDto"
+              }
+            ]
+          },
+          "storiesSection": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioStoriesSectionInputDto"
+              }
+            ]
+          },
+          "contactSection": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioContactSectionInputDto"
+              }
+            ]
+          },
+          "seo": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioSeoInputDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "brand",
+          "contacts",
+          "bookingIntro",
+          "hero",
+          "servicesSection",
+          "storiesSection",
+          "contactSection",
+          "seo"
+        ]
+      },
+      "AdminPortfolioSettingsDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "ARCHIVED"
+            ]
+          },
+          "draftVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "publishedVersion": {
+            "type": "integer",
+            "nullable": true,
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "hasUnpublishedChanges": {
+            "type": "boolean"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "draft": {
+            "$ref": "#/components/schemas/PortfolioHomeDraftInputDto"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "draftVersion",
+          "publishedVersion",
+          "hasUnpublishedChanges",
+          "publishedAt",
+          "updatedAt",
+          "draft"
+        ]
+      },
+      "LocalizedSubtitleDto": {
+        "type": "object",
+        "properties": {
+          "uk": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "en": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "uk",
+          "en"
+        ]
+      },
+      "PortfolioStoryDraftInputDto": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+          },
+          "title": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LocalizedTitleDto"
+              }
+            ]
+          },
+          "subtitle": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LocalizedSubtitleDto"
+              }
+            ]
+          },
+          "description": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LocalizedTextDto"
+              }
+            ]
+          },
+          "serviceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cover": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioImageRefDto"
+              }
+            ]
+          },
+          "seo": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioSeoInputDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "slug",
+          "title",
+          "subtitle",
+          "description",
+          "serviceId",
+          "cover",
+          "seo"
+        ]
+      },
+      "PortfolioStoryPhotoInputDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Client-generated stable placement ID"
+          },
+          "image": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioImageRefDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "image"
+        ]
+      },
+      "AdminPortfolioStoryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "ARCHIVED"
+            ]
+          },
+          "draftVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "publishedVersion": {
+            "type": "integer",
+            "nullable": true,
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "hasUnpublishedChanges": {
+            "type": "boolean"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "draft": {
+            "$ref": "#/components/schemas/PortfolioStoryDraftInputDto"
+          },
+          "photos": {
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortfolioStoryPhotoInputDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "draftVersion",
+          "publishedVersion",
+          "hasUnpublishedChanges",
+          "publishedAt",
+          "updatedAt",
+          "draft",
+          "photos"
+        ]
+      },
+      "AdminPortfolioStoryListDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminPortfolioSummaryDto"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "ImageVariantDto": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "Stable same-origin derivative route, never an original or storage key"
+          },
+          "width": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "url",
+          "width",
+          "height"
+        ]
+      },
+      "PortfolioImageDto": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "Stable same-origin derivative route, never an original or storage key"
+          },
+          "width": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "mediaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImageVariantDto"
+            }
+          },
+          "alt": {
+            "type": "string"
+          },
+          "focalPoint": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FocalPointDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "url",
+          "width",
+          "height",
+          "mediaId",
+          "sources",
+          "alt",
+          "focalPoint"
+        ]
+      },
+      "PortfolioStoryCardDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "cover": {
+            "$ref": "#/components/schemas/PortfolioImageDto"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "subtitle",
+          "cover"
+        ]
+      },
+      "FeaturedPortfolioStoryDto": {
+        "type": "object",
+        "properties": {
+          "story": {
+            "$ref": "#/components/schemas/PortfolioStoryCardDto"
+          },
+          "caption": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "story",
+          "caption"
+        ]
+      },
+      "PortfolioValidationParamsDto": {
+        "type": "object",
+        "properties": {
+          "min": {
+            "type": "number"
+          },
+          "max": {
+            "type": "number"
+          }
+        }
+      },
+      "PortfolioValidationErrorDto": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "params": {
+            "$ref": "#/components/schemas/PortfolioValidationParamsDto"
+          }
+        },
+        "required": [
+          "field",
+          "code"
+        ]
+      },
+      "PortfolioApiErrorDto": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "number",
+            "example": 400
+          },
+          "code": {
+            "type": "string",
+            "example": "VALIDATION_FAILED",
+            "description": "Stable error code: VALIDATION_FAILED (400); UNAUTHORIZED/FORBIDDEN (401/403); PORTFOLIO_CONTENT_NOT_FOUND (404); PORTFOLIO_VERSION_CONFLICT, PORTFOLIO_NOT_READY, PORTFOLIO_CONTENT_REFERENCED, PORTFOLIO_SLUG_IMMUTABLE, PORTFOLIO_CURSOR_STALE (409); PORTFOLIO_UNAVAILABLE (503). Error mapping is implemented alongside the corresponding endpoints."
+          },
+          "message": {
+            "type": "string",
+            "example": "Request validation failed"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortfolioValidationErrorDto"
+            }
+          }
+        },
+        "required": [
+          "statusCode",
+          "code",
+          "message"
+        ]
+      },
+      "PortfolioBookingServiceDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "price": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioPriceDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "price"
+        ]
+      },
+      "PortfolioBookingDto": {
+        "type": "object",
+        "properties": {
+          "intro": {
+            "type": "string"
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortfolioBookingServiceDto"
+            }
+          }
+        },
+        "required": [
+          "intro",
+          "services"
+        ]
+      },
+      "PortfolioContactDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "instagram",
+              "telegram",
+              "email"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "href": {
+            "type": "string",
+            "description": "Server-derived HTTPS profile or mailto address"
+          }
+        },
+        "required": [
+          "type",
+          "label",
+          "href"
+        ]
+      },
+      "PortfolioContactSectionDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "buttonLabel": {
+            "type": "string"
+          },
+          "background": {
+            "$ref": "#/components/schemas/PortfolioImageDto"
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "buttonLabel",
+          "background"
+        ]
+      },
+      "PortfolioHeroDto": {
+        "type": "object",
+        "properties": {
+          "desktop": {
+            "$ref": "#/components/schemas/PortfolioImageDto"
+          },
+          "mobile": {
+            "$ref": "#/components/schemas/PortfolioImageDto"
+          }
+        },
+        "required": [
+          "desktop",
+          "mobile"
+        ]
+      },
+      "PortfolioHomeDraftUpdateDto": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "data": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioHomeDraftInputDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "data"
+        ]
+      },
+      "PortfolioServiceCardDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "price": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioPriceDto"
+              }
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "cardImage": {
+            "$ref": "#/components/schemas/PortfolioImageDto"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "price",
+          "description",
+          "cardImage"
+        ]
+      },
+      "PortfolioServicesSectionDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "items": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortfolioServiceCardDto"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "items"
+        ]
+      },
+      "PortfolioStoriesSectionDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "items": {
+            "maxItems": 12,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeaturedPortfolioStoryDto"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "items"
+        ]
+      },
+      "PortfolioSeoDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "canonicalPath": {
+            "type": "string",
+            "description": "Server-derived locale-prefixed path"
+          },
+          "shareImage": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioImageDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "canonicalPath",
+          "shareImage"
+        ]
+      },
+      "PortfolioHomeDto": {
+        "type": "object",
+        "properties": {
+          "hero": {
+            "$ref": "#/components/schemas/PortfolioHeroDto"
+          },
+          "servicesSection": {
+            "$ref": "#/components/schemas/PortfolioServicesSectionDto"
+          },
+          "storiesSection": {
+            "$ref": "#/components/schemas/PortfolioStoriesSectionDto"
+          },
+          "contactSection": {
+            "$ref": "#/components/schemas/PortfolioContactSectionDto"
+          },
+          "seo": {
+            "$ref": "#/components/schemas/PortfolioSeoDto"
+          }
+        },
+        "required": [
+          "hero",
+          "servicesSection",
+          "storiesSection",
+          "contactSection",
+          "seo"
+        ]
+      },
+      "PortfolioSiteDto": {
+        "type": "object",
+        "properties": {
+          "brand": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "uk",
+              "en"
+            ]
+          },
+          "supportedLocales": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "uk",
+                "en"
+              ]
+            },
+            "minItems": 2,
+            "maxItems": 2,
+            "uniqueItems": true
+          },
+          "contacts": {
+            "maxItems": 3,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortfolioContactDto"
+            }
+          },
+          "booking": {
+            "$ref": "#/components/schemas/PortfolioBookingDto"
+          }
+        },
+        "required": [
+          "brand",
+          "locale",
+          "supportedLocales",
+          "contacts",
+          "booking"
+        ]
+      },
+      "PortfolioHomePageDto": {
+        "type": "object",
+        "properties": {
+          "site": {
+            "$ref": "#/components/schemas/PortfolioSiteDto"
+          },
+          "contentVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "page": {
+            "$ref": "#/components/schemas/PortfolioHomeDto"
+          }
+        },
+        "required": [
+          "site",
+          "contentVersion",
+          "page"
+        ]
+      },
+      "PortfolioHomePreviewDto": {
+        "type": "object",
+        "properties": {
+          "draftVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "site": {
+            "$ref": "#/components/schemas/PortfolioSiteDto"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PortfolioHomeDto"
+          }
+        },
+        "required": [
+          "draftVersion",
+          "site",
+          "page"
+        ]
+      },
+      "PortfolioListQueryDto": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "default": 24,
+            "minimum": 1,
+            "maximum": 50
+          },
+          "cursor": {
+            "type": "string",
+            "description": "Opaque version/context-bound cursor",
+            "maxLength": 2048
+          }
+        }
+      },
+      "PortfolioLocaleQueryDto": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string",
+            "enum": [
+              "uk",
+              "en"
+            ],
+            "default": "en"
+          }
+        }
+      },
+      "PortfolioPageBaseDto": {
+        "type": "object",
+        "properties": {
+          "site": {
+            "$ref": "#/components/schemas/PortfolioSiteDto"
+          },
+          "contentVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "site",
+          "contentVersion"
+        ]
+      },
+      "PortfolioPreviewBaseDto": {
+        "type": "object",
+        "properties": {
+          "draftVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "site": {
+            "$ref": "#/components/schemas/PortfolioSiteDto"
+          }
+        },
+        "required": [
+          "draftVersion",
+          "site"
+        ]
+      },
+      "PortfolioPublicListQueryDto": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "default": 24,
+            "minimum": 1,
+            "maximum": 50
+          },
+          "cursor": {
+            "type": "string",
+            "description": "Opaque version/context-bound cursor",
+            "maxLength": 2048
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "uk",
+              "en"
+            ],
+            "default": "en"
+          }
+        }
+      },
+      "PortfolioPublicationResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "ARCHIVED"
+            ]
+          },
+          "draftVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "publishedVersion": {
+            "type": "integer",
+            "nullable": true,
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "contentVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "draftVersion",
+          "publishedVersion",
+          "contentVersion",
+          "publishedAt"
+        ]
+      },
+      "PortfolioServiceDraftUpdateDto": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "data": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioServiceDraftInputDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "data"
+        ]
+      },
+      "PortfolioStoryCardPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortfolioStoryCardDto"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "PortfolioServiceDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "price": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioPriceDto"
+              }
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "cardImage": {
+            "$ref": "#/components/schemas/PortfolioImageDto"
+          },
+          "seo": {
+            "$ref": "#/components/schemas/PortfolioSeoDto"
+          },
+          "stories": {
+            "$ref": "#/components/schemas/PortfolioStoryCardPageDto"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "price",
+          "description",
+          "cardImage",
+          "seo",
+          "stories"
+        ]
+      },
+      "PortfolioServiceListDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortfolioServiceCardDto"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "uk",
+              "en"
+            ]
+          },
+          "contentVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "locale",
+          "contentVersion"
+        ]
+      },
+      "PortfolioServicePageDto": {
+        "type": "object",
+        "properties": {
+          "site": {
+            "$ref": "#/components/schemas/PortfolioSiteDto"
+          },
+          "contentVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "page": {
+            "$ref": "#/components/schemas/PortfolioServiceDto"
+          }
+        },
+        "required": [
+          "site",
+          "contentVersion",
+          "page"
+        ]
+      },
+      "PortfolioServicePreviewDto": {
+        "type": "object",
+        "properties": {
+          "draftVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "site": {
+            "$ref": "#/components/schemas/PortfolioSiteDto"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PortfolioServiceDto"
+          }
+        },
+        "required": [
+          "draftVersion",
+          "site",
+          "page"
+        ]
+      },
+      "PortfolioSiteResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PortfolioSiteDto"
+          },
+          "contentVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "data",
+          "contentVersion"
+        ]
+      },
+      "PortfolioSitemapAlternateDto": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string",
+            "enum": [
+              "uk",
+              "en"
+            ]
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "locale",
+          "path"
+        ]
+      },
+      "PortfolioSitemapItemDto": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string",
+            "enum": [
+              "uk",
+              "en"
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "alternates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortfolioSitemapAlternateDto"
+            }
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "locale",
+          "path",
+          "alternates",
+          "updatedAt"
+        ]
+      },
+      "PortfolioSitemapDto": {
+        "type": "object",
+        "properties": {
+          "contentVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortfolioSitemapItemDto"
+            }
+          }
+        },
+        "required": [
+          "contentVersion",
+          "items"
+        ]
+      },
+      "PortfolioStoryDraftUpdateDto": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "data": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioStoryDraftInputDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "data"
+        ]
+      },
+      "PortfolioStoryPhotoDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "image": {
+            "$ref": "#/components/schemas/PortfolioImageDto"
+          }
+        },
+        "required": [
+          "id",
+          "image"
+        ]
+      },
+      "PortfolioStoryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "cover": {
+            "$ref": "#/components/schemas/PortfolioImageDto"
+          },
+          "description": {
+            "type": "string"
+          },
+          "service": {
+            "$ref": "#/components/schemas/PortfolioBookingServiceDto"
+          },
+          "photos": {
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortfolioStoryPhotoDto"
+            }
+          },
+          "nextStory": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioStoryCardDto"
+              }
+            ]
+          },
+          "seo": {
+            "$ref": "#/components/schemas/PortfolioSeoDto"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "subtitle",
+          "cover",
+          "description",
+          "service",
+          "photos",
+          "nextStory",
+          "seo"
+        ]
+      },
+      "PortfolioStoryPageDto": {
+        "type": "object",
+        "properties": {
+          "site": {
+            "$ref": "#/components/schemas/PortfolioSiteDto"
+          },
+          "contentVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "page": {
+            "$ref": "#/components/schemas/PortfolioStoryDto"
+          }
+        },
+        "required": [
+          "site",
+          "contentVersion",
+          "page"
+        ]
+      },
+      "PortfolioStoryPreviewDto": {
+        "type": "object",
+        "properties": {
+          "draftVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "site": {
+            "$ref": "#/components/schemas/PortfolioSiteDto"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PortfolioStoryDto"
+          }
+        },
+        "required": [
+          "draftVersion",
+          "site",
+          "page"
+        ]
+      },
+      "PortfolioUploadHeadersDto": {
+        "type": "object",
+        "properties": {
+          "Content-Type": {
+            "type": "string"
+          },
+          "If-None-Match": {
+            "type": "string",
+            "enum": [
+              "*"
+            ]
+          }
+        },
+        "required": [
+          "Content-Type",
+          "If-None-Match"
+        ]
+      },
+      "PortfolioUploadResponseDto": {
+        "type": "object",
+        "properties": {
+          "mediaId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "uploadUrl": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "requiredHeaders": {
+            "$ref": "#/components/schemas/PortfolioUploadHeadersDto"
+          }
+        },
+        "required": [
+          "mediaId",
+          "uploadUrl",
+          "expiresIn",
+          "requiredHeaders"
+        ]
+      },
+      "PublicationCommandDto": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "expectedVersion"
+        ]
+      },
+      "ReplaceStoryPhotosDto": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "items": {
+            "maxItems": 10,
+            "description": "Unique placement IDs and media IDs; cover + items union must contain at most 10 media IDs. Checked atomically against the stored cover in the draft service.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortfolioStoryPhotoInputDto"
+            }
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "items"
+        ]
+      },
+      "RequestPortfolioUploadDto": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "pattern": "^[^\\u0000-\\u001f\\u007f/\\\\]+$"
+          },
+          "mimeType": {
+            "type": "string",
+            "enum": [
+              "image/jpeg",
+              "image/png",
+              "image/webp"
+            ]
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000000
+          }
+        },
+        "required": [
+          "filename",
+          "mimeType",
+          "sizeBytes"
+        ]
+      }
+    }
+  }
+}

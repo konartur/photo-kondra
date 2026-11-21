@@ -15,6 +15,7 @@ import { createApiRateLimiter } from './common/api-rate-limiter.js';
 import { ApiExceptionFilter } from './common/api-exception.filter.js';
 import { ApiErrorDto } from './common/api-error.dto.js';
 import { requestLogging } from './common/logging/request-logging.js';
+import { portfolioModels } from './portfolio/portfolio-openapi.js';
 
 // Shared by the HTTP bootstrap and E2E tests so tests exercise the deployed policy.
 export function setupApp(
@@ -95,7 +96,9 @@ export function setupApp(
     .setVersion('1.0')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'bearer')
     .build();
-  const document = SwaggerModule.createDocument(app, swaggerConfig, { extraModels: [ApiErrorDto] });
+  const document = SwaggerModule.createDocument(app, swaggerConfig, {
+    extraModels: [ApiErrorDto, ...portfolioModels],
+  });
   for (const path of Object.values(document.paths)) {
     for (const method of ['get', 'head', 'post', 'patch', 'put', 'delete', 'options'] as const) {
       const operation = path?.[method];

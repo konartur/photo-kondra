@@ -11,6 +11,8 @@ import { PortfolioMediaController } from './portfolio-media.controller.js';
 import { PortfolioAdminController } from './portfolio-admin.controller.js';
 import { PortfolioAdminService } from './portfolio-admin.service.js';
 import { PortfolioPublicationService } from './portfolio-publication.service.js';
+import { PortfolioPublicController } from './portfolio-public.controller.js';
+import { PortfolioPublicReader } from './portfolio-public-reader.js';
 import { PortfolioMediaService } from './media/portfolio-media.service.js';
 import { PortfolioMediaJobs } from './media/portfolio-media.jobs.js';
 import { PortfolioMediaWorker } from './media/portfolio-media.worker.js';
@@ -27,7 +29,7 @@ import {
 
 @Module({
   imports: [AuthModule, QueuesModule, StorageModule, PortfolioPersistenceModule],
-  controllers: [PortfolioMediaController, PortfolioAdminController],
+  controllers: [PortfolioMediaController, PortfolioAdminController, PortfolioPublicController],
   providers: [
     {
       provide: PORTFOLIO_MEDIA_QUEUE_CLIENT,
@@ -51,6 +53,7 @@ import {
     PortfolioMediaService,
     PortfolioAdminService,
     PortfolioPublicationService,
+    PortfolioPublicReader,
     PortfolioMediaJobs,
     PortfolioMediaWorker,
     PortfolioImageProcessor,

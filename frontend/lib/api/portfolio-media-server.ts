@@ -73,13 +73,23 @@ export async function forwardPortfolioPreview(
   const path = `/portfolio/media/${mediaId}/variants/${variantId}`;
   const accessToken = (await cookies()).get(ACCESS_TOKEN_COOKIE)?.value;
   if (!accessToken) return errorResponse(401, 'UNAUTHORIZED', 'Authentication required');
+  return forwardDerivative(path, accessToken);
+}
+
+export async function forwardPublishedPortfolioDerivative(mediaId: string, variantId: string) {
+  if (!uuid.test(mediaId) || !uuid.test(variantId))
+    return errorResponse(400, 'VALIDATION_FAILED', 'Invalid media ID');
+  return forwardDerivative(`/public/portfolio/media/${mediaId}/variants/${variantId}`);
+}
+
+async function forwardDerivative(path: string, accessToken?: string) {
   try {
     const response = await fetch(backendUrl(path), {
       redirect: 'manual',
       cache: 'no-store',
       headers: {
         ...(await backendClientHeaders(backendUrl(path), 'GET')),
-        Authorization: `Bearer ${accessToken}`,
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
     });
     if (response.status >= 400)

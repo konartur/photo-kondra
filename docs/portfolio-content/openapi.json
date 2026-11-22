@@ -2880,6 +2880,536 @@
           "portfolio admin drafts"
         ]
       }
+    },
+    "/api/v1/public/portfolio/site": {
+      "get": {
+        "operationId": "PortfolioPublicController_site",
+        "parameters": [
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "en",
+              "type": "string",
+              "enum": [
+                "uk",
+                "en"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioSiteResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid locale, slug, cursor or media ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No active publication for this resource",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Portfolio database, snapshot or storage unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "portfolio public"
+        ]
+      }
+    },
+    "/api/v1/public/portfolio/home": {
+      "get": {
+        "operationId": "PortfolioPublicController_home",
+        "parameters": [
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "en",
+              "type": "string",
+              "enum": [
+                "uk",
+                "en"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioHomePageDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid locale, slug, cursor or media ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No active publication for this resource",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Portfolio database, snapshot or storage unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "portfolio public"
+        ]
+      }
+    },
+    "/api/v1/public/portfolio/services": {
+      "get": {
+        "operationId": "PortfolioPublicController_services",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 24,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Opaque version/context-bound cursor",
+            "schema": {
+              "maxLength": 2048,
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "en",
+              "type": "string",
+              "enum": [
+                "uk",
+                "en"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioServiceListDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid locale, slug, cursor or media ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No active publication for this resource",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PORTFOLIO_CURSOR_STALE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Portfolio database, snapshot or storage unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "portfolio public"
+        ]
+      }
+    },
+    "/api/v1/public/portfolio/services/{slug}": {
+      "get": {
+        "operationId": "PortfolioPublicController_service",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 24,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Opaque version/context-bound cursor",
+            "schema": {
+              "maxLength": 2048,
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "en",
+              "type": "string",
+              "enum": [
+                "uk",
+                "en"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioServicePageDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid locale, slug, cursor or media ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No active publication for this resource",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PORTFOLIO_CURSOR_STALE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Portfolio database, snapshot or storage unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "portfolio public"
+        ]
+      }
+    },
+    "/api/v1/public/portfolio/stories/{slug}": {
+      "get": {
+        "operationId": "PortfolioPublicController_story",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "en",
+              "type": "string",
+              "enum": [
+                "uk",
+                "en"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioStoryPageDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid locale, slug, cursor or media ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No active publication for this resource",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Portfolio database, snapshot or storage unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "portfolio public"
+        ]
+      }
+    },
+    "/api/v1/public/portfolio/sitemap": {
+      "get": {
+        "operationId": "PortfolioPublicController_sitemap",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioSitemapDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid locale, slug, cursor or media ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No active publication for this resource",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Portfolio database, snapshot or storage unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "portfolio public"
+        ]
+      }
+    },
+    "/api/v1/public/portfolio/media/{mediaId}/variants/{variantId}": {
+      "get": {
+        "operationId": "PortfolioPublicController_media",
+        "parameters": [
+          {
+            "name": "mediaId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "variantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Signed published derivative",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "no-store"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid locale, slug, cursor or media ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No active publication for this resource",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Portfolio database, snapshot or storage unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "portfolio public"
+        ]
+      }
     }
   },
   "info": {
@@ -4675,6 +5205,189 @@
           "page"
         ]
       },
+      "PortfolioSiteResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PortfolioSiteDto"
+          },
+          "contentVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "data",
+          "contentVersion"
+        ]
+      },
+      "PortfolioHomePageDto": {
+        "type": "object",
+        "properties": {
+          "site": {
+            "$ref": "#/components/schemas/PortfolioSiteDto"
+          },
+          "contentVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "page": {
+            "$ref": "#/components/schemas/PortfolioHomeDto"
+          }
+        },
+        "required": [
+          "site",
+          "contentVersion",
+          "page"
+        ]
+      },
+      "PortfolioServiceListDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortfolioServiceCardDto"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "uk",
+              "en"
+            ]
+          },
+          "contentVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "locale",
+          "contentVersion"
+        ]
+      },
+      "PortfolioServicePageDto": {
+        "type": "object",
+        "properties": {
+          "site": {
+            "$ref": "#/components/schemas/PortfolioSiteDto"
+          },
+          "contentVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "page": {
+            "$ref": "#/components/schemas/PortfolioServiceDto"
+          }
+        },
+        "required": [
+          "site",
+          "contentVersion",
+          "page"
+        ]
+      },
+      "PortfolioStoryPageDto": {
+        "type": "object",
+        "properties": {
+          "site": {
+            "$ref": "#/components/schemas/PortfolioSiteDto"
+          },
+          "contentVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "page": {
+            "$ref": "#/components/schemas/PortfolioStoryDto"
+          }
+        },
+        "required": [
+          "site",
+          "contentVersion",
+          "page"
+        ]
+      },
+      "PortfolioSitemapAlternateDto": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string",
+            "enum": [
+              "uk",
+              "en"
+            ]
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "locale",
+          "path"
+        ]
+      },
+      "PortfolioSitemapItemDto": {
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string",
+            "enum": [
+              "uk",
+              "en"
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "alternates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortfolioSitemapAlternateDto"
+            }
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "locale",
+          "path",
+          "alternates",
+          "updatedAt"
+        ]
+      },
+      "PortfolioSitemapDto": {
+        "type": "object",
+        "properties": {
+          "contentVersion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortfolioSitemapItemDto"
+            }
+          }
+        },
+        "required": [
+          "contentVersion",
+          "items"
+        ]
+      },
       "ApiErrorDto": {
         "type": "object",
         "properties": {
@@ -4804,27 +5517,6 @@
           "message"
         ]
       },
-      "PortfolioHomePageDto": {
-        "type": "object",
-        "properties": {
-          "site": {
-            "$ref": "#/components/schemas/PortfolioSiteDto"
-          },
-          "contentVersion": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991
-          },
-          "page": {
-            "$ref": "#/components/schemas/PortfolioHomeDto"
-          }
-        },
-        "required": [
-          "site",
-          "contentVersion",
-          "page"
-        ]
-      },
       "PortfolioListQueryDto": {
         "type": "object",
         "properties": {
@@ -4911,168 +5603,6 @@
             "default": "en"
           }
         }
-      },
-      "PortfolioServiceListDto": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PortfolioServiceCardDto"
-            }
-          },
-          "nextCursor": {
-            "type": "string",
-            "nullable": true
-          },
-          "locale": {
-            "type": "string",
-            "enum": [
-              "uk",
-              "en"
-            ]
-          },
-          "contentVersion": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991
-          }
-        },
-        "required": [
-          "items",
-          "nextCursor",
-          "locale",
-          "contentVersion"
-        ]
-      },
-      "PortfolioServicePageDto": {
-        "type": "object",
-        "properties": {
-          "site": {
-            "$ref": "#/components/schemas/PortfolioSiteDto"
-          },
-          "contentVersion": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991
-          },
-          "page": {
-            "$ref": "#/components/schemas/PortfolioServiceDto"
-          }
-        },
-        "required": [
-          "site",
-          "contentVersion",
-          "page"
-        ]
-      },
-      "PortfolioSiteResponseDto": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/PortfolioSiteDto"
-          },
-          "contentVersion": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991
-          }
-        },
-        "required": [
-          "data",
-          "contentVersion"
-        ]
-      },
-      "PortfolioSitemapAlternateDto": {
-        "type": "object",
-        "properties": {
-          "locale": {
-            "type": "string",
-            "enum": [
-              "uk",
-              "en"
-            ]
-          },
-          "path": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "locale",
-          "path"
-        ]
-      },
-      "PortfolioSitemapItemDto": {
-        "type": "object",
-        "properties": {
-          "locale": {
-            "type": "string",
-            "enum": [
-              "uk",
-              "en"
-            ]
-          },
-          "path": {
-            "type": "string"
-          },
-          "alternates": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PortfolioSitemapAlternateDto"
-            }
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "required": [
-          "locale",
-          "path",
-          "alternates",
-          "updatedAt"
-        ]
-      },
-      "PortfolioSitemapDto": {
-        "type": "object",
-        "properties": {
-          "contentVersion": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991
-          },
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PortfolioSitemapItemDto"
-            }
-          }
-        },
-        "required": [
-          "contentVersion",
-          "items"
-        ]
-      },
-      "PortfolioStoryPageDto": {
-        "type": "object",
-        "properties": {
-          "site": {
-            "$ref": "#/components/schemas/PortfolioSiteDto"
-          },
-          "contentVersion": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991
-          },
-          "page": {
-            "$ref": "#/components/schemas/PortfolioStoryDto"
-          }
-        },
-        "required": [
-          "site",
-          "contentVersion",
-          "page"
-        ]
       }
     }
   }

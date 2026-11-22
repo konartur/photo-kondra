@@ -10,6 +10,8 @@ import { PortfolioAdminController } from '../dist/portfolio/portfolio-admin.cont
 import { PortfolioMediaService } from '../dist/portfolio/media/portfolio-media.service.js';
 import { PortfolioAdminService } from '../dist/portfolio/portfolio-admin.service.js';
 import { PortfolioPublicationService } from '../dist/portfolio/portfolio-publication.service.js';
+import { PortfolioPublicController } from '../dist/portfolio/portfolio-public.controller.js';
+import { PortfolioPublicReader } from '../dist/portfolio/portfolio-public-reader.js';
 import { ApiErrorDto } from '../dist/common/api-error.dto.js';
 import { format } from 'prettier';
 
@@ -18,11 +20,12 @@ import { format } from 'prettier';
 class ContractModule {}
 Module({
   imports: [PassportModule.register({ defaultStrategy: 'jwt' })],
-  controllers: [PortfolioMediaController, PortfolioAdminController],
+  controllers: [PortfolioMediaController, PortfolioAdminController, PortfolioPublicController],
   providers: [
     { provide: PortfolioMediaService, useValue: Object.freeze({}) },
     { provide: PortfolioAdminService, useValue: Object.freeze({}) },
     { provide: PortfolioPublicationService, useValue: Object.freeze({}) },
+    { provide: PortfolioPublicReader, useValue: Object.freeze({}) },
   ],
 })(ContractModule);
 const app = await NestFactory.create(ContractModule, { logger: false, abortOnError: false });

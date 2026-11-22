@@ -1,6 +1,6 @@
 # Послідовність реалізації портфоліо
 
-**Стан:** PF-CONTENT-01 виконано. PF-CONTENT-02 запушено (`efc9a70`), DB-приймання відкладено. PF-CONTENT-03/04 запушено (557d8d4). PF-CONTENT-05 виконано локально, приймання пройдено 2026-11-22. PF-CONTENT-06 та далі лишаються Backlog. Контракти — у [DTO-архітектурі](../dto-architecture.md), генерація — у [runtime workflow](../contracts-workflow.md), схема — у [persistence design](../persistence.md), медіа — у [pipeline](../media-pipeline.md).
+**Стан:** PF-CONTENT-01 виконано. PF-CONTENT-02 запушено (`efc9a70`), DB-приймання відкладено. PF-CONTENT-03/04 запушено (557d8d4). PF-CONTENT-05 виконано локально, приймання пройдено 2026-11-22. PF-CONTENT-06 реалізовано локально. PF-CONTENT-06A та далі лишаються Backlog. Контракти — у [DTO-архітектурі](../dto-architecture.md), генерація — у [runtime workflow](../contracts-workflow.md), схема — у [persistence design](../persistence.md), медіа — у [pipeline](../media-pipeline.md).
 
 | Крок | Тікет | Залежить від |
 | --- | --- | --- |
@@ -9,7 +9,7 @@
 | 3 | [PF-CONTENT-03 — Незалежне завантаження та обробка медіа](03-portfolio-media.md) | PF-CONTENT-02 |
 | 4 | [PF-CONTENT-04 — Редагування напрямів, історій та головної](04-draft-crud.md) | PF-CONTENT-03 |
 | 5 | [PF-CONTENT-05 — Атомарна публікація, архівація та preview](05-publication.md) | PF-CONTENT-04 |
-| 6 | [PF-CONTENT-06 — Публічні агрегати, sitemap і безпечні медіамаршрути](06-public-read-api.md) | PF-CONTENT-05 |
+| 6 | [PF-CONTENT-06 — Публічні агрегати, sitemap і безпечні медіамаршрути](06-public-read-api.md) · реалізовано локально | PF-CONTENT-05 |
 | 7 | [PF-CONTENT-06A — Redis-кеш та надійна інвалідація](06a-redis-cache.md) | PF-CONTENT-06 |
 | 8 | [PF-CONTENT-07 — Перевести публічне портфоліо на server DTO](07-frontend-data.md) | PF-CONTENT-06A |
 | 9 | [PF-CONTENT-08 — Керування портфоліо в чинній адмінці](08-admin-editor.md) | PF-CONTENT-07 |

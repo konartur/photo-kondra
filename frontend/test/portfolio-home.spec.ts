@@ -362,8 +362,12 @@ test('sizes the phone hero before hydration and keeps its size when hydration fi
   try {
     await page.goto('/', { waitUntil: 'commit' });
     await expect(page.locator('#home')).toHaveCSS('height', '714px');
-    // Compare hydration with the same font, rather than racing font-display: swap.
-    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    // WebKit waits for the blocked scripts before resolving document.fonts.ready.
+    // Load only the font whose metrics the assertion compares.
+    await page.locator('#home a[href="#services"]').evaluate(async (element) => {
+      const style = getComputedStyle(element);
+      await document.fonts.load(`${style.fontWeight} ${style.fontSize} ${style.fontFamily}`, element.textContent ?? '');
+    });
     const before = await page.locator('#home img').boundingBox();
     const hintBefore = await page.locator('#home a[href="#services"]').boundingBox();
     releaseScripts();

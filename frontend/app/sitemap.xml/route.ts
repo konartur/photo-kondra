@@ -1,3 +1,4 @@
+import { connection } from 'next/server';
 import { loadPortfolioSitemap, portfolioContentMode } from '@/lib/portfolio/server';
 import { portfolioOrigin } from '../_portfolio/portfolio-metadata';
 import { portfolioStories } from '../_portfolio/portfolio-stories';
@@ -10,6 +11,7 @@ function escapeXml(value: string) {
 }
 
 export async function GET() {
+  await connection();
   const origin = portfolioOrigin();
   const absolute = (path: string) => escapeXml(new URL(path, origin ?? undefined).href);
   let items: string[] = [];

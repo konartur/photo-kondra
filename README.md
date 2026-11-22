@@ -519,7 +519,7 @@ JS-файли на несумісні статичні блоки й натис�
 
 ```powershell
 $env:PHOTO_CLOUD_E2E_DIST_DIR='.next-e2e-safari15'
-npm --prefix frontend run test:e2e -- test/portfolio-iphone.spec.ts test/portfolio-booking.spec.ts test/portfolio-home.spec.ts --browser webkit
+npm --prefix frontend run test:e2e -- test/portfolio-iphone.spec.ts test/portfolio-booking.spec.ts test/portfolio-home.spec.ts --project=webkit
 ```
 
 Для Chromium повтори з `--browser chromium`. Потрібні встановлені браузери Playwright.

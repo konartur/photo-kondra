@@ -6,6 +6,14 @@ export default defineConfig({
   testDir: './test',
   ...(portfolioDb ? { testMatch: '**/portfolio-db.spec.ts' } : { testIgnore: '**/portfolio-db.spec.ts' }),
   workers: 1,
+  projects: [
+    { name: 'chromium', use: { browserName: 'chromium' } },
+    {
+      name: 'webkit',
+      testMatch: portfolioDb ? '**/portfolio-db.spec.ts' : '**/portfolio-*.spec.ts',
+      use: { browserName: 'webkit' },
+    },
+  ],
   use: {
     baseURL: 'http://localhost:3002',
     trace: 'retain-on-failure',

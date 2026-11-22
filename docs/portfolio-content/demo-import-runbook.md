@@ -44,3 +44,16 @@ npm --prefix backend run portfolio:import-demo -- --apply --publish --assets $as
 Для відкату змініть серверний `PORTFOLIO_CONTENT_MODE` на `FILE` і перезапустіть frontend. Дані, фото та опубліковані snapshots залишаються в локальних PostgreSQL і storage. Після приймання джерело FILE та перемикач видаляються окремим кроком, щоб зміна була придатною до перевірки.
 
 Для автоматизованого локального smoke можна запустити `node backend/test/portfolio-demo-storage.mjs`. Це тимчасовий HTTP fixture з об’єктами в RAM, бакетом `photokondra-import-demo` і портом 19090. Його процес має працювати протягом усієї перевірки. Для довготривалого локального стенда використовуйте приватне сумісне сховище з постійним volume.
+
+## Приймання на production build
+
+Production BFF приймає лише HTTPS-редиректи до сховища. Для локального тесту створіть тимчасовий сертифікат із SAN `IP:127.0.0.1`. Передайте шляхи до ключа і сертифіката у `PORTFOLIO_DEMO_TLS_KEY` та `PORTFOLIO_DEMO_TLS_CERT` і запустіть `node backend/test/portfolio-demo-storage.mjs --tls-proxy`. Fixture на 19090 лишається запущеним, а проксі на 19443 використовує ті самі об’єкти.
+
+На локальному API задайте `API_HOST=127.0.0.1`, `PORT=19300`, `NODE_ENV=production`, `AWS_S3_ENDPOINT=https://127.0.0.1:19443` і `NODE_EXTRA_CA_CERTS` із шляхом до PEM. Решта параметрів API мають вказувати на імпортовану демо БД, окремий Redis і тестовий бакет. Зберіть frontend з `PORTFOLIO_CONTENT_MODE=FILE`, а під час `next start --hostname 127.0.0.1 --port 19301` задайте `PORTFOLIO_CONTENT_MODE=DB`, `API_URL=http://127.0.0.1:19300` і тестовий HTTPS `APP_URL`. Використайте той самий локальний `BFF_TRUST_SECRET` для API, frontend та команд нижче.
+
+```powershell
+node backend/test/portfolio-demo-acceptance.mjs
+node frontend/test/portfolio-perf.mjs
+```
+
+Перша команда також читає `NODE_EXTRA_CA_CERTS` і `PORTFOLIO_DEMO_ACCESS_TOKEN` локального адміністратора. Вона створює синтетичну історію й медіа в демо БД та архівує опубліковану історію після перевірки. Друга команда вимірює локальний production build у Chromium із холодним кешем браузера. HTTPS fixture не перевіряє підпис і реальне закінчення строку дії URL. Підпис та TTL можна повноцінно прийняти на приватному S3-сумісному бакеті.

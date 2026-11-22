@@ -1,0 +1,120 @@
+'use client';
+
+import { createContext, useContext, useId, type ReactNode } from 'react';
+import type { AdminPortfolioMediaDto, LocalizedTextDto, PortfolioImageRefDto, PortfolioSeoInputDto } from '@/lib/portfolio/contracts';
+
+export const button = 'inline-flex min-h-11 items-center justify-center rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-100 disabled:opacity-50';
+export const primary = 'inline-flex min-h-11 items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50';
+export const input = 'min-h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base text-zinc-950 aria-invalid:border-red-700';
+export const panel = 'space-y-4 rounded-xl border border-zinc-200 bg-white p-4 sm:p-5';
+export const blankText = (): LocalizedTextDto => ({ uk: '', en: '' });
+export const blankSeo = (): PortfolioSeoInputDto => ({ title: blankText(), description: blankText(), shareImage: null });
+export const blankImage = (mediaId: string): PortfolioImageRefDto => ({ mediaId, alt: blankText(), focalPoint: null });
+export const FieldErrors = createContext<readonly string[]>([]);
+
+export function Field({ label, name, children }: {
+  label: string; name: string;
+  children: (props: { id: string; 'aria-invalid'?: true; 'aria-describedby'?: string }) => ReactNode;
+}) {
+  const id = useId();
+  const errors = useContext(FieldErrors);
+  const invalid = errors.includes(name) || errors.includes('data.' + name);
+  return (
+    <div className="min-w-0 space-y-1">
+      <label htmlFor={id} className="block text-sm font-medium text-zinc-900">{label}</label>
+      {children({ id, 'aria-invalid': invalid || undefined, 'aria-describedby': invalid ? id + '-error' : undefined })}
+      {invalid && <p id={id + '-error'} className="text-sm text-red-700">Перевірте значення цього поля.</p>}
+    </div>
+  );
+}
+
+export function Text({ label, name, value, change, max, multiline = false, required = false, disabled }: {
+  label: string; name: string; value: string; change: (value: string) => void;
+  max: number; multiline?: boolean; required?: boolean; disabled?: boolean;
+}) {
+  return <Field label={label} name={name}>{a11y => multiline
+    ? <textarea {...a11y} className={input} value={value} maxLength={max} rows={3} required={required} onChange={e => change(e.target.value)} />
+    : <input {...a11y} className={input} value={value} maxLength={max} required={required} disabled={disabled}
+      pattern={name === 'slug' ? '[a-z0-9]+(?:-[a-z0-9]+)*' : undefined} onChange={e => change(e.target.value)} />
+  }</Field>;
+}
+
+export function Localized({ label, name, value, change, max = 120, multiline }: {
+  label: string; name: string; value: LocalizedTextDto; change: (value: LocalizedTextDto) => void; max?: number; multiline?: boolean;
+}) {
+  return <fieldset className="grid gap-3 sm:grid-cols-2">
+    <legend className="mb-2 text-sm font-semibold text-zinc-950">{label}</legend>
+    {(['uk', 'en'] as const).map(locale => (
+      <Text key={locale} label={label + ' · ' + locale.toUpperCase()} name={name + '.' + locale} value={value[locale]}
+        change={next => change({ ...value, [locale]: next })} max={max} multiline={multiline} />
+    ))}
+  </fieldset>;
+}
+
+export function MediaSelect({ name, label, value, change, options, used = [] }: {
+  name: string; label: string; value: string; change: (id: string) => void; options: AdminPortfolioMediaDto[]; used?: readonly string[];
+}) {
+  const ready = options.filter(item => item.status === 'READY' && !used.includes(item.id));
+  return <Field label={label} name={name}>{a11y => (
+    <select {...a11y} className={input} value={value} onChange={e => change(e.target.value)}>
+      <option value="">Оберіть готове зображення</option>
+      {value && !ready.some(item => item.id === value) && <option value={value}>Поточне зображення</option>}
+      {ready.map(item => <option key={item.id} value={item.id}>{item.filename}</option>)}
+    </select>
+  )}</Field>;
+}
+
+export function ImageRef({ label, name, value, change, media, removable = true }: {
+  label: string; name: string; value: PortfolioImageRefDto | null;
+  change: (value: PortfolioImageRefDto | null) => void; media: AdminPortfolioMediaDto[]; removable?: boolean;
+}) {
+  const selected = media.find(item => item.id === value?.mediaId);
+  return <fieldset className="space-y-3 rounded-lg border border-zinc-200 p-3">
+    <legend className="px-1 text-sm font-semibold">{label}</legend>
+    <MediaSelect name={name + '.mediaId'} label={label + ' · файл'} value={value?.mediaId ?? ''} options={media}
+      change={id => { if (id) change(value ? { ...value, mediaId: id } : blankImage(id)); else if (removable) change(null); }} />
+    {selected?.previewUrl && <AdminImage url={selected.previewUrl} alt={selected.filename} />}
+    {value && <>
+      <Localized name={name + '.alt'} label="Альтернативний опис" value={value.alt} max={500}
+        change={alt => change({ ...value, alt })} />
+      <label className="flex min-h-11 items-center gap-2 text-sm">
+        <input type="checkbox" checked={value.focalPoint !== null}
+          onChange={e => change({ ...value, focalPoint: e.target.checked ? { x: 0.5, y: 0.5 } : null })} />
+        Задати точку кадрування
+      </label>
+      {value.focalPoint && <div className="grid gap-3 sm:grid-cols-2">{(['x', 'y'] as const).map(axis => (
+        <Field label={axis.toUpperCase() + ' · від 0 до 1'} name={name + '.focalPoint.' + axis} key={axis}>{a11y =>
+          <input {...a11y} className={input} type="number" min="0" max="1" step="any" required
+            value={value.focalPoint![axis]} onChange={e => {
+              if (value.focalPoint && Number.isFinite(e.target.valueAsNumber))
+                change({ ...value, focalPoint: { ...value.focalPoint, [axis]: e.target.valueAsNumber } });
+            }} />
+        }</Field>
+      ))}</div>}
+    </>}
+  </fieldset>;
+}
+
+export function Seo({ value, change, media }: {
+  value: PortfolioSeoInputDto; change: (value: PortfolioSeoInputDto) => void; media: AdminPortfolioMediaDto[];
+}) {
+  return <fieldset className={panel}>
+    <legend className="px-1 font-medium">SEO та поширення</legend>
+    <Localized label="SEO заголовок" name="seo.title" value={value.title} change={title => change({ ...value, title })} />
+    <Localized label="SEO опис" name="seo.description" value={value.description} max={320} multiline change={description => change({ ...value, description })} />
+    <ImageRef label="Фото для поширення" name="seo.shareImage" value={value.shareImage} change={shareImage => change({ ...value, shareImage })} media={media} />
+  </fieldset>;
+}
+
+export function AdminImage({ url, alt }: { url: string; alt: string }) {
+  if (!/^\/api\/portfolio\/media\/[0-9a-f-]{36}\/variants\/[0-9a-f-]{36}$/i.test(url)) return null;
+  // eslint-disable-next-line @next/next/no-img-element -- The URL is an authenticated derivative redirect.
+  return <img src={url} alt={alt} loading="lazy" className="aspect-[3/2] w-full max-w-80 rounded-lg bg-zinc-100 object-cover" />;
+}
+
+export function reorder<T>(items: readonly T[], index: number, direction: -1 | 1): T[] {
+  const ordered = [...items];
+  const other = index + direction;
+  if (other >= 0 && other < items.length) [ordered[index], ordered[other]] = [ordered[other], ordered[index]];
+  return ordered;
+}

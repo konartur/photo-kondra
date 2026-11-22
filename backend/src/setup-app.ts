@@ -9,6 +9,7 @@ import { DocumentBuilder, getSchemaPath, SwaggerModule } from '@nestjs/swagger';
 import type { Express, NextFunction, Request, Response } from 'express';
 import { json, urlencoded } from 'express';
 import helmet from 'helmet';
+import type { ValidationError } from 'class-validator';
 import { createCorsOptions } from './cors.config.js';
 import { createHttpSecurityConfig } from './common/http-security.config.js';
 import { createApiRateLimiter } from './common/api-rate-limiter.js';
@@ -16,6 +17,19 @@ import { ApiExceptionFilter } from './common/api-exception.filter.js';
 import { ApiErrorDto } from './common/api-error.dto.js';
 import { requestLogging } from './common/logging/request-logging.js';
 import { portfolioModels } from './portfolio/portfolio-openapi.js';
+import { PortfolioApiErrorDto } from './portfolio/dto/admin-response.dto.js';
+
+function validationFields(errors: ValidationError[], parent = ''): { field: string; code: string }[] {
+  return errors.flatMap(error => {
+    if (!/^(?:[A-Za-z][A-Za-z0-9]*|[0-9]+)$/.test(error.property)) return [];
+    const field = parent ? parent + '.' + error.property : error.property;
+    return [
+      ...(error.constraints && !('whitelistValidation' in error.constraints)
+        ? [{ field, code: 'INVALID_FIELD' }] : []),
+      ...validationFields(error.children ?? [], field),
+    ];
+  });
+}
 
 // Shared by the HTTP bootstrap and E2E tests so tests exercise the deployed policy.
 export function setupApp(
@@ -82,10 +96,11 @@ export function setupApp(
       forbidNonWhitelisted: true,
       transform: true,
       validationError: { target: false, value: false },
-      exceptionFactory: () =>
+      exceptionFactory: (errors: ValidationError[] = []) =>
         new BadRequestException({
           code: 'VALIDATION_FAILED',
           message: 'Request validation failed',
+          errors: validationFields(errors).slice(0, 50),
         }),
     }),
   );
@@ -99,7 +114,7 @@ export function setupApp(
   const document = SwaggerModule.createDocument(app, swaggerConfig, {
     extraModels: [ApiErrorDto, ...portfolioModels],
   });
-  for (const path of Object.values(document.paths)) {
+  for (const [route, path] of Object.entries(document.paths)) {
     for (const method of ['get', 'head', 'post', 'patch', 'put', 'delete', 'options'] as const) {
       const operation = path?.[method];
       if (!operation) continue;
@@ -116,7 +131,9 @@ export function setupApp(
           },
         };
         if (Number(status) < 400) continue;
-        result.content = { 'application/json': { schema: { $ref: getSchemaPath(ApiErrorDto) } } };
+        const errorDto = status === '400' && route.startsWith('/api/v1/portfolio/')
+          ? PortfolioApiErrorDto : ApiErrorDto;
+        result.content = { 'application/json': { schema: { $ref: getSchemaPath(errorDto) } } };
         if (status === '429')
           result.headers = {
             ...result.headers,

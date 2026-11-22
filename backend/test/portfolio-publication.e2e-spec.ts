@@ -55,6 +55,26 @@ describe('Portfolio publication HTTP boundaries (no DB)', () => {
   });
   afterAll(async () => { await app?.close(); });
 
+  it('names invalid nested draft fields without returning submitted values', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/portfolio/services')
+      .set('Authorization', 'Bearer fixture-admin')
+      .send({
+        slug: 'bad slug',
+        title: { uk: 'Чернетка', en: 42 },
+        description: { uk: '', en: '' },
+        price: null, bookingEnabled: false, cardImage: null,
+        seo: { title: { uk: '', en: '' }, description: { uk: '', en: '' }, shareImage: null },
+      })
+      .expect(400);
+    expect(response.body).toMatchObject({
+      code: 'VALIDATION_FAILED',
+      errors: expect.arrayContaining([{ field: 'slug', code: 'INVALID_FIELD' }, { field: 'title.en', code: 'INVALID_FIELD' }]),
+    });
+    expect(response.text).not.toContain('bad slug');
+    expect(admin.createService).not.toHaveBeenCalled();
+  });
+
   it('serves public metadata and derivative redirects without admin authentication', async () => {
     const base = '/api/v1/public/portfolio';
     await request(app.getHttpServer()).get(base + '/services?locale=uk')

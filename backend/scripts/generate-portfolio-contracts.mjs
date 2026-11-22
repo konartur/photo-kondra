@@ -36,14 +36,15 @@ try {
     new DocumentBuilder().setTitle('Portfolio contracts').setVersion('1').addBearerAuth().build(),
     { extraModels: [ApiErrorDto, ...portfolioModels] },
   );
-  for (const path of Object.values(document.paths)) {
-    for (const method of ['get', 'post', 'delete']) {
+  for (const [route, path] of Object.entries(document.paths)) {
+    for (const method of ['get', 'post', 'put', 'delete']) {
       const operation = path[method];
       if (!operation) continue;
       for (const [status, response] of Object.entries(operation.responses)) {
         if (Number(status) >= 400 && !('$ref' in response))
           response.content = {
-            'application/json': { schema: { $ref: '#/components/schemas/ApiErrorDto' } },
+            'application/json': { schema: { $ref: '#/components/schemas/' +
+              (status === '400' && route.startsWith('/api/v1/portfolio/') ? 'PortfolioApiErrorDto' : 'ApiErrorDto') } },
           };
       }
     }

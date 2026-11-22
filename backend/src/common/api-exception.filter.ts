@@ -1,5 +1,5 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { AppLogger, safeErrorDetails } from './logging/app-logger.js';
 import { correlationId, currentLogContext } from './logging/log-context.js';
 
@@ -23,7 +23,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
   private readonly logger = new AppLogger(ApiExceptionFilter.name);
 
   catch(exception: unknown, host: ArgumentsHost): void {
-    const response = host.switchToHttp().getResponse<Response>();
+    const http = host.switchToHttp();
+    const response = http.getResponse<Response>();
     if (response.headersSent) return;
     let statusCode = 500;
     let payload: unknown;
@@ -71,6 +72,16 @@ export class ApiExceptionFilter implements ExceptionFilter {
       });
     }
     response.setHeader('Cache-Control', 'no-store');
-    response.status(statusCode).json({ statusCode, code, message });
+    const fields =
+      statusCode === 400 &&
+      code === 'VALIDATION_FAILED' &&
+      typeof payload === 'object' &&
+      payload !== null &&
+      'errors' in payload &&
+      Array.isArray(payload.errors) &&
+      http.getRequest<Request>()?.path.startsWith('/api/v1/portfolio/')
+        ? (payload.errors as unknown[])
+        : [];
+    response.status(statusCode).json({ statusCode, code, message, ...(fields.length ? { errors: fields } : {}) });
   }
 }

@@ -1,4 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -10,6 +11,9 @@ import {
   IsUUID,
   Matches,
   Validate,
+  ValidateNested,
+  IsOptional,
+  IsObject,
   ValidatorConstraint,
   type ValidationArguments,
   type ValidatorConstraintInterface,
@@ -120,6 +124,9 @@ export class PortfolioServicesSectionInputDto {
 export class PortfolioFeaturedStoryInputDto {
   @ApiProperty({ format: 'uuid' }) @IsUUID() storyId!: string;
   @Nested(LocalizedTextDto) caption!: LocalizedTextDto;
+  @ApiPropertyOptional({ type: () => PortfolioImageRefDto, nullable: true })
+  @IsOptional() @IsObject() @ValidateNested() @Type(() => PortfolioImageRefDto)
+  image?: PortfolioImageRefDto | null;
 }
 export class PortfolioStoriesSectionInputDto {
   @Nested(LocalizedTitleDto) title!: LocalizedTitleDto;

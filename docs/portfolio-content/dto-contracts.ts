@@ -165,7 +165,7 @@ export interface PortfolioHomeDraftInputDto {
   bookingIntro: LocalizedTextDto;
   hero: { desktop: PortfolioImageRefDto | null; mobile: PortfolioImageRefDto | null };
   servicesSection: { title: LocalizedTextDto; description: LocalizedTextDto; serviceIds: UUID[] };
-  storiesSection: { title: LocalizedTextDto; items: { storyId: UUID; caption: LocalizedTextDto }[] };
+  storiesSection: { title: LocalizedTextDto; items: { storyId: UUID; caption: LocalizedTextDto; image?: PortfolioImageRefDto | null }[] };
   contactSection: {
     title: LocalizedTextDto;
     description: LocalizedTextDto;

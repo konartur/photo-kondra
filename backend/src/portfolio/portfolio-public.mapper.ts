@@ -167,10 +167,12 @@ export class PortfolioPublicMapper {
       storiesSection: {
         title: storiesSection.title[this.locale],
         items: await Promise.all(
-          storiesSection.items.map(async ({ storyId, caption }) => {
+          storiesSection.items.map(async ({ storyId, caption, image }) => {
             const row = stories.get(storyId);
             if (!row) throw new Error('Missing featured story');
-            return { story: await this.storyCard(row), caption: caption[this.locale] };
+            const story = await this.storyCard(row);
+            if (image) story.cover = await this.image(image);
+            return { story, caption: caption[this.locale] };
           }),
         ),
       },

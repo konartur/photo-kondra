@@ -1,6 +1,6 @@
 # Послідовність реалізації портфоліо
 
-**Стан:** PF-CONTENT-01 виконано. PF-CONTENT-02 запушено (`efc9a70`), DB-приймання відкладено. PF-CONTENT-03/04 запушено (557d8d4). PF-CONTENT-05 виконано локально, приймання пройдено 2026-11-22. PF-CONTENT-06 реалізовано локально. PF-CONTENT-06A реалізовано й перевірено локально. PF-CONTENT-07 реалізовано й перевірено локально. PF-CONTENT-08 реалізовано й перевірено локально. PF-CONTENT-09 та далі лишаються Backlog. Контракти — у [DTO-архітектурі](../dto-architecture.md), генерація — у [runtime workflow](../contracts-workflow.md), схема — у [persistence design](../persistence.md), медіа — у [pipeline](../media-pipeline.md).
+**Стан:** PF-CONTENT-01 виконано. PF-CONTENT-02 запушено (`efc9a70`), DB-приймання відкладено. PF-CONTENT-03/04 запушено (557d8d4). PF-CONTENT-05 виконано локально, приймання пройдено 2026-11-22. PF-CONTENT-06 реалізовано локально. PF-CONTENT-06A реалізовано й перевірено локально. PF-CONTENT-07 реалізовано й перевірено локально. PF-CONTENT-08 запушено (`435d98e`). PF-CONTENT-09 реалізовано й перевірено локально. PF-CONTENT-10 лишається Backlog. Контракти — у [DTO-архітектурі](../dto-architecture.md), генерація — у [runtime workflow](../contracts-workflow.md), схема — у [persistence design](../persistence.md), медіа — у [pipeline](../media-pipeline.md).
 
 | Крок | Тікет | Залежить від |
 | --- | --- | --- |

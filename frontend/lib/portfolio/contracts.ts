@@ -180,6 +180,7 @@ export type PortfolioContactSectionInputDto = {
 export type PortfolioFeaturedStoryInputDto = {
   storyId: string;
   caption: LocalizedTextDto;
+  image?: PortfolioImageRefDto | null;
 };
 
 export type PortfolioHeroDto = {

@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "demo": true,
+  "brand": "PhotoKondra",
+  "price": { "amountMinor": 300000, "currency": "UAH", "durationMinutes": 60 },
+  "stories": [
+    {
+      "slug": "love",
+      "title": { "uk": "Love Story", "en": "Love Story" },
+      "subtitle": { "uk": "Щирість у кожному погляді", "en": "Sincerity in every glance" },
+      "cover": "1529636798458-92182e662485",
+      "serviceCard": "1529636798458-92182e662485",
+      "photos": [
+        { "source": "1529636798458-92182e662485", "alt": { "uk": "Квітковий букет у руках", "en": "A bouquet held in someone's hands" } },
+        { "source": "1519741497674-611481863552", "alt": { "uk": "Пара під час урочистої миті", "en": "A couple sharing a ceremonial moment" } },
+        { "source": "1523438885200-e635ba2c371e", "alt": { "uk": "Альтанка з квітковими композиціями", "en": "An arbor decorated with flower arrangements" } },
+        { "source": "1537633552985-df8429e8048b", "alt": { "uk": "Емоційний момент пари", "en": "A couple sharing an emotional moment" } }
+      ]
+    },
+    {
+      "slug": "portrait",
+      "title": { "uk": "Portrait", "en": "Portrait" },
+      "subtitle": { "uk": "Бути собою — найкраща історія", "en": "Being yourself is the best story" },
+      "cover": "1534528741775-53994a69daeb",
+      "serviceCard": "1524504388940-b1c1722653e1",
+      "photos": [
+        { "source": "1534528741775-53994a69daeb", "alt": { "uk": "Жіночий портрет із синім та фіолетовим освітленням", "en": "A portrait of a woman lit in blue and purple" } },
+        { "source": "1524504388940-b1c1722653e1", "alt": { "uk": "Жіночий портрет у м’якому світлі", "en": "A portrait of a woman in soft light" } },
+        { "source": "1544005313-94ddf0286df2", "alt": { "uk": "Крупний план жіночого портрета", "en": "A close-up portrait of a woman" } },
+        { "source": "1506794778202-cad84cf45f1d", "alt": { "uk": "Портрет чоловіка", "en": "A portrait of a man" } }
+      ]
+    },
+    {
+      "slug": "family",
+      "title": { "uk": "Family", "en": "Family" },
+      "subtitle": { "uk": "Тепло, яке завжди поруч", "en": "The warmth of being together" },
+      "cover": "1511895426328-dc8714191300",
+      "serviceCard": "1511895426328-dc8714191300",
+      "photos": [
+        { "source": "1511895426328-dc8714191300", "alt": { "uk": "Родина проводить час разом на природі", "en": "A family spending time together outdoors" } },
+        { "source": "1592711491694-e85f60a7773a", "alt": { "uk": "Родина гуляє залитим сонцем лугом", "en": "A family walking through a sunny meadow" } },
+        { "source": "1503454537195-1dcabb73ffb9", "alt": { "uk": "Дитина на прогулянці", "en": "A child out for a walk" } }
+      ]
+    },
+    {
+      "slug": "events",
+      "title": { "uk": "Events / Lifestyle", "en": "Events / Lifestyle" },
+      "subtitle": { "uk": "Живі моменти вашого дня", "en": "The lively moments of your day" },
+      "cover": "1492684223066-81342ee5ff30",
+      "serviceCard": "1492684223066-81342ee5ff30",
+      "photos": [
+        { "source": "1492684223066-81342ee5ff30", "alt": { "uk": "Вогні та публіка на концерті", "en": "Stage lights and the crowd at a concert" } },
+        { "source": "1511795409834-ef04bbd61622", "alt": { "uk": "Атмосфера святкової події", "en": "The atmosphere at a celebration" } },
+        { "source": "1506157786151-b8491531f063", "alt": { "uk": "Музичний виступ на сцені", "en": "A musical performance on stage" } }
+      ]
+    },
+    {
+      "slug": "brand",
+      "title": { "uk": "Brand / Commercial", "en": "Brand / Commercial" },
+      "subtitle": { "uk": "Історії вашого бренду", "en": "The stories behind your brand" },
+      "cover": "1490481651871-ab68de25d43d",
+      "serviceCard": "1490481651871-ab68de25d43d",
+      "photos": [
+        { "source": "1490481651871-ab68de25d43d", "alt": { "uk": "Одяг та образ для брендової зйомки", "en": "Clothing and styling for a brand shoot" } },
+        { "source": "1483985988355-763728e1935b", "alt": { "uk": "Мода та деталі образу", "en": "Fashion and outfit details" } },
+        { "source": "1441986300917-64674bd600d8", "alt": { "uk": "Інтер’єр магазину одягу", "en": "The interior of a clothing store" } }
+      ]
+    },
+    {
+      "slug": "pets",
+      "title": { "uk": "Фотосесія з улюбленцем", "en": "Pet photography" },
+      "subtitle": { "uk": "Теплі моменти з тим, хто завжди поруч", "en": "Warm moments with your everyday companion" },
+      "cover": "1662987610442-2f9c4a90a6dd",
+      "serviceCard": "1662987610442-2f9c4a90a6dd",
+      "photos": [
+        { "source": "1662987610442-2f9c4a90a6dd", "alt": { "uk": "Людина обіймає собаку в траві у вечірньому світлі", "en": "A person hugging a dog in grass at dusk" } },
+        { "source": "1667386447971-398b6527a393", "alt": { "uk": "Людина з собакою серед польових квітів", "en": "A person and a dog among wildflowers" } },
+        { "source": "1667386440443-cb2dcb02c882", "alt": { "uk": "Жінка обіймає собаку біля дерев’яної стіни", "en": "A woman hugging a dog by a wooden wall" } },
+        { "source": "1540869438371-f8aad4b6a0d7", "alt": { "uk": "Чоловік із собакою в осінньому лісі", "en": "A man and a dog in an autumn forest" } }
+      ]
+    }
+  ],
+  "home": {
+    "hero": "1519741497674-611481863552",
+    "heroAlt": { "uk": "Емоційна фотографія пари", "en": "An emotional photograph of a couple" },
+    "background": "1592711491694-e85f60a7773a",
+    "serviceSlugs": ["love", "portrait", "family", "events", "brand", "pets"],
+    "servicesTitle": { "uk": "Кожна історія особлива.", "en": "Every story is special." },
+    "servicesDescription": { "uk": "Щирі моменти, до яких хочеться повертатися. Оберіть свою історію — решту створимо разом.", "en": "Honest moments you will want to return to. Choose your story and we will create the rest together." },
+    "storiesTitle": { "uk": "Історії, які залишаються.", "en": "Stories that stay with you." },
+    "featured": [
+      { "slug": "love", "source": "1537633552985-df8429e8048b", "caption": { "uk": "Двоє. Одна історія.", "en": "Two people. One story." } },
+      { "slug": "family", "source": "1503454537195-1dcabb73ffb9", "caption": { "uk": "Найрідніші миті.", "en": "The moments closest to your heart." } },
+      { "slug": "portrait", "source": "1544005313-94ddf0286df2", "caption": { "uk": "Бути собою.", "en": "Being yourself." } }
+    ],
+    "contactEyebrow": { "uk": "Ваша історія починається тут", "en": "Your story starts here" },
+    "contactTitle": { "uk": "Найважливіше варто зберегти.", "en": "The most important moments are worth keeping." },
+    "contactDescription": { "uk": "Давайте створимо фотографії, до яких захочеться повертатися знову і знову.", "en": "Let us make photographs you will want to revisit again and again." },
+    "button": { "uk": "Забронювати фотосесію", "en": "Book a photo session" },
+    "bookingIntro": { "uk": "Кілька деталей про вашу ідею, щоб обговорити фотосесію.", "en": "Share a few details about your idea so we can discuss your photo session." },
+    "contactPlaceholder": { "uk": "Канали зв’язку після запуску · Instagram · Telegram · Email", "en": "Contact channels after launch · Instagram · Telegram · Email" },
+    "seoTitle": { "uk": "PhotoKondra — Photography", "en": "PhotoKondra — Photography" },
+    "seoDescription": { "uk": "PhotoKondra — авторське портфоліо фотографа. Ваші історії в кадрах.", "en": "PhotoKondra is an independent photographer’s portfolio. Your stories in photographs." }
+  }
+}

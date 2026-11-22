@@ -67,7 +67,7 @@ function settingsDraft(row: SettingsWithRelations): PortfolioHomeDraftInputDto {
     bookingIntro: { uk: row.bookingIntroUk, en: row.bookingIntroEn },
     hero: { desktop: image(row, 'desktop'), mobile: image(row, 'mobile') },
     servicesSection: { title: { uk: row.servicesTitleUk, en: row.servicesTitleEn }, description: { uk: row.servicesDescriptionUk, en: row.servicesDescriptionEn }, serviceIds: row.services.map((item) => item.serviceId) },
-    storiesSection: { title: { uk: row.storiesTitleUk, en: row.storiesTitleEn }, items: row.featuredStories.map((item) => ({ storyId: item.storyId, caption: { uk: item.captionUk, en: item.captionEn } })) },
+    storiesSection: { title: { uk: row.storiesTitleUk, en: row.storiesTitleEn }, items: row.featuredStories.map((item) => ({ storyId: item.storyId, caption: { uk: item.captionUk, en: item.captionEn }, ...(item.imageMediaId && { image: image(item, 'image') }) })) },
     contactSection: { title: { uk: row.contactTitleUk, en: row.contactTitleEn }, description: { uk: row.contactDescriptionUk, en: row.contactDescriptionEn }, buttonLabel: { uk: row.contactButtonLabelUk, en: row.contactButtonLabelEn }, background: image(row, 'background') },
     seo: seo(row),
   };
@@ -82,7 +82,7 @@ function storyComplete(data: PortfolioStoryDraftInputDto, photos: PortfolioStory
   return Boolean(data.slug && textSet(data.title, data.subtitle, data.description) && seoComplete(data.seo) && imageComplete(data.cover) && storyPhotoLimitSatisfied(data.cover?.mediaId ?? null, photos.map((p) => p.image.mediaId)) && photos.every((p) => imageComplete(p.image)));
 }
 function settingsComplete(data: PortfolioHomeDraftInputDto) {
-  return Boolean(data.brand.trim() && localized(data.bookingIntro) && textSet(data.servicesSection.title, data.servicesSection.description, data.storiesSection.title, data.contactSection.title, data.contactSection.description, data.contactSection.buttonLabel) && seoComplete(data.seo) && imageComplete(data.hero.desktop) && imageComplete(data.hero.mobile) && imageComplete(data.contactSection.background) && data.servicesSection.serviceIds.length > 0 && data.storiesSection.items.length > 0 && data.storiesSection.items.every((item) => localized(item.caption)) && data.contacts.some((contact) => contact.visible && localized(contact.label)));
+  return Boolean(data.brand.trim() && localized(data.bookingIntro) && textSet(data.servicesSection.title, data.servicesSection.description, data.storiesSection.title, data.contactSection.title, data.contactSection.description, data.contactSection.buttonLabel) && seoComplete(data.seo) && imageComplete(data.hero.desktop) && imageComplete(data.hero.mobile) && imageComplete(data.contactSection.background) && data.servicesSection.serviceIds.length > 0 && data.storiesSection.items.length > 0 && data.storiesSection.items.every((item) => localized(item.caption) && (!item.image || imageComplete(item.image))) && data.contacts.every((contact) => !contact.visible || localized(contact.label)));
 }
 function mediaReferences(data: PortfolioServiceDraftInputDto | PortfolioStoryDraftInputDto | PortfolioHomeDraftInputDto, photos: PortfolioStoryPhotoInputDto[] = []) {
   const ids: string[] = [];
@@ -90,7 +90,7 @@ function mediaReferences(data: PortfolioServiceDraftInputDto | PortfolioStoryDra
   if ('cardImage' in data) add(data.cardImage);
   if ('cover' in data) { add(data.cover); photos.forEach((photo) => add(photo.image)); }
   add(data.seo.shareImage);
-  if ('hero' in data) { add(data.hero.desktop); add(data.hero.mobile); add(data.contactSection.background); }
+  if ('hero' in data) { add(data.hero.desktop); add(data.hero.mobile); add(data.contactSection.background); data.storiesSection.items.forEach(item => add(item.image ?? null)); }
   return [...new Set(ids)];
 }
 function response(id: string, status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED', draftVersion: bigint, publishedVersion: bigint | null, contentVersion: bigint, publishedAt: Date | null): PortfolioPublicationResponseDto {
@@ -328,7 +328,7 @@ export class PortfolioPublicationService {
       if (!story?.publishedDocument) throw incomplete();
       const snapshot = await parsePortfolioSnapshot(story.publishedDocument.snapshot);
       if (snapshot.entityType !== PortfolioEntityType.STORY) throw new ServiceUnavailableException('Published portfolio snapshot is invalid');
-      featuredStories.push({ story: { id: story.id, slug: story.slug, title: this.selected(snapshot.data.title, locale), subtitle: this.selected(snapshot.data.subtitle, locale), cover: await this.previewImage(snapshot.data.cover, locale) }, caption: this.selected(placement.caption, locale) });
+      featuredStories.push({ story: { id: story.id, slug: story.slug, title: this.selected(snapshot.data.title, locale), subtitle: this.selected(snapshot.data.subtitle, locale), cover: await this.previewImage(placement.image ?? snapshot.data.cover, locale) }, caption: this.selected(placement.caption, locale) });
     }
     return {
       hero: { desktop: await this.previewImage(data.hero.desktop, locale), mobile: await this.previewImage(data.hero.mobile, locale) },

@@ -122,7 +122,10 @@ export function snapshotReferences(snapshot: PortfolioSnapshotV1): {
       addMedia(snapshot.data.hero.mobile);
       addMedia(snapshot.data.contactSection.background);
       for (const id of snapshot.data.servicesSection.serviceIds) services.add(id);
-      for (const item of snapshot.data.storiesSection.items) stories.add(item.storyId);
+      for (const item of snapshot.data.storiesSection.items) {
+        stories.add(item.storyId);
+        addMedia(item.image ?? null);
+      }
       break;
   }
   return {

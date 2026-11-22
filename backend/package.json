@@ -29,6 +29,7 @@
     "prisma:seed": "prisma db seed",
     "prisma:studio": "prisma studio",
     "storage:audit": "node scripts/audit-storage.mjs",
+    "portfolio:import-demo": "npm run build && node scripts/import-portfolio-demo.mjs",
     "portfolio:contracts": "npm run build && node scripts/generate-portfolio-contracts.mjs",
     "portfolio:contracts:check": "npm run build && node scripts/generate-portfolio-contracts.mjs --check"
   },

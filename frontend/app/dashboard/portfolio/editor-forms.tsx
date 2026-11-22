@@ -149,11 +149,13 @@ export function HomeFields({ value, change, media, services, stories }: FieldsPr
       {featured.length < 12 && <Choice label="Додати історію" name="storiesSection.items" value=""
         options={stories.filter(option => !featured.some(item => item.storyId === option.id))}
         change={storyId => { if (storyId) setFeatured([...featured, { storyId, caption: blankText() }]); }} />}
-      <ol className="space-y-3">{featured.map(({ storyId, caption }, index) => {
+      <ol className="space-y-3">{featured.map(({ storyId, caption, image }, index) => {
         const name = stories.find(item => item.id === storyId)?.label ?? ('Історія ' + (index + 1));
         return <li key={storyId} className="space-y-2"><p>{name}</p>
           <Localized label="Підпис історії" name={'storiesSection.items.' + index + '.caption'} value={caption} max={4000} multiline
             change={next => setFeatured(featured.map(item => item.storyId === storyId ? { ...item, caption: next } : item))} />
+          <ImageRef label="Окреме фото добірки" name={'storiesSection.items.' + index + '.image'} media={media} value={image ?? null}
+            change={next => setFeatured(featured.map(item => item.storyId === storyId ? { ...item, image: next } : item))} />
           <MoveButtons name={name} index={index} count={featured.length}
             move={direction => setFeatured(reorder(featured, index, direction))} remove={() => setFeatured(featured.filter(item => item.storyId !== storyId))} />
         </li>;

@@ -274,6 +274,7 @@ model PortfolioMedia {
   mobileHeroes            PortfolioSettings[]                @relation("HomeMobile")
   contactBackgrounds      PortfolioSettings[]                @relation("HomeBackground")
   homeShares              PortfolioSettings[]                @relation("HomeShare")
+  featuredImages          PortfolioFeaturedStory[]
   publishedReferences     PortfolioPublishedMediaReference[]
 
   @@index([uploadedById])
@@ -409,11 +410,18 @@ model PortfolioFeaturedStory {
   story      PortfolioStory    @relation(fields: [storyId], references: [id], onDelete: Restrict)
   captionUk  String            @default("") @db.VarChar(4000)
   captionEn  String            @default("") @db.VarChar(4000)
+  imageMediaId String?
+  imageMedia PortfolioMedia? @relation(fields: [imageMediaId], references: [id], onDelete: Restrict)
+  imageAltUk String @default("") @db.VarChar(500)
+  imageAltEn String @default("") @db.VarChar(500)
+  imageFocalX Float?
+  imageFocalY Float?
   sortOrder  Int
 
   @@unique([settingsId, storyId])
   @@unique([settingsId, sortOrder])
   @@index([storyId])
+  @@index([imageMediaId])
 }
 
 // Only active publications. A replacement must use a newer draft version.

@@ -4800,6 +4800,15 @@
                 "$ref": "#/components/schemas/LocalizedTextDto"
               }
             ]
+          },
+          "image": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioImageRefDto"
+              }
+            ]
           }
         },
         "required": [

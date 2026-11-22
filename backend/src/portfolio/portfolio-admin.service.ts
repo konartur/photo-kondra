@@ -64,6 +64,12 @@ function storyColumns(data: PortfolioStoryDraftInputDto) {
     ...imageColumns('cover', data.cover), ...seoColumns(data.seo),
   };
 }
+function photoColumns(photo: PortfolioStoryPhotoInputDto, sortOrder: number) {
+  return {
+    id: photo.id, mediaId: photo.image.mediaId, altUk: photo.image.alt.uk, altEn: photo.image.alt.en,
+    focalX: photo.image.focalPoint?.x ?? null, focalY: photo.image.focalPoint?.y ?? null, sortOrder,
+  };
+}
 function settingsColumns(data: PortfolioHomeDraftInputDto) {
   return {
     brand: data.brand, bookingIntroUk: data.bookingIntro.uk, bookingIntroEn: data.bookingIntro.en,
@@ -135,7 +141,7 @@ function settingsResponse(row: SettingsWithChildren): AdminPortfolioSettingsDto 
     contacts: row.contacts.map((c) => ({ type: c.type.toLowerCase() as PortfolioContactInputDto['type'], label: { uk: c.labelUk, en: c.labelEn }, address: c.address, visible: c.visible })),
     hero: { desktop: imageFrom(row, 'desktop'), mobile: imageFrom(row, 'mobile') },
     servicesSection: { title: { uk: row.servicesTitleUk, en: row.servicesTitleEn }, description: { uk: row.servicesDescriptionUk, en: row.servicesDescriptionEn }, serviceIds: row.services.map((x) => x.serviceId) },
-    storiesSection: { title: { uk: row.storiesTitleUk, en: row.storiesTitleEn }, items: row.featuredStories.map((x) => ({ storyId: x.storyId, caption: { uk: x.captionUk, en: x.captionEn } })) },
+    storiesSection: { title: { uk: row.storiesTitleUk, en: row.storiesTitleEn }, items: row.featuredStories.map((x) => ({ storyId: x.storyId, caption: { uk: x.captionUk, en: x.captionEn }, ...(x.imageMediaId && { image: imageFrom(x, 'image') }) })) },
     contactSection: { title: { uk: row.contactTitleUk, en: row.contactTitleEn }, description: { uk: row.contactDescriptionUk, en: row.contactDescriptionEn }, buttonLabel: { uk: row.contactButtonLabelUk, en: row.contactButtonLabelEn }, background: imageFrom(row, 'background') },
     seo: seoFrom(row),
   } };
@@ -177,10 +183,10 @@ export class PortfolioAdminService {
       return { items: items.map((r) => ({ ...base(r), slug: r.slug, title: { uk: r.titleUk, en: r.titleEn } })), nextCursor: rows.length > query.limit && last ? encodePortfolioAdminCursor({ v: 1, type: 'stories', sortOrder: last.sortOrder, id: last.id, asOf, contentVersion: state.contentVersion.toString() }, secret) : null };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
   }
-  async createService(ownerId: string, data: PortfolioServiceDraftInputDto) {
+  async createService(ownerId: string, data: PortfolioServiceDraftInputDto, seed?: { id: string; sortOrder: number }) {
     return this.write(async (tx) => {
       await this.validateMedia(tx, ownerId, this.serviceMedia(data));
-      const row = await tx.portfolioService.create({ data: serviceColumns(data) });
+      const row = await tx.portfolioService.create({ data: { ...serviceColumns(data), ...seed } });
       return serviceResponse(row);
     });
   }
@@ -199,11 +205,25 @@ export class PortfolioAdminService {
       return serviceResponse(await tx.portfolioService.update({ where: { id }, data: serviceColumns(data) }));
     });
   }
-  async createStory(ownerId: string, data: PortfolioStoryDraftInputDto) {
+  async createStory(
+    ownerId: string,
+    data: PortfolioStoryDraftInputDto,
+    seed?: { id: string; sortOrder: number; photos: PortfolioStoryPhotoInputDto[] },
+  ) {
     return this.write(async (tx) => {
       if (!(await tx.portfolioService.findUnique({ where: { id: data.serviceId }, select: { id: true } }))) throw notFound();
-      await this.validateMedia(tx, ownerId, this.storyMedia(data));
-      return storyResponse(await tx.portfolioStory.create({ data: storyColumns(data), include: { photos: { orderBy: { sortOrder: 'asc' } } } }));
+      const photos = seed?.photos ?? [];
+      const mediaIds = photos.map(photo => photo.image.mediaId);
+      if (photos.length > 10 || !storyPhotoLimitSatisfied(data.cover?.mediaId ?? null, mediaIds))
+        throw new BadRequestException({ code: 'VALIDATION_FAILED', message: 'Story cover and photos may reference at most 10 unique media items' });
+      await this.validateMedia(tx, ownerId, [...this.storyMedia(data), ...mediaIds]);
+      return storyResponse(await tx.portfolioStory.create({
+        data: {
+          ...storyColumns(data),
+          ...(seed && { id: seed.id, sortOrder: seed.sortOrder, photos: { create: photos.map(photoColumns) } }),
+        },
+        include: { photos: { orderBy: { sortOrder: 'asc' } } },
+      }));
     });
   }
   async getStory(id: string) {
@@ -233,10 +253,9 @@ export class PortfolioAdminService {
       await this.validateMedia(tx, ownerId, items.map((p) => p.image.mediaId));
       await this.persistence.claimDraftVersion(tx, PortfolioEntityType.STORY, id, expectedVersion);
       await tx.portfolioStoryPhoto.deleteMany({ where: { storyId: id } });
-      if (items.length) await tx.portfolioStoryPhoto.createMany({ data: items.map((p, sortOrder) => ({
-        id: p.id, storyId: id, mediaId: p.image.mediaId, altUk: p.image.alt.uk, altEn: p.image.alt.en,
-        focalX: p.image.focalPoint?.x ?? null, focalY: p.image.focalPoint?.y ?? null, sortOrder,
-      })) });
+      if (items.length) await tx.portfolioStoryPhoto.createMany({
+        data: items.map((photo, sortOrder) => ({ storyId: id, ...photoColumns(photo, sortOrder) })),
+      });
       return storyResponse(await tx.portfolioStory.findUniqueOrThrow({ where: { id }, include: { photos: { orderBy: { sortOrder: 'asc' } } } }));
     });
   }
@@ -262,7 +281,7 @@ export class PortfolioAdminService {
       await tx.portfolioFeaturedStory.deleteMany({ where: { settingsId: id } });
       if (data.contacts.length) await tx.portfolioContact.createMany({ data: data.contacts.map((c, sortOrder) => ({ settingsId: id, type: c.type, labelUk: c.label.uk, labelEn: c.label.en, address: c.address, visible: c.visible, sortOrder })) });
       if (data.servicesSection.serviceIds.length) await tx.portfolioHomeService.createMany({ data: data.servicesSection.serviceIds.map((serviceId, sortOrder) => ({ settingsId: id, serviceId, sortOrder })) });
-      if (data.storiesSection.items.length) await tx.portfolioFeaturedStory.createMany({ data: data.storiesSection.items.map((item, sortOrder) => ({ settingsId: id, storyId: item.storyId, captionUk: item.caption.uk, captionEn: item.caption.en, sortOrder })) });
+      if (data.storiesSection.items.length) await tx.portfolioFeaturedStory.createMany({ data: data.storiesSection.items.map((item, sortOrder) => ({ settingsId: id, storyId: item.storyId, captionUk: item.caption.uk, captionEn: item.caption.en, ...imageColumns('image', item.image ?? null), sortOrder })) });
       return settingsResponse(await tx.portfolioSettings.findUniqueOrThrow({ where: { id }, include: { contacts: { orderBy: { sortOrder: 'asc' } }, services: { orderBy: { sortOrder: 'asc' } }, featuredStories: { orderBy: { sortOrder: 'asc' } } } }));
     });
   }
@@ -286,7 +305,7 @@ export class PortfolioAdminService {
   }
   private serviceMedia(data: PortfolioServiceDraftInputDto) { return [data.cardImage?.mediaId, data.seo.shareImage?.mediaId].filter((id): id is string => !!id); }
   private storyMedia(data: PortfolioStoryDraftInputDto) { return [data.cover?.mediaId, data.seo.shareImage?.mediaId].filter((id): id is string => !!id); }
-  private homeMedia(data: PortfolioHomeDraftInputDto) { return [data.hero.desktop?.mediaId, data.hero.mobile?.mediaId, data.contactSection.background?.mediaId, data.seo.shareImage?.mediaId].filter((id): id is string => !!id); }
+  private homeMedia(data: PortfolioHomeDraftInputDto) { return [data.hero.desktop?.mediaId, data.hero.mobile?.mediaId, data.contactSection.background?.mediaId, data.seo.shareImage?.mediaId, ...data.storiesSection.items.map(item => item.image?.mediaId)].filter((id): id is string => !!id); }
   private async write<T>(operation: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
     try {
       return await this.persistence.withContentLock(operation);

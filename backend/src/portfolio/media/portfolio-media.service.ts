@@ -243,6 +243,7 @@ export class PortfolioMediaService {
             { mobileHeroes: { some: {} } },
             { contactBackgrounds: { some: {} } },
             { homeShares: { some: {} } },
+            { featuredImages: { some: {} } },
             { publishedReferences: { some: {} } },
           ],
         },

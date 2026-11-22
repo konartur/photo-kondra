@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { Readable } from 'node:stream';
+import { readFile } from 'node:fs/promises';
 import sharp from 'sharp';
 import type { StorageService } from '../../storage/storage.service.js';
 import { PortfolioImageProcessor } from './portfolio-image-processor.js';
@@ -53,7 +54,7 @@ describe('Portfolio bounded image processing', () => {
         expect(prepared.width).toBe(width);
         expect(prepared.variants.map((variant) => variant.width)).toEqual(expected);
         for (const variant of prepared.variants) {
-          const metadata = await sharp(variant.path).metadata();
+          const metadata = await sharp(await readFile(variant.path)).metadata();
           expect(metadata.format).toBe('webp');
           expect(metadata.width).toBe(variant.width);
           expect(metadata.height).toBe(variant.height);
@@ -80,7 +81,7 @@ describe('Portfolio bounded image processing', () => {
     const prepared = await processor.prepare(media, new AbortController().signal);
     try {
       expect([prepared.width, prepared.height]).toEqual([20, 40]);
-      expect((await sharp(prepared.variants[0].path).metadata()).exif).toBeUndefined();
+      expect((await sharp(await readFile(prepared.variants[0].path)).metadata()).exif).toBeUndefined();
       expect(original).toEqual(before);
     } finally {
       await prepared.cleanup();

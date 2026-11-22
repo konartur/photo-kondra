@@ -40,7 +40,7 @@
 
 При неоднозначній помилці після READY commit worker перечитує стан: він не видаляє результат своєї вже успішно зафіксованої спроби. Якщо БД недоступна, cleanup відкладається, keys залишаються в журналі. Failed rows не доступні preview; наступна спроба прибирає попередні objects/rows до використання унікальних width slots. Пошкоджений оригінал лишається приватним FAILED asset до явного видалення; його не можна замінити тим самим create-only PUT — потрібно створити новий upload.
 
-Один BullMQ job ID на mediaId. Повторний complete не створює дубль; retained failed job отримує новий attempts budget лише при явному retry або recovery PROCESSING. Worker із зайнятим DB lease відкладає job до його завершення, а не оголошує файл READY. Producer queue має fail-fast `enableOfflineQueue=false`, `maxRetriesPerRequest=1`, `skipWaitingForReady=true`; worker зберігає потрібне BullMQ `maxRetriesPerRequest=null`.
+Один BullMQ job ID на mediaId. Повторний complete не створює дубль; retained failed job отримує новий attempts budget лише при явному retry або recovery PROCESSING. Worker із зайнятим DB lease відкладає job до його завершення, а не оголошує файл READY. Producer чекає готовності Redis під час ініціалізації. До готовності черги запит на додавання job одразу повертає помилку. Після підключення діють `enableOfflineQueue=false` і `maxRetriesPerRequest=1`; worker зберігає потрібне BullMQ `maxRetriesPerRequest=null`.
 
 [Maintenance](../../backend/src/portfolio/media/portfolio-media-maintenance.service.ts) раз на налаштований інтервал сканує bounded batches по 50 ID:
 

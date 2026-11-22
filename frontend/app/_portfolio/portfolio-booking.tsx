@@ -35,6 +35,7 @@ export function PortfolioBooking({ children, shootTypes, price }: {
   price: string;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
   const scrollPanel = useRef<HTMLDivElement>(null);
   const unlockPage = useRef<(() => void) | null>(null);
   const form = useRef<HTMLFormElement>(null);
@@ -127,6 +128,7 @@ export function PortfolioBooking({ children, shootTypes, price }: {
       };
     }
     dialog.current.showModal();
+    closeButton.current?.focus({ preventScroll: true });
   }
 
   function prepareMessage(event: FormEvent<HTMLFormElement>) {
@@ -218,7 +220,7 @@ export function PortfolioBooking({ children, shootTypes, price }: {
         <div ref={scrollPanel} className={styles.bookingPanel}>
           <div className={styles.bookingHead}>
             <span className={styles.eyebrow}>ЗАПИТ НА ФОТОСЕСІЮ</span>
-            <button className={styles.bookingClose} type="button" aria-label="Закрити форму" onClick={() => dialog.current?.close()}>×</button>
+            <button ref={closeButton} className={styles.bookingClose} type="button" aria-label="Закрити форму" onClick={() => dialog.current?.close()}>×</button>
           </div>
           <h2 id="booking-title">Розкажіть<br />свою історію.</h2>
           <p>Кілька деталей про вашу ідею, щоб обговорити фотосесію.</p>

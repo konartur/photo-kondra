@@ -4,6 +4,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Transform } from 'node:stream';
+import { setTimeout } from 'node:timers/promises';
 import { pipeline } from 'node:stream/promises';
 import sharp from 'sharp';
 import { webpTransform } from '../../image-processing/webp-transform.js';
@@ -48,7 +49,20 @@ export class PortfolioImageProcessor {
     if (!media.originalKey) throw new TerminalPortfolioMediaError('Original is missing');
     assertPortfolioKey(media.id, media.originalKey);
     const directory = await mkdtemp(join(tmpdir(), 'photokondra-portfolio-'));
-    const cleanup = () => rm(directory, { recursive: true, force: true });
+    const cleanup = async () => {
+      for (let attempt = 0; ; attempt++) {
+        try {
+          await rm(directory, { recursive: true, force: true });
+          return;
+        } catch (error) {
+          const code = typeof error === 'object' && error !== null && 'code' in error
+            ? (error as NodeJS.ErrnoException).code
+            : undefined;
+          if (!['EBUSY', 'EPERM'].includes(code ?? '') || attempt >= 4) throw error;
+          await setTimeout(50 * (attempt + 1));
+        }
+      }
+    };
     try {
       const originalPath = join(directory, 'source');
       let size = 0;

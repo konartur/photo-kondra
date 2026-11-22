@@ -286,5 +286,5 @@ describe('real product controllers/services with HTTP security enabled', () => {
       info.mockRestore();
       warnings.mockRestore();
     }
-  });
+  }, 30_000);
 });

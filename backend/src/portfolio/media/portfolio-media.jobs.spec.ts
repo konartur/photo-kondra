@@ -12,6 +12,7 @@ describe('Portfolio processing job admission', () => {
       retry: jest.fn(),
     };
     const queue = {
+      waitUntilReady: async () => {},
       on: jest.fn(),
       add: jest.fn(),
       close: jest.fn(),
@@ -21,6 +22,7 @@ describe('Portfolio processing job admission', () => {
         .mockResolvedValue(active),
     };
     const jobs = new PortfolioMediaJobs(queue as unknown as Queue<PortfolioMediaJobData>);
+    await expect(jobs.ensureQueued(id)).rejects.toThrow('queue is not ready');
     await jobs.ensureQueued(id);
     await jobs.ensureQueued(id);
     expect(queue.add).toHaveBeenCalledTimes(1);
@@ -38,8 +40,10 @@ describe('Portfolio processing job admission', () => {
       retry: jest.fn(),
       remove: jest.fn(),
     };
-    const queue = { on: jest.fn(), getJob: jest.fn().mockImplementation(async () => failed) };
-    await new PortfolioMediaJobs(queue as unknown as Queue<PortfolioMediaJobData>).ensureQueued(id);
+    const queue = { on: jest.fn(), waitUntilReady: async () => {}, getJob: jest.fn().mockImplementation(async () => failed) };
+    const jobs = new PortfolioMediaJobs(queue as unknown as Queue<PortfolioMediaJobData>);
+    await queue.waitUntilReady();
+    await jobs.ensureQueued(id);
     expect(failed.retry).toHaveBeenCalledWith('failed', {
       resetAttemptsMade: true,
       resetAttemptsStarted: true,

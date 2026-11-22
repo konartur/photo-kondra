@@ -38,6 +38,13 @@ const events = [
   'portfolio_media_processing_failed',
   'portfolio_media_cleanup_deferred',
   'portfolio_media_deleted',
+  'portfolio_cache_hit',
+  'portfolio_cache_miss',
+  'portfolio_cache_timeout',
+  'portfolio_cache_fallback',
+  'portfolio_cache_invalidated',
+  'portfolio_cache_invalidation_retry',
+  'portfolio_cache_outbox_deferred',
 ] as const;
 type LogEvent = (typeof events)[number];
 export interface LogEntry {
@@ -57,6 +64,7 @@ const ids = new Set([
 const numbers = new Set([
   'statusCode',
   'durationMs',
+  'responseBytes',
   'attemptsMade',
   'maxAttempts',
   'readBytes',

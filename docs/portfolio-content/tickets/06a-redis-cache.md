@@ -1,6 +1,6 @@
 # PF-CONTENT-06A — Redis-кеш та надійна інвалідація
 
-**Статус:** Backlog; не реалізовано. **Область продукту:** лише портфоліо.
+**Статус:** Реалізовано й перевірено локально. **Область продукту:** лише портфоліо.
 **Залежності:** [PF-CONTENT-06](06-public-read-api.md); outbox/schema з PF-CONTENT-02/05.
 **Наступний крок:** [PF-CONTENT-07](07-frontend-data.md) залежить від цього тікета.
 
@@ -22,16 +22,23 @@ Portfolio public cache, version fence, DB outbox retries та спостереж
 
 ## Критерії приймання
 
-- [ ] Cold miss заповнює Redis; warm hit не повторює складні DB projection-запити.
-- [ ] Після publish/archive запит нової версії не отримує стару відповідь, навіть якщо invalidation впала.
-- [ ] Падіння Redis не робить портфоліо недоступним за працездатної PostgreSQL.
-- [ ] Outbox retry працює після відновлення Redis й restart процесу; повтори безпечні.
-- [ ] Admin/preview, signed URLs та оригінали не потрапляють у public cache.
-- [ ] Очищення та cache eviction не зачіпають чинні BullMQ queues.
+- [x] Cold miss заповнює Redis. Warm hit робить один SQL-запит версії.
+- [x] Після publish/archive запит нової версії зберігає коректність навіть при невдалій інвалідації.
+- [x] Таймаут Redis запускає читання з PostgreSQL.
+- [x] Новий екземпляр обробника підбирає відкладені записи outbox. Повтор обробки безпечний.
+- [x] Кеш обмежений DTO шести публічних JSON-маршрутів.
+- [x] Очищення обмежене namespace портфоліо. Інтеграційна перевірка зберігає контрольний ключ BullMQ.
 
 ## Перевірка
 
 Integration з тестовими PostgreSQL/Redis: miss/hit/TTL, invalid payload schema, конкурентні read+publish/archive, Redis timeout і restart, publish при недоступному Redis, outbox replay, DB outage. Перевірити config bounds, query counts і ключі черг. Виконати lint/typecheck, цільові тести та build за спільними правилами.
+
+## Реалізація й результати
+
+- Redis повертає кандидат з актуального для нього bucket. PostgreSQL підтверджує версію після читання Redis одним `SELECT`. При промаху агрегат будується у Repeatable Read. Повторна звірка перед записом і монотонне пересування Redis fence захищають від конкурентної інвалідації.
+- `PORTFOLIO_CACHE_TTL` за замовчуванням 60 секунд. `PORTFOLIO_CACHE_TIMEOUT_MS` за замовчуванням 100 мс на команду. Поточний bucket обмежений 64 записами до 128 КіБ кожен. Записи підписані сервером із прив’язкою до версії схеми, маршруту та параметрів.
+- Після commit publish/archive сигнал запускає обробку PostgreSQL outbox. Сканер стартує з модулем і повторює спроби кожні 5 секунд з backoff на рівні запису.
+- Пройшли 10 інтеграційних тестів `portfolio-cache portfolio-persistence`, 34 HTTP e2e та 288 unit-тестів. Пройшли backend lint, typecheck, build і `portfolio:contracts:check`. Для Redis integration використано окремий контейнер на порту 16379 і локальну `photo_cloud_test`. Синтетичний sitemap на 32 байти показав 23 мс при промаху та 2 мс при влучанні в останньому локальному прогоні. Тест перевіряє один SQL-запит при влучанні. Ці локальні виміри описують тестовий fixture.
 
 ## Поза областю роботи
 

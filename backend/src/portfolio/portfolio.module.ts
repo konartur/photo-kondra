@@ -13,6 +13,8 @@ import { PortfolioAdminService } from './portfolio-admin.service.js';
 import { PortfolioPublicationService } from './portfolio-publication.service.js';
 import { PortfolioPublicController } from './portfolio-public.controller.js';
 import { PortfolioPublicReader } from './portfolio-public-reader.js';
+import { PortfolioPublicCache } from './portfolio-public-cache.js';
+import { PortfolioCacheInvalidationService } from './portfolio-cache-invalidation.service.js';
 import { PortfolioMediaService } from './media/portfolio-media.service.js';
 import { PortfolioMediaJobs } from './media/portfolio-media.jobs.js';
 import { PortfolioMediaWorker } from './media/portfolio-media.worker.js';
@@ -54,6 +56,8 @@ import {
     PortfolioAdminService,
     PortfolioPublicationService,
     PortfolioPublicReader,
+    PortfolioPublicCache,
+    PortfolioCacheInvalidationService,
     PortfolioMediaJobs,
     PortfolioMediaWorker,
     PortfolioImageProcessor,

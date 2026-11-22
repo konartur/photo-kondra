@@ -1,4 +1,5 @@
-import { ConflictException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
+import { PortfolioCacheInvalidationService } from './portfolio-cache-invalidation.service.js';
 import { PortfolioEntityType, Prisma } from '@prisma/client';
 import type {
   PortfolioHomeDraftInputDto,
@@ -100,10 +101,10 @@ const storyInclude = { photos: { orderBy: { sortOrder: 'asc' } } } as const;
 
 @Injectable()
 export class PortfolioPublicationService {
-  constructor(private readonly prisma: PrismaService, private readonly persistence: PortfolioPersistenceService) {}
+  constructor(private readonly prisma: PrismaService, private readonly persistence: PortfolioPersistenceService, @Optional() private readonly invalidation?: PortfolioCacheInvalidationService) {}
 
   async publish(type: PortfolioEntityType, id: string, expectedVersion: number): Promise<PortfolioPublicationResponseDto> {
-    return this.persistence.withContentLock(async (tx) => {
+    const result = await this.persistence.withContentLock(async (tx) => {
       const current = await this.current(tx, type, id);
       if (!current) throw notFound();
       if (current.draftVersion !== BigInt(expectedVersion)) throw conflict('PORTFOLIO_VERSION_CONFLICT', 'Draft version changed');
@@ -122,10 +123,12 @@ export class PortfolioPublicationService {
       const contentVersion = await this.persistence.advanceContentVersion(tx);
       return response(id, 'PUBLISHED', current.draftVersion, BigInt(expectedVersion), contentVersion, now);
     });
+    this.invalidation?.kick();
+    return result;
   }
 
   async archive(type: PortfolioEntityType, id: string, expectedVersion: number): Promise<PortfolioPublicationResponseDto> {
-    return this.persistence.withContentLock(async (tx) => {
+    const result = await this.persistence.withContentLock(async (tx) => {
       const current = await this.current(tx, type, id);
       if (!current) throw notFound();
       if (current.draftVersion !== BigInt(expectedVersion)) throw conflict('PORTFOLIO_VERSION_CONFLICT', 'Draft version changed');
@@ -145,6 +148,8 @@ export class PortfolioPublicationService {
       const contentVersion = active ? await this.persistence.advanceContentVersion(tx) : (await tx.portfolioContentState.findUniqueOrThrow({ where: { id: 1 } })).contentVersion;
       return response(id, 'ARCHIVED', current.draftVersion, current.publishedVersion, contentVersion, current.publishedAt);
     });
+    this.invalidation?.kick();
+    return result;
   }
 
   async preview(type: PortfolioEntityType, id: string, query: PortfolioLocaleQueryDto) {

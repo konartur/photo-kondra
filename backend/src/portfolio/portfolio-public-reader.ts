@@ -5,6 +5,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -18,6 +19,12 @@ import { parsePortfolioSnapshot } from './persistence/portfolio-snapshot.js';
 import type { PortfolioPublicListQueryDto } from './dto/query.dto.js';
 import { LOCALES, type Locale } from './dto/shared.dto.js';
 import { PortfolioPublicMapper } from './portfolio-public.mapper.js';
+import { AppLogger } from '../common/logging/app-logger.js';
+import {
+  PortfolioPublicCache,
+  type PortfolioCacheAddress,
+  type VersionedPortfolioDto,
+} from './portfolio-public-cache.js';
 
 const published = { status: 'PUBLISHED', publishedDocument: { isNot: null } } as const;
 const order = [{ sortOrder: 'asc' }, { id: 'asc' }] as const;
@@ -88,10 +95,13 @@ function nextCursor(
 
 @Injectable()
 export class PortfolioPublicReader {
+  private readonly logger = new AppLogger(PortfolioPublicReader.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     @Inject(STORAGE_SERVICE) private readonly storage: Pick<StorageService, 'createDownloadUrl'>,
+    @Optional() private readonly cache?: PortfolioPublicCache,
   ) {}
 
   private async protect<T>(operation: () => Promise<T>): Promise<T> {
@@ -103,7 +113,18 @@ export class PortfolioPublicReader {
     }
   }
 
-  private read<T>(
+  private async version(tx: Pick<Prisma.TransactionClient, 'portfolioContentState'>) {
+    const state = await tx.portfolioContentState.findUniqueOrThrow({
+      where: { id: 1 },
+      select: { contentVersion: true },
+    });
+    const version = Number(state.contentVersion);
+    if (!Number.isSafeInteger(version) || version < 0) throw new Error('Invalid content version');
+    return version;
+  }
+
+  private read<T extends VersionedPortfolioDto>(
+    address: PortfolioCacheAddress,
     locale: Locale,
     operation: (
       tx: Prisma.TransactionClient,
@@ -111,18 +132,39 @@ export class PortfolioPublicReader {
       version: number,
     ) => Promise<T>,
   ) {
-    return this.protect(() =>
-      this.prisma.$transaction(
-        async (tx) => {
-          const state = await tx.portfolioContentState.findUniqueOrThrow({ where: { id: 1 } });
-          const version = Number(state.contentVersion);
-          if (!Number.isSafeInteger(version) || version < 0)
-            throw new Error('Invalid content version');
-          return operation(tx, new PortfolioPublicMapper(tx, locale), version);
-        },
-        { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
-      ),
-    );
+    return this.protect(async () => {
+      const started = performance.now();
+      const project = () =>
+        this.prisma.$transaction(
+          async (tx) =>
+            operation(tx, new PortfolioPublicMapper(tx, locale), await this.version(tx)),
+          { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+        );
+      if (!this.cache) return project();
+      // The Redis pointer only supplies a candidate. PostgreSQL authorizes the hit
+      // after the Redis read so a commit during lookup cannot slip past the fence.
+      const candidate = await this.cache.get<T>(address);
+      if (candidate && candidate.contentVersion === (await this.version(this.prisma))) {
+        this.logger.debug({
+          event: 'portfolio_cache_hit',
+          durationMs: Math.round(performance.now() - started),
+          responseBytes: Buffer.byteLength(JSON.stringify(candidate)),
+        });
+        return candidate;
+      }
+      let result = await project();
+      if (result.contentVersion !== (await this.version(this.prisma))) {
+        result = await project();
+      } else {
+        await this.cache.put(address, result);
+      }
+      this.logger.debug({
+        event: 'portfolio_cache_miss',
+        durationMs: Math.round(performance.now() - started),
+        responseBytes: Buffer.byteLength(JSON.stringify(result)),
+      });
+      return result;
+    });
   }
 
   private async settings(tx: Prisma.TransactionClient) {
@@ -137,14 +179,14 @@ export class PortfolioPublicReader {
   }
 
   site(locale: Locale) {
-    return this.read(locale, async (tx, mapper, contentVersion) => ({
+    return this.read(['site', locale], locale, async (tx, mapper, contentVersion) => ({
       data: await mapper.site(await this.settings(tx)),
       contentVersion,
     }));
   }
 
   home(locale: Locale) {
-    return this.read(locale, async (tx, mapper, contentVersion) => {
+    return this.read(['home', locale], locale, async (tx, mapper, contentVersion) => {
       const settings = await this.settings(tx);
       const site = await mapper.site(settings);
       const page = await mapper.home(settings);
@@ -153,59 +195,67 @@ export class PortfolioPublicReader {
   }
 
   services(query: PortfolioPublicListQueryDto) {
-    return this.read(query.locale, async (tx, mapper, contentVersion) => {
-      const scope = 'services';
-      const rows = await tx.portfolioService.findMany({
-        where: { ...published, ...cursor(query, scope, contentVersion) },
-        orderBy: [...order],
-        include,
-        take: query.limit + 1,
-      });
-      const items = await Promise.all(
-        rows.slice(0, query.limit).map((row) => mapper.serviceCard(row)),
-      );
-      return {
-        items,
-        nextCursor: nextCursor(rows, query, scope, contentVersion),
-        locale: query.locale,
-        contentVersion,
-      };
-    });
+    return this.read(
+      ['services', query.locale, query.limit, query.cursor ?? null],
+      query.locale,
+      async (tx, mapper, contentVersion) => {
+        const scope = 'services';
+        const rows = await tx.portfolioService.findMany({
+          where: { ...published, ...cursor(query, scope, contentVersion) },
+          orderBy: [...order],
+          include,
+          take: query.limit + 1,
+        });
+        const items = await Promise.all(
+          rows.slice(0, query.limit).map((row) => mapper.serviceCard(row)),
+        );
+        return {
+          items,
+          nextCursor: nextCursor(rows, query, scope, contentVersion),
+          locale: query.locale,
+          contentVersion,
+        };
+      },
+    );
   }
 
   service(slug: string, query: PortfolioPublicListQueryDto) {
-    return this.read(query.locale, async (tx, mapper, contentVersion) => {
-      const row = await tx.portfolioService.findFirst({ where: { slug, ...published }, include });
-      if (!row) throw missing();
-      const scope = 'service:' + row.id;
-      const stories = await tx.portfolioStory.findMany({
-        where: {
-          ...published,
-          ...cursor(query, scope, contentVersion),
-          publishedDocument: { is: { serviceReferences: { some: { serviceId: row.id } } } },
-        },
-        orderBy: [...order],
-        include,
-        take: query.limit + 1,
-      });
-      const items = await Promise.all(
-        stories.slice(0, query.limit).map((story) => mapper.storyCard(story)),
-      );
-      const data = await mapper.serviceData(row);
-      return {
-        site: await mapper.site(await this.settings(tx)),
-        contentVersion,
-        page: {
-          ...(await mapper.serviceCard(row)),
-          seo: await mapper.seo(data.seo, '/services/' + data.slug),
-          stories: { items, nextCursor: nextCursor(stories, query, scope, contentVersion) },
-        },
-      };
-    });
+    return this.read(
+      ['service', slug, query.locale, query.limit, query.cursor ?? null],
+      query.locale,
+      async (tx, mapper, contentVersion) => {
+        const row = await tx.portfolioService.findFirst({ where: { slug, ...published }, include });
+        if (!row) throw missing();
+        const scope = 'service:' + row.id;
+        const stories = await tx.portfolioStory.findMany({
+          where: {
+            ...published,
+            ...cursor(query, scope, contentVersion),
+            publishedDocument: { is: { serviceReferences: { some: { serviceId: row.id } } } },
+          },
+          orderBy: [...order],
+          include,
+          take: query.limit + 1,
+        });
+        const items = await Promise.all(
+          stories.slice(0, query.limit).map((story) => mapper.storyCard(story)),
+        );
+        const data = await mapper.serviceData(row);
+        return {
+          site: await mapper.site(await this.settings(tx)),
+          contentVersion,
+          page: {
+            ...(await mapper.serviceCard(row)),
+            seo: await mapper.seo(data.seo, '/services/' + data.slug),
+            stories: { items, nextCursor: nextCursor(stories, query, scope, contentVersion) },
+          },
+        };
+      },
+    );
   }
 
   story(slug: string, locale: Locale) {
-    return this.read(locale, async (tx, mapper, contentVersion) => {
+    return this.read(['story', slug, locale], locale, async (tx, mapper, contentVersion) => {
       const row = await tx.portfolioStory.findFirst({ where: { slug, ...published }, include });
       if (!row) throw missing();
       const snapshot = await mapper.storyData(row);
@@ -233,7 +283,7 @@ export class PortfolioPublicReader {
   }
 
   sitemap() {
-    return this.read('en', async (tx, _mapper, contentVersion) => {
+    return this.read(['sitemap'], 'en', async (tx, _mapper, contentVersion) => {
       const home = await tx.portfolioPublishedDocument.findFirst({
         where: { settings: { id: PORTFOLIO_SETTINGS_ID, status: 'PUBLISHED' } },
         select: { publishedAt: true },

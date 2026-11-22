@@ -1,6 +1,7 @@
 // Isolated Playwright-only backend for Next's server-rendered admin layout.
 import { createServer } from 'node:http';
 import { createHmac } from 'node:crypto';
+import { handlePortfolioFixture } from './portfolio-db-fixture.mjs';
 const clientCounts = new Map();
 createServer((request, response) => {
   response.setHeader('Content-Type', 'application/json');
@@ -8,6 +9,7 @@ createServer((request, response) => {
     response.end('{}');
     return;
   }
+  if (request.url?.startsWith('/__portfolio_test') && handlePortfolioFixture(request, response)) return;
   const ip = request.headers['x-photo-client-ip'];
   const time = request.headers['x-photo-client-time'];
   const expected = createHmac('sha256', 'playwright-only-bff-secret-at-least-32-bytes')
@@ -18,6 +20,7 @@ createServer((request, response) => {
     response.end(JSON.stringify({ message: 'Invalid test client proof' }));
     return;
   }
+  if (handlePortfolioFixture(request, response)) return;
   if (request.url === '/api/v1/public/galleries/client-isolation') {
     const count = (clientCounts.get(ip) ?? 0) + 1;
     clientCounts.set(ip, count);

@@ -3,7 +3,9 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
 import styles from './portfolio.module.css';
 
-export function PortfolioMotion({ className, children }: { className: string; children: ReactNode }) {
+export function PortfolioMotion({ className, children, locale = 'uk' }: {
+  className: string; children: ReactNode; locale?: 'uk' | 'en';
+}) {
   const portfolio = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -148,5 +150,5 @@ export function PortfolioMotion({ className, children }: { className: string; ch
     };
   }, []);
 
-  return <div ref={portfolio} className={className} data-portfolio lang="uk">{children}</div>;
+  return <div ref={portfolio} className={className} data-portfolio lang={locale}>{children}</div>;
 }

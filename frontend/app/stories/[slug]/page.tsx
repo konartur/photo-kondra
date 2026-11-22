@@ -5,7 +5,9 @@ import { BookingTrigger } from '../../_portfolio/portfolio-booking';
 import { portfolioBrand } from '../../_portfolio/portfolio-brand';
 import { PortfolioFooter } from '../../_portfolio/portfolio-footer';
 import PortfolioLayout from '../../_portfolio/portfolio-layout';
-import { portfolioMetadata } from '../../_portfolio/portfolio-metadata';
+import { portfolioMetadata, publishedPortfolioMetadata, unavailablePortfolioMetadata } from '../../_portfolio/portfolio-metadata';
+import { loadPortfolioStory, portfolioContentMode } from '@/lib/portfolio/server';
+import { PublishedStory } from '../../_portfolio/published-portfolio';
 import { PortfolioNavigation } from '../../_portfolio/portfolio-navigation';
 import { PortfolioPhoto } from '../../_portfolio/portfolio-photo';
 import { portfolioPrice, portfolioStories } from '../../_portfolio/portfolio-stories';
@@ -13,14 +15,15 @@ import styles from '../../_portfolio/portfolio.module.css';
 
 type StoryPageProps = { params: Promise<{ slug: string }> };
 
-export const dynamicParams = false;
-
-export function generateStaticParams() {
-  return portfolioStories.map(({ slug }) => ({ slug }));
-}
-
 export async function generateMetadata({ params }: StoryPageProps): Promise<Metadata> {
   const { slug } = await params;
+  if (portfolioContentMode() === 'DB') {
+    const result = await loadPortfolioStory('uk', slug);
+    if (result.kind === 'missing') notFound();
+    return result.kind === 'ready'
+      ? publishedPortfolioMetadata(result.data.site, result.data.page.seo)
+      : unavailablePortfolioMetadata;
+  }
   const story = portfolioStories.find((item) => item.slug === slug);
   if (!story) return {};
   return portfolioMetadata({ title: `${story.title} — ${portfolioBrand}`, description: story.subtitle, path: `/stories/${story.slug}` });
@@ -28,6 +31,7 @@ export async function generateMetadata({ params }: StoryPageProps): Promise<Meta
 
 export default async function StoryPage({ params }: StoryPageProps) {
   const { slug } = await params;
+  if (portfolioContentMode() === 'DB') return <PublishedStory locale="uk" prefix="" slug={slug} />;
   const index = portfolioStories.findIndex((story) => story.slug === slug);
   if (index === -1) notFound();
 

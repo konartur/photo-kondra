@@ -691,7 +691,8 @@
   font-size: var(--text-label);
 }
 
-.footerContacts span {
+.footerContacts span,
+.footerContacts a {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
@@ -753,6 +754,8 @@
 .storyEditorial .media:nth-child(1) { grid-column: 2 / span 5; aspect-ratio: 3 / 4; }
 .storyEditorial .media:nth-child(2) { grid-column: 8 / span 4; aspect-ratio: 3 / 4; margin-top: 145px; }
 .storyEditorial .media:nth-child(3) { grid-column: 1 / -1; aspect-ratio: 2; margin-top: 80px; }
+.storyEditorial .media:nth-child(n+4) { grid-column: 1 / -1; aspect-ratio: 3 / 2; }
+.publishedHero img { object-position: var(--desktop-focus, center); }
 
 .storyBooking {
   padding: 100px 25px;
@@ -952,6 +955,7 @@
   .storyEditorial .media:nth-child(1) { grid-column: 1; }
   .storyEditorial .media:nth-child(2) { grid-column: 2; margin-top: 60px; }
   .storyEditorial .media:nth-child(3) { aspect-ratio: 4 / 5; margin-top: 25px; }
+  .publishedHero img { object-position: var(--mobile-focus, center); }
   .storyBooking { padding: 64px var(--gutter); }
   .booking {
     width: 100%;

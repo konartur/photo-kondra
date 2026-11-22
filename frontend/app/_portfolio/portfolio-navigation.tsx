@@ -12,8 +12,14 @@ const sections = [
   { href: '#contact', label: 'Контакти' },
 ];
 
-export function PortfolioNavigation({ storySlug }: { storySlug?: string }) {
+export function PortfolioNavigation({
+  storySlug, bookingSlug, brand = portfolioBrand, homeHref = '/', locale = 'uk', bookingEnabled = true,
+}: {
+  storySlug?: string; bookingSlug?: string; brand?: string; homeHref?: string; locale?: 'uk' | 'en'; bookingEnabled?: boolean;
+}) {
   const storyPage = Boolean(storySlug);
+  const english = locale === 'en';
+  const labels = ['Home', 'Services', 'Stories', 'Contacts'];
   const dialog = useRef<HTMLDialogElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [header, setHeader] = useState({ scrolled: false, hidden: false, canGoTop: false });
@@ -93,7 +99,7 @@ export function PortfolioNavigation({ storySlug }: { storySlug?: string }) {
   return (
     <>
       <a className={styles.skipLink} href={storyPage ? '#home' : '#services'}>
-        {storyPage ? 'Перейти до історії' : 'Перейти до послуг'}
+        {english ? (storyPage ? 'Skip to the story' : 'Skip to services') : (storyPage ? 'Перейти до історії' : 'Перейти до послуг')}
       </a>
       <header
         className={styles.header}
@@ -101,16 +107,16 @@ export function PortfolioNavigation({ storySlug }: { storySlug?: string }) {
         data-hidden={header.hidden && !menuOpen}
         data-menu-open={menuOpen}
       >
-        <a className={styles.brand} href={storyPage ? '/' : '#home'}>
-          {portfolioBrand}<span>PHOTOGRAPHY</span>
+        <a className={styles.brand} href={storyPage ? homeHref : '#home'}>
+          {brand}<span>PHOTOGRAPHY</span>
         </a>
-        <BookingTrigger className={styles.headerBook} slug={storySlug}>
-          <span>Забронювати <span className={styles.headerBookIcon} aria-hidden="true">↗&#xFE0E;</span></span>
-        </BookingTrigger>
+        {bookingEnabled && <BookingTrigger className={styles.headerBook} slug={bookingSlug ?? storySlug}>
+          <span>{english ? 'Book' : 'Забронювати'} <span className={styles.headerBookIcon} aria-hidden="true">↗&#xFE0E;</span></span>
+        </BookingTrigger>}
         <button
           className={styles.menuToggle}
           type="button"
-          aria-label="Меню"
+          aria-label={english ? 'Menu' : 'Меню'}
           aria-controls="portfolio-menu"
           aria-expanded={menuOpen}
           aria-haspopup="dialog"
@@ -120,14 +126,14 @@ export function PortfolioNavigation({ storySlug }: { storySlug?: string }) {
             setMenuOpen(true);
           }}
         >
-          МЕНЮ <span className={styles.burger} aria-hidden="true" />
+          {english ? 'MENU' : 'МЕНЮ'} <span className={styles.burger} aria-hidden="true" />
         </button>
       </header>
 
       <dialog
         id="portfolio-menu"
         className={styles.menu}
-        aria-label="Навігація"
+        aria-label={english ? 'Navigation' : 'Навігація'}
         ref={dialog}
         onClose={() => setMenuOpen(false)}
         onKeyDown={(event) => {
@@ -144,20 +150,20 @@ export function PortfolioNavigation({ storySlug }: { storySlug?: string }) {
         <button
           className={styles.closeMenu}
           type="button"
-          aria-label="Закрити меню"
+          aria-label={english ? 'Close menu' : 'Закрити меню'}
           onClick={() => dialog.current?.close()}
         >
           <span aria-hidden="true">×</span>
         </button>
-        <nav aria-label="Портфоліо">
+        <nav aria-label={english ? 'Portfolio' : 'Портфоліо'}>
           {sections.map(({ href, label }, index) => (
-            <a key={href} href={storyPage ? `/${href}` : href} onClick={() => dialog.current?.close()}>
-              {label}<span aria-hidden="true">0{index + 1}</span>
+            <a key={href} href={storyPage ? homeHref + href : href} onClick={() => dialog.current?.close()}>
+              {english ? labels[index] : label}<span aria-hidden="true">0{index + 1}</span>
             </a>
           ))}
         </nav>
         <div className={styles.menuFoot}>
-          <span>СТВОРЕНО ДЛЯ СПРАВЖНІХ МОМЕНТІВ</span>
+          <span>{english ? 'MADE FOR REAL MOMENTS' : 'СТВОРЕНО ДЛЯ СПРАВЖНІХ МОМЕНТІВ'}</span>
           <span>INSTAGRAM · TELEGRAM · EMAIL</span>
         </div>
       </dialog>
@@ -165,14 +171,14 @@ export function PortfolioNavigation({ storySlug }: { storySlug?: string }) {
       <button
         className={styles.backToTop}
         type="button"
-        aria-label="Повернутися нагору"
+          aria-label={english ? 'Back to top' : 'Повернутися нагору'}
         hidden={!header.canGoTop || menuOpen}
         onClick={() => {
           document.getElementById('home')?.focus({ preventScroll: true });
           window.scrollTo({ top: 0 });
         }}
       >
-        <span aria-hidden="true">↑</span> <span className={styles.backLabel}>Нагору</span>
+        <span aria-hidden="true">↑</span> <span className={styles.backLabel}>{english ? 'Top' : 'Нагору'}</span>
       </button>
     </>
   );

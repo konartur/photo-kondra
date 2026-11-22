@@ -1,6 +1,6 @@
 # PF-CONTENT-07 — Перевести публічне портфоліо на server DTO
 
-**Статус:** Backlog; не реалізовано. **Область продукту:** лише портфоліо.
+**Статус:** Реалізовано й перевірено локально. **Область продукту:** лише портфоліо.
 **Залежності:** PF-CONTENT-06A. Порядок і посилання — у [індексі](README.md).
 
 ## Мета та область роботи
@@ -19,9 +19,9 @@ frontend/lib/portfolio/server.ts; existing _portfolio; / і /stories/[slug]; met
 
 ## Критерії приймання
 
-- [ ] Головна та історії працюють на DTO, metadata й sitemap узгоджені з published контентом.
-- [ ] Після зміни БД і publish зміни видно без rebuild; draft не видима.
-- [ ] Booking/menu/viewport/theme E2E не регресували; приватні /g/* і auth збережені.
+- [x] Головна та історії працюють на DTO, metadata й sitemap узгоджені з published контентом.
+- [x] Зміна опублікованого DTO і поява нового slug відображаються без rebuild. Неопублікований slug повертає 404.
+- [x] Booking, menu, viewport, theme, приватні галереї й auth пройшли браузерні перевірки.
 
 ## Перевірка
 
@@ -30,3 +30,12 @@ frontend/lib/portfolio/server.ts; existing _portfolio; / і /stories/[slug]; met
 ## Поза областю роботи
 
 Новий публічний дизайн та /services сторінки. UI/UX skill застосувати лише якщо реально змінюються інтерфейси.
+
+## Підключення та перевірка
+
+- `PORTFOLIO_CONTENT_MODE=FILE` залишається режимом за замовчуванням до імпорту PF-CONTENT-09. У серверному середовищі Next.js `PORTFOLIO_CONTENT_MODE=DB` вмикає читання через `API_URL` та чинний BFF. Для canonical, Open Graph і sitemap потрібен дійсний HTTPS origin у `APP_URL`.
+- Режим DB зберігає українські адреси `/` і `/stories/:slug` та додає адреси `/uk` і `/en`, які повертає sitemap. Старий hash `#story/:slug` переводить на сторінку історії. Нові slug обробляються під час запиту.
+- Metadata та сторінка разом використовують перевірений site+page DTO в межах одного рендера. Відсутня історія повертає 404, порожня головна й тимчасова недоступність мають окремі стани та noindex. Sitemap повертає 503 при відмові API.
+- У DB режимі booking використовує доступні напрями, ціну, вступ і контакти з DTO. Медіаваріанти та focal point приходять із DTO і відображаються через наявні стилі та same-origin маршрут.
+
+`npm run lint`, `npm run typecheck` і production build в обох режимах пройшли. Playwright пройшов 3 сценарії DB із синтетичними HTTP DTO (`PHOTO_CLOUD_PORTFOLIO_DB_E2E=1 npm run test:e2e`) та 58 сценаріїв FILE (`npm run test:e2e`). DB fixture перевіряє зміну опублікованої версії без збірки, відсутність чернетки, один API read для render і metadata, 10 фото, ціни, sitemap і стани помилок. Приймання з імпортованим контентом належить PF-CONTENT-09/10.

@@ -60,17 +60,18 @@ export function MediaSelect({ name, label, value, change, options, used = [], al
   )}</Field>;
 }
 
-export function ImageRef({ label, name, value, change, media, removable = true, used, allowedIds }: {
+export function ImageRef({ label, name, value, change, media, removable = true, used, allowedIds, showPicker = true }: {
   label: string; name: string; value: PortfolioImageRefDto | null;
   change: (value: PortfolioImageRefDto | null) => void; media: AdminPortfolioMediaDto[]; removable?: boolean;
   used?: readonly string[]; allowedIds?: readonly string[];
+  showPicker?: boolean;
 }) {
   return <fieldset className="space-y-3 rounded-lg border border-zinc-200 p-3">
     <legend className="px-1 text-sm font-semibold">{label}</legend>
-    <MediaSelect name={name + '.mediaId'} label={label + ' · файл'} value={value?.mediaId ?? ''} options={media}
+    {showPicker && <MediaSelect name={name + '.mediaId'} label={label + ' · файл'} value={value?.mediaId ?? ''} options={media}
       used={used} allowedIds={allowedIds}
-      change={id => change(value ? { ...value, mediaId: id } : blankImage(id))} />
-    {value && removable && <button type="button" className={button} onClick={() => change(null)}>Прибрати фото</button>}
+      change={id => change(value ? { ...value, mediaId: id } : blankImage(id))} />}
+    {showPicker && value && removable && <button type="button" className={button} onClick={() => change(null)}>Прибрати фото</button>}
     {value && <>
       <Localized name={name + '.alt'} label="Альтернативний опис" value={value.alt} max={500}
         change={alt => change({ ...value, alt })} />

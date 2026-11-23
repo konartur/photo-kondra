@@ -42,6 +42,9 @@ export type PortfolioPhotoPickerProps = MediaSource & Selection & {
   label: string;
   used?: readonly string[];
   disabled?: boolean;
+  showCurrentPreview?: boolean;
+  /** Existing assets that can be added without consuming a new unique-photo slot. */
+  uncountedIds?: readonly string[];
   id?: string;
   'aria-invalid'?: true;
   'aria-describedby'?: string;
@@ -65,7 +68,7 @@ export function PortfolioPhotoPicker(props: PortfolioPhotoPickerProps) {
   const selected = values.map(id => props.items.find(item => item.id === id));
 
   return <div className="space-y-3">
-    {values.length > 0 && <div className="flex flex-wrap gap-3" aria-label="Поточний вибір">
+    {props.showCurrentPreview !== false && values.length > 0 && <div className="flex flex-wrap gap-3" aria-label="Поточний вибір">
       {selected.slice(0, 3).map((item, index) => <div key={values[index]} className="w-28 min-w-0 space-y-1">
         {item?.previewUrl ? <AdminImage url={item.previewUrl} alt={item.filename} />
           : <div className={styles.placeholder}>Фото недоступне</div>}
@@ -115,7 +118,9 @@ function PhotoPickerDialog(props: PortfolioPhotoPickerProps & {
   const validSelection = selection.filter(id => items.some(item => item.id === id && item.status === 'READY')
     && !used.includes(id) && (!props.allowedIds || props.allowedIds.includes(id)));
   const invalidSelection = validSelection.length !== selection.length;
-  const overLimit = selection.length > limit;
+  const uncounted = props.mode === 'multiple' ? props.uncountedIds ?? [] : [];
+  const countedSelection = selection.filter(id => !uncounted.includes(id)).length;
+  const overLimit = countedSelection > limit;
   const canConfirm = !props.disabled && !props.isLoading && !props.isUploading && selection.length > 0 && !invalidSelection && !overLimit;
 
   useEffect(() => {
@@ -139,10 +144,10 @@ function PhotoPickerDialog(props: PortfolioPhotoPickerProps & {
     let next: string[];
     if (selection.includes(item.id)) next = selection.filter(id => id !== item.id);
     else {
-      if (item.status !== 'READY' || used.includes(item.id) || limit === 0
+      if (item.status !== 'READY' || used.includes(item.id) || limit === 0 && !uncounted.includes(item.id)
         || props.allowedIds && !props.allowedIds.includes(item.id)) return;
       if (props.mode === 'single') next = [item.id];
-      else if (selection.length < limit) next = [...selection, item.id];
+      else if (countedSelection < limit || uncounted.includes(item.id)) next = [...selection, item.id];
       else return;
     }
     setSelection(next);
@@ -170,7 +175,9 @@ function PhotoPickerDialog(props: PortfolioPhotoPickerProps & {
         <div className="min-w-0 space-y-1">
           <h2 id={titleId} className="break-words text-xl font-semibold">{props.label}</h2>
           <p id={helpId} className="text-sm text-zinc-700">
-            {props.mode === 'single' ? 'Оберіть одне фото та підтвердьте вибір.' : `Оберіть до ${limit} фото та підтвердьте вибір.`}
+            {props.mode === 'single' ? 'Оберіть одне фото та підтвердьте вибір.' : uncounted.length
+              ? `Можна додати ${limit} нових фото. Наявна обкладинка не займає додаткове місце.`
+              : `Оберіть до ${limit} фото та підтвердьте вибір.`}
           </p>
         </div>
         <button ref={cancelButton} type="button" className={button} disabled={props.isUploading} onClick={props.onDismiss}>Скасувати</button>
@@ -196,10 +203,10 @@ function PhotoPickerDialog(props: PortfolioPhotoPickerProps & {
             const alreadyUsed = used.includes(item.id);
             const outsideAllowed = props.allowedIds !== undefined && !props.allowedIds.includes(item.id);
             const unavailable = item.status !== 'READY' || alreadyUsed || outsideAllowed;
-            const full = props.mode === 'multiple' && selection.length >= limit;
-            const blocked = props.disabled || !checked && (unavailable || full || limit === 0);
+            const full = props.mode === 'multiple' && countedSelection >= limit && !uncounted.includes(item.id);
+            const blocked = props.disabled || !checked && (unavailable || full || limit === 0 && !uncounted.includes(item.id));
             const status = alreadyUsed ? 'Уже додано' : outsideAllowed ? 'Недоступне через ліміт історії' : checked ? (unavailable ? statuses[item.status] : 'Вибрано')
-              : unavailable ? statuses[item.status] : full || limit === 0 ? 'Досягнуто ліміту' : 'Готове';
+              : unavailable ? statuses[item.status] : full ? 'Досягнуто ліміту' : 'Готове';
             return <li key={item.id} className="min-w-0">
               <button
                 type="button"
@@ -228,9 +235,12 @@ function PhotoPickerDialog(props: PortfolioPhotoPickerProps & {
       </div>
       <footer className={styles.footer}>
         <div className="min-w-0 space-y-1">
-          <p role="status" aria-atomic="true" className="text-sm text-zinc-700">Обрано фото: {selection.length} з {limit}</p>
+          <p role="status" aria-atomic="true" className="text-sm text-zinc-700">{uncounted.length
+            ? `Обрано фото: ${selection.length}. Нових місць: ${countedSelection} з ${limit}.`
+            : `Обрано фото: ${selection.length} з ${limit}`}</p>
           {invalidSelection && <p role="alert" className="text-sm text-red-700">Деякі фото недоступні. Дозавантажте список або змініть вибір.</p>}
-          {overLimit && <p role="alert" className="text-sm text-red-700">Зменште вибір до {limit} фото.</p>}
+          {overLimit && <p role="alert" className="text-sm text-red-700">{uncounted.length
+            ? `Залиште не більше ${limit} нових фото.` : `Зменште вибір до ${limit} фото.`}</p>}
         </div>
         <div className="flex flex-wrap gap-2">
           {selection.length > 0 && <button type="button" className={button} disabled={props.disabled}

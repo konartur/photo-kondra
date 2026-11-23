@@ -172,6 +172,7 @@ function Editor({ resource, initial, media, services, stories, onDirty, onCreate
 
   function hasInvalidFields(form: ParentNode, missing: readonly string[] = [],
     message = 'Перевірте виділені поля.', selector = '[data-portfolio-field]:invalid') {
+    // Descendants include cover/photo controls inside collapsed details in the draft form.
     const invalid = Array.from(form.querySelectorAll<HTMLElement>(selector),
       field => field.getAttribute('data-portfolio-field')!);
     if (!invalid.length && !missing.length) return false;
@@ -217,6 +218,7 @@ function Editor({ resource, initial, media, services, stories, onDirty, onCreate
     event.preventDefault();
     if (pending || conflict) return;
     const occupied = 'slug' in draft && occupiedSlugs.includes(draft.slug);
+    // Drafts require structural keys only; empty alt/translations are checked on publish.
     const missing: string[] = [];
     if ('slug' in draft && !draft.slug.trim()) missing.push('slug');
     if ('serviceId' in draft && !draft.serviceId) missing.push('serviceId');

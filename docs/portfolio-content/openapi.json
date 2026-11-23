@@ -245,7 +245,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -294,6 +294,16 @@
             "description": "Opaque version/context-bound cursor",
             "schema": {
               "maxLength": 2048,
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Case-insensitive filename substring; cursor is bound to the trimmed search",
+            "schema": {
+              "maxLength": 120,
               "type": "string"
             }
           }
@@ -354,7 +364,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -375,7 +385,7 @@
             "bearer": []
           }
         ],
-        "summary": "List own portfolio media with an authenticated context/version-bound cursor",
+        "summary": "Search own portfolio media by filename with an authenticated search/context/version-bound cursor",
         "tags": [
           "portfolio media"
         ]
@@ -529,7 +539,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -743,7 +753,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -837,7 +847,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -934,7 +944,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -1038,7 +1048,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -1135,7 +1145,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -1241,7 +1251,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -1347,7 +1357,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -1456,7 +1466,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -1564,7 +1574,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -1658,7 +1668,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -1680,6 +1690,210 @@
           }
         ],
         "summary": "Create an incomplete or complete bilingual story draft",
+        "tags": [
+          "portfolio admin drafts"
+        ]
+      }
+    },
+    "/api/v1/portfolio/stories/draft": {
+      "post": {
+        "operationId": "PortfolioAdminController_createStoryDraft",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortfolioStoryDraftCreateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPortfolioStoryDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: invalid DTO, UUID or pagination",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PORTFOLIO_CONTENT_NOT_FOUND: entity or reference not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PORTFOLIO_VERSION_CONFLICT, PORTFOLIO_NOT_READY, PORTFOLIO_SLUG_IMMUTABLE, PORTFOLIO_CONTENT_REFERENCED or PORTFOLIO_CURSOR_STALE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database or active publication snapshot unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Atomically create a story draft, cover and ordered photos; incomplete editorial fields and an empty photo list are allowed",
+        "tags": [
+          "portfolio admin drafts"
+        ]
+      }
+    },
+    "/api/v1/portfolio/stories/{id}/draft": {
+      "put": {
+        "operationId": "PortfolioAdminController_saveStoryDraft",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortfolioStoryDraftSaveDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPortfolioStoryDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED: invalid DTO, UUID or pagination",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PORTFOLIO_CONTENT_NOT_FOUND: entity or reference not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PORTFOLIO_VERSION_CONFLICT, PORTFOLIO_NOT_READY, PORTFOLIO_SLUG_IMMUTABLE, PORTFOLIO_CONTENT_REFERENCED or PORTFOLIO_CURSOR_STALE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database or active publication snapshot unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Atomically replace story draft, cover and ordered photos with one expectedVersion check and one version increment",
         "tags": [
           "portfolio admin drafts"
         ]
@@ -1755,7 +1969,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -1859,7 +2073,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -1956,7 +2170,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -2062,7 +2276,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -2168,7 +2382,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -2274,7 +2488,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -2383,7 +2597,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -2469,7 +2683,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -2563,7 +2777,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -2659,7 +2873,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -2755,7 +2969,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -2855,7 +3069,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
+                  "$ref": "#/components/schemas/PortfolioApiErrorDto"
                 }
               }
             }
@@ -4550,6 +4764,64 @@
           "photos"
         ]
       },
+      "PortfolioStoryDraftCreateDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioStoryDraftInputDto"
+              }
+            ]
+          },
+          "items": {
+            "maxItems": 10,
+            "description": "Complete ordered photo selection, saved atomically with data; may be empty in a draft",
+            "minItems": 0,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortfolioStoryPhotoInputDto"
+            }
+          }
+        },
+        "required": [
+          "data",
+          "items"
+        ]
+      },
+      "PortfolioStoryDraftSaveDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "nullable": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PortfolioStoryDraftInputDto"
+              }
+            ]
+          },
+          "items": {
+            "maxItems": 10,
+            "description": "Complete ordered photo selection, saved atomically with data; may be empty in a draft",
+            "minItems": 0,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortfolioStoryPhotoInputDto"
+            }
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "data",
+          "items",
+          "expectedVersion"
+        ]
+      },
       "PortfolioStoryDraftUpdateDto": {
         "type": "object",
         "properties": {
@@ -4583,7 +4855,7 @@
           "items": {
             "maxItems": 10,
             "description": "Unique placement IDs and media IDs; cover + items union must contain at most 10 media IDs. Checked atomically against the stored cover in the draft service.",
-            "minItems": 1,
+            "minItems": 0,
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PortfolioStoryPhotoInputDto"
@@ -5514,6 +5786,7 @@
             "example": "Request validation failed"
           },
           "errors": {
+            "description": "Safe field paths and reason codes for draft validation (400) or publication/preview readiness (409); no submitted values, media IDs or storage keys.",
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PortfolioValidationErrorDto"
@@ -5552,6 +5825,27 @@
               "en"
             ],
             "default": "en"
+          }
+        }
+      },
+      "PortfolioMediaListQueryDto": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "default": 24,
+            "minimum": 1,
+            "maximum": 50
+          },
+          "cursor": {
+            "type": "string",
+            "description": "Opaque version/context-bound cursor",
+            "maxLength": 2048
+          },
+          "search": {
+            "type": "string",
+            "description": "Case-insensitive filename substring; cursor is bound to the trimmed search",
+            "maxLength": 120
           }
         }
       },

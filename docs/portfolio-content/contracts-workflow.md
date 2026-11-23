@@ -23,9 +23,10 @@ npm --prefix backend run portfolio:contracts:check
 
 ## Межі валідації
 
+- PF-UX-04: чернетку дозволено зберігати з порожніми текстами/перекладами, nullable зображеннями та порожнім списком фото; порожня адреса контакту теж означає незавершене налаштування. Непорожні значення проходять чинну перевірку типів, довжин, MIME/UUID/URL та whitelist. Slug і наявний serviceId історії залишаються обов’язковими ключами. Publish/preview перевіряють повноту окремо; 409 може містити безпечні `errors[{field,code}]`. Draft media refs перевіряються за ownership і невидаленим станом, publish вимагає READY з похідними. Генерація артефактів і перевірки цього пакета відкладені до PF-UX-14.
 - Admin editorial fields — об'єкти з обов'язковими `uk` та `en`, без інших ключів. Draft дозволяє порожні переклади, trim і ліміти перевіряються на вході. Повнота обох мов перевірятиметься publish/preview service.
 - Nullable поля обов'язково присутні; `null` дозволений лише там, де погоджено. Unknown fields, URL, storage keys, status та server-generated values у write DTO відхиляються глобальним whitelist policy.
-- Фото списку мають унікальні placement/media IDs, 1..10 при повній заміні. `storyPhotoLimitSatisfied` перевіряє union з cover без подвоєння; PF-CONTENT-04/05 викликають її атомарно із version check, бо один DTO не знає збереженого cover.
+- Фото списку мають унікальні placement/media IDs, 0..10 при заміні чернетки; публікація вимагає хоча б одне фото. `storyPhotoLimitSatisfied` перевіряє union з cover без подвоєння; PF-CONTENT-04/05 викликають її атомарно із version check, бо один DTO не знає збереженого cover.
 - Upload metadata: safe integer 1..20 000 000 bytes, JPEG/PNG/WebP; PF-CONTENT-03 додає незалежні streaming byte/header/decode/pixel checks. MIME з DTO не доводить фактичний тип файла.
 - Читання locale: omission → `en`, `uk/en` дозволені, інші/null відхиляються. Списки: default 24/max 50; перевірка cursor context/version — відповідальність майбутнього reader.
 - Контакти: email або HTTPS profile на instagram.com/www.instagram.com чи t.me/telegram.me, без credentials, port, query або fragment. Public href генерує mapper; arbitrary URL не приймається.

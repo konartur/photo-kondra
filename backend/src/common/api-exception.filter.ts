@@ -73,14 +73,20 @@ export class ApiExceptionFilter implements ExceptionFilter {
     }
     response.setHeader('Cache-Control', 'no-store');
     const fields =
-      statusCode === 400 &&
-      code === 'VALIDATION_FAILED' &&
+      ((statusCode === 400 && code === 'VALIDATION_FAILED') ||
+        (statusCode === 409 && ['PORTFOLIO_NOT_READY', 'PORTFOLIO_STORY_SERVICE_UNPUBLISHED'].includes(code))) &&
       typeof payload === 'object' &&
       payload !== null &&
       'errors' in payload &&
       Array.isArray(payload.errors) &&
       http.getRequest<Request>()?.path.startsWith('/api/v1/portfolio/')
-        ? (payload.errors as unknown[])
+        ? (payload.errors as unknown[]).flatMap(error => {
+            if (!error || typeof error !== 'object' || !('field' in error) || !('code' in error)
+              || typeof error.field !== 'string' || typeof error.code !== 'string'
+              || error.field.length > 256 || !/^[A-Za-z][A-Za-z0-9]*(?:\.(?:[A-Za-z][A-Za-z0-9]*|[0-9]+))*$/.test(error.field)
+              || !/^[A-Z][A-Z0-9_]{0,79}$/.test(error.code)) return [];
+            return [{ field: error.field, code: error.code }];
+          }).slice(0, 50)
         : [];
     response.status(statusCode).json({ statusCode, code, message, ...(fields.length ? { errors: fields } : {}) });
   }

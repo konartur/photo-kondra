@@ -45,7 +45,7 @@ function ListMore({ query, label }: { query: ReturnType<typeof useEntries>; labe
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
-function requiredDraftFields(draft: Draft) {
+function requiredDraftFields(draft: Draft, photos: readonly PortfolioStoryPhotoInputDto[] = []) {
   const missing: string[] = [];
   const text = (name: string, value: string) => { if (!value.trim()) missing.push(name); };
   const localized = (name: string, value: { uk: string; en: string }) => {
@@ -75,6 +75,7 @@ function requiredDraftFields(draft: Draft) {
       if (item.image) image(name + '.image', item.image);
     });
     image('contactSection.background', draft.contactSection.background);
+    draft.contacts.forEach((contact, index) => text('contacts.' + index + '.address', contact.address));
   } else {
     text('slug', draft.slug);
     localized('title', draft.title);
@@ -83,6 +84,8 @@ function requiredDraftFields(draft: Draft) {
       text('serviceId', draft.serviceId);
       localized('subtitle', draft.subtitle);
       image('cover', draft.cover);
+      if (!photos.length) missing.push('items');
+      photos.forEach((photo, index) => image('items.' + index + '.image', photo.image));
     } else {
       image('cardImage', draft.cardImage);
       if (draft.bookingEnabled && !draft.price) missing.push('price');
@@ -212,7 +215,9 @@ function Editor({ resource, initial, media, services, stories, onDirty, onCreate
     event.preventDefault();
     if (pending || conflict) return;
     const occupied = 'slug' in draft && occupiedSlugs.includes(draft.slug);
-    const missing = requiredDraftFields(draft);
+    const missing: string[] = [];
+    if ('slug' in draft && !draft.slug.trim()) missing.push('slug');
+    if ('serviceId' in draft && !draft.serviceId) missing.push('serviceId');
     if (occupied) missing.push('slug');
     if (hasInvalidFields(event.currentTarget, missing, occupied ? occupiedSlugMessage(resource) : undefined)) return;
     if (resource === 'stories' && editorRef.current && hasInvalidFields(editorRef.current, [], undefined,
@@ -234,8 +239,8 @@ function Editor({ resource, initial, media, services, stories, onDirty, onCreate
   function savePhotos() {
     if (!record || pending || conflict) return;
     if (editorRef.current && hasInvalidFields(editorRef.current, [], undefined, '[data-story-photo-fields] [data-portfolio-field]:invalid')) return;
-    if (!photos.length || photoCount(photos, savedCover) > 10) {
-      setProblem('Додайте щонайменше одне фото. Разом зі збереженою обкладинкою допускається до 10 унікальних фото.');
+    if (photoCount(photos, savedCover) > 10) {
+      setProblem('Разом зі збереженою обкладинкою допускається до 10 унікальних фото.');
       return;
     }
     void run(async () => {
@@ -249,7 +254,7 @@ function Editor({ resource, initial, media, services, stories, onDirty, onCreate
   function lifecycle(action: 'publish' | 'archive') {
     if (!record || dirty || pending || conflict) return;
     const draftForm = editorRef.current?.querySelector('form');
-    if (action === 'publish' && draftForm && hasInvalidFields(draftForm, requiredDraftFields(draft))) return;
+    if (action === 'publish' && draftForm && hasInvalidFields(draftForm, requiredDraftFields(draft, photos))) return;
     if (action === 'archive' && !window.confirm('Прибрати цей запис з публічного портфоліо?')) return;
     void run(async () => {
       const result = await apiRequest<PortfolioPublicationResponseDto>(path + '/' + action,
@@ -318,6 +323,7 @@ function Editor({ resource, initial, media, services, stories, onDirty, onCreate
             occupiedSlugs={occupiedSlugs} />}
           {resource !== 'services' && <ListMore query={services} label="напрями" />}
           {resource === 'settings' && <ListMore query={stories} label="історії" />}
+          <p className="text-sm text-zinc-700">Чернетку можна зберегти без фото, перекладів та завершених текстів. Їх потрібно заповнити перед публікацією.</p>
           <button className={primary} type="submit" disabled={pending || conflict || Boolean(record && !draftDirty)}>
             {resource === 'stories' ? 'Зберегти опис і обкладинку' : 'Зберегти чернетку'}
           </button>
@@ -335,7 +341,7 @@ function Editor({ resource, initial, media, services, stories, onDirty, onCreate
         </fieldset>
       </section>}
     </FieldErrors.Provider>
-    {record && <PortfolioPreview key={record.id + ':' + record.draftVersion} path={path} version={record.draftVersion} />}
+    {record && <PortfolioPreview key={record.id + ':' + record.draftVersion} path={path} version={record.draftVersion} onInvalidFields={setFieldErrors} />}
   </div>;
 }
 

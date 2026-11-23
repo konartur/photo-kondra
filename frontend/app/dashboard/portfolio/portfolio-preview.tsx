@@ -10,7 +10,9 @@ import { AdminImage, button, panel } from './editor-fields';
 
 type Preview = PortfolioHomePreviewDto | PortfolioServicePreviewDto | PortfolioStoryPreviewDto;
 
-export function PortfolioPreview({ path, version }: { path: string; version: number }) {
+export function PortfolioPreview({ path, version, onInvalidFields }: {
+  path: string; version: number; onInvalidFields?: (fields: readonly string[]) => void;
+}) {
   const [locale, setLocale] = useState<'uk' | 'en'>('uk');
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState(false);
@@ -18,9 +20,11 @@ export function PortfolioPreview({ path, version }: { path: string; version: num
 
   async function load() {
     setBusy(true); setError(''); setPreview(null);
+    onInvalidFields?.([]);
     try {
       setPreview(await apiRequest<Preview>(path + '/preview?locale=' + locale, { cache: 'no-store' }));
     } catch (failure) {
+      if (failure instanceof ApiError) onInvalidFields?.(failure.fields);
       setError(failure instanceof ApiError && failure.status === 409
         ? 'Чернетка ще не готова до перегляду. Перевірте готовність фото, заповнення обох мов і публікацію залежних записів.'
         : 'Попередній перегляд недоступний.');

@@ -44,7 +44,7 @@ try {
         if (Number(status) >= 400 && !('$ref' in response))
           response.content = {
             'application/json': { schema: { $ref: '#/components/schemas/' +
-              (status === '400' && route.startsWith('/api/v1/portfolio/') ? 'PortfolioApiErrorDto' : 'ApiErrorDto') } },
+              (['400', '409'].includes(status) && route.startsWith('/api/v1/portfolio/') ? 'PortfolioApiErrorDto' : 'ApiErrorDto') } },
           };
       }
     }

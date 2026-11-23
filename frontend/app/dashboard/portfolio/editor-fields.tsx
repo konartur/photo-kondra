@@ -17,7 +17,10 @@ export function Field({ label, name, errorMessage = 'Перевірте знач
 }) {
   const id = useId();
   const errors = useContext(FieldErrors);
-  const invalid = errors.includes(name) || errors.includes('data.' + name);
+  const invalid = errors.some(error => {
+    const field = error.startsWith('data.') ? error.slice(5) : error;
+    return field === name || field.startsWith(name + '.');
+  });
   return (
     <div className="min-w-0 space-y-1">
       <label htmlFor={id} className="block text-sm font-medium text-zinc-900">{label}</label>

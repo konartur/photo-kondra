@@ -131,7 +131,7 @@ export function setupApp(
           },
         };
         if (Number(status) < 400) continue;
-        const errorDto = status === '400' && route.startsWith('/api/v1/portfolio/')
+        const errorDto = ['400', '409'].includes(status) && route.startsWith('/api/v1/portfolio/')
           ? PortfolioApiErrorDto : ApiErrorDto;
         result.content = { 'application/json': { schema: { $ref: getSchemaPath(errorDto) } } };
         if (status === '429')

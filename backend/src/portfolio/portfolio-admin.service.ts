@@ -32,6 +32,13 @@ import { contactSectionCopy } from './portfolio-contact-copy.js';
 const notFound = () => new NotFoundException({ code: 'PORTFOLIO_CONTENT_NOT_FOUND', message: 'Portfolio content not found' });
 const conflict = (code = 'PORTFOLIO_CONTENT_REFERENCED') => new ConflictException({ code, message: 'Portfolio content cannot be changed' });
 
+function assertStoryPhotos(coverId: string | null, items: PortfolioStoryPhotoInputDto[]) {
+  if (items.length > 10 || new Set(items.map(item => item.id)).size !== items.length
+    || new Set(items.map(item => item.image.mediaId)).size !== items.length
+    || !storyPhotoLimitSatisfied(coverId, items.map(item => item.image.mediaId)))
+    throw new BadRequestException({ code: 'VALIDATION_FAILED', message: 'Story photos must be unique; cover and photos may reference at most 10 unique media items', errors: [{ field: 'items', code: 'INVALID_PHOTO_SELECTION' }] });
+}
+
 function imageColumns(prefix: string, image: { mediaId: string; alt: { uk: string; en: string }; focalPoint: { x: number; y: number } | null } | null) {
   return {
     [`${prefix}MediaId`]: image?.mediaId ?? null,
@@ -213,17 +220,23 @@ export class PortfolioAdminService {
     data: PortfolioStoryDraftInputDto,
     seed?: { id: string; sortOrder: number; photos: PortfolioStoryPhotoInputDto[] },
   ) {
+    return this.createStoryWithPhotos(ownerId, data, seed?.photos ?? [], seed);
+  }
+  async createStoryWithPhotos(
+    ownerId: string, data: PortfolioStoryDraftInputDto, photos: PortfolioStoryPhotoInputDto[],
+    seed?: { id: string; sortOrder: number },
+  ) {
     return this.write(async (tx) => {
       if (!(await tx.portfolioService.findUnique({ where: { id: data.serviceId }, select: { id: true } }))) throw notFound();
-      const photos = seed?.photos ?? [];
       const mediaIds = photos.map(photo => photo.image.mediaId);
-      if (photos.length > 10 || !storyPhotoLimitSatisfied(data.cover?.mediaId ?? null, mediaIds))
-        throw new BadRequestException({ code: 'VALIDATION_FAILED', message: 'Story cover and photos may reference at most 10 unique media items' });
+      assertStoryPhotos(data.cover?.mediaId ?? null, photos);
       await this.validateMedia(tx, ownerId, [...this.storyMedia(data), ...mediaIds]);
+      await this.validatePlacementIds(tx, photos);
       return storyResponse(await tx.portfolioStory.create({
         data: {
           ...storyColumns(data),
-          ...(seed && { id: seed.id, sortOrder: seed.sortOrder, photos: { create: photos.map(photoColumns) } }),
+          ...(seed && { id: seed.id, sortOrder: seed.sortOrder }),
+          photos: { create: photos.map(photoColumns) },
         },
         include: { photos: { orderBy: { sortOrder: 'asc' } } },
       }));
@@ -259,6 +272,22 @@ export class PortfolioAdminService {
       if (items.length) await tx.portfolioStoryPhoto.createMany({
         data: items.map((photo, sortOrder) => ({ storyId: id, ...photoColumns(photo, sortOrder) })),
       });
+      return storyResponse(await tx.portfolioStory.findUniqueOrThrow({ where: { id }, include: { photos: { orderBy: { sortOrder: 'asc' } } } }));
+    });
+  }
+  async saveStoryDraft(ownerId: string, id: string, expectedVersion: number, data: PortfolioStoryDraftInputDto, items: PortfolioStoryPhotoInputDto[]) {
+    return this.write(async (tx) => {
+      const current = await tx.portfolioStory.findUnique({ where: { id } });
+      if (!current) throw notFound();
+      await this.persistence.claimDraftVersion(tx, PortfolioEntityType.STORY, id, expectedVersion);
+      if (current.publishedVersion !== null && current.slug !== data.slug) throw conflict('PORTFOLIO_SLUG_IMMUTABLE');
+      assertStoryPhotos(data.cover?.mediaId ?? null, items);
+      if (!(await tx.portfolioService.findUnique({ where: { id: data.serviceId }, select: { id: true } }))) throw notFound();
+      await this.validateMedia(tx, ownerId, [...this.storyMedia(data), ...items.map(item => item.image.mediaId)]);
+      await this.validatePlacementIds(tx, items, id);
+      await tx.portfolioStory.update({ where: { id }, data: storyColumns(data) });
+      await tx.portfolioStoryPhoto.deleteMany({ where: { storyId: id } });
+      if (items.length) await tx.portfolioStoryPhoto.createMany({ data: items.map((item, index) => ({ storyId: id, ...photoColumns(item, index) })) });
       return storyResponse(await tx.portfolioStory.findUniqueOrThrow({ where: { id }, include: { photos: { orderBy: { sortOrder: 'asc' } } } }));
     });
   }
@@ -327,5 +356,13 @@ export class PortfolioAdminService {
     if (!ids.length) return;
     const rows = await tx.portfolioMedia.findMany({ where: { id: { in: [...new Set(ids)] }, uploadedById: ownerId, status: { not: 'DELETED' } }, select: { id: true } });
     if (rows.length !== new Set(ids).size) throw notFound();
+  }
+  private async validatePlacementIds(tx: Prisma.TransactionClient, items: PortfolioStoryPhotoInputDto[], storyId?: string) {
+    if (!items.length) return;
+    const occupied = await tx.portfolioStoryPhoto.findFirst({
+      where: { id: { in: items.map(item => item.id) }, ...(storyId ? { storyId: { not: storyId } } : {}) },
+      select: { id: true },
+    });
+    if (occupied) throw new BadRequestException({ code: 'VALIDATION_FAILED', message: 'Photo placement IDs are already in use', errors: [{ field: 'items', code: 'PLACEMENT_ID_TAKEN' }] });
   }
 }

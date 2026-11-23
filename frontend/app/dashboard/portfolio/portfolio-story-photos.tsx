@@ -28,13 +28,12 @@ function PhotoPreview({ mediaId, media }: { mediaId: string; media: AdminPortfol
   </div>;
 }
 
-export function PhotoFields({ value, change, cover, changeCover, media, canEditPhotos }: {
+export function PhotoFields({ value, change, cover, changeCover, media }: {
   value: PortfolioStoryPhotoInputDto[];
   change: (value: PortfolioStoryPhotoInputDto[]) => void;
   cover: PortfolioImageRefDto | null;
   changeCover: (value: PortfolioImageRefDto | null) => void;
   media: AdminPortfolioMediaDto[];
-  canEditPhotos: boolean;
 }) {
   const used = value.map(photo => photo.image.mediaId);
   const count = photoCount(value, cover?.mediaId);
@@ -45,7 +44,6 @@ export function PhotoFields({ value, change, cover, changeCover, media, canEditP
   ];
 
   function addPhotos(ids: string[]) {
-    if (!canEditPhotos) return;
     const additions = [...new Set(ids)].filter(id => !used.includes(id));
     const next = [...value, ...additions.map(mediaId => ({
       id: crypto.randomUUID(), image: cover?.mediaId === mediaId ? { ...cover } : blankImage(mediaId),
@@ -67,11 +65,10 @@ export function PhotoFields({ value, change, cover, changeCover, media, canEditP
       />}</Field>
       <Field label="Фото в історії" name="items">{a11y => <PortfolioMediaPicker
         {...a11y} label="Додати фото" mode="multiple" value={[]} initialItems={media} used={used}
-        showCurrentPreview={false} disabled={!canEditPhotos} limit={Math.max(0, 10 - count)}
+        showCurrentPreview={false} limit={Math.max(0, 10 - count)}
         uncountedIds={outsideCover ? [outsideCover.mediaId] : []} onConfirm={addPhotos}
       />}</Field>
     </div>
-    {!canEditPhotos && <p className="text-sm text-zinc-700">Спочатку збережіть опис і обкладинку. Потім можна додати фото до історії.</p>}
     {!cover && <p className="text-sm text-zinc-700">Оберіть обкладинку з бібліотеки або призначте нею фото зі списку.</p>}
     <p className="text-sm text-zinc-700">Прибирання зі списку не видаляє файл із фотобібліотеки. Обкладинка може бути окремим фото.</p>
     <ol className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -86,7 +83,7 @@ export function PhotoFields({ value, change, cover, changeCover, media, canEditP
           <PhotoPreview mediaId={image.mediaId} media={media} />
           <div className="flex flex-wrap gap-2">
             {!isCover && <button type="button" className={button} onClick={() => chooseCover(image.mediaId)}>Зробити обкладинкою</button>}
-            {index === null && <button type="button" className={button} disabled={!canEditPhotos || value.length >= 10}
+            {index === null && <button type="button" className={button} disabled={value.length >= 10}
               onClick={() => addPhotos([image.mediaId])}>Додати до історії</button>}
             {isCover && <button type="button" className={button} onClick={() => changeCover(null)}>Прибрати обкладинку</button>}
             {index !== null && <>

@@ -14,6 +14,7 @@ import {
   PortfolioHomeDraftUpdateDto, PortfolioServiceDraftInputDto, PortfolioServiceDraftUpdateDto,
   PublicationCommandDto,
   PortfolioStoryDraftInputDto, PortfolioStoryDraftUpdateDto, ReplaceStoryPhotosDto,
+  PortfolioStoryDraftCreateDto, PortfolioStoryDraftSaveDto,
 } from './dto/admin-input.dto.js';
 import {
   AdminPortfolioServiceDto, AdminPortfolioServiceListDto, AdminPortfolioStoryDto,
@@ -80,6 +81,20 @@ export class PortfolioAdminController {
   @ApiOperation({ summary: 'Create an incomplete or complete bilingual story draft' })
   @ApiCreatedResponse({ type: AdminPortfolioStoryDto })
   createStory(@Req() req: AdminRequest, @Body() dto: PortfolioStoryDraftInputDto) { return this.admin.createStory(req.user.sub, dto); }
+
+  @Post('stories/draft') @Header('Cache-Control', 'no-store')
+  @ApiOperation({ summary: 'Atomically create a story draft, cover and ordered photos; incomplete editorial fields and an empty photo list are allowed' })
+  @ApiCreatedResponse({ type: AdminPortfolioStoryDto })
+  createStoryDraft(@Req() req: AdminRequest, @Body() dto: PortfolioStoryDraftCreateDto) {
+    return this.admin.createStoryWithPhotos(req.user.sub, dto.data, dto.items);
+  }
+
+  @Put('stories/:id/draft') @Header('Cache-Control', 'no-store')
+  @ApiOperation({ summary: 'Atomically replace story draft, cover and ordered photos with one expectedVersion check and one version increment' })
+  @ApiParam({ name: 'id', format: 'uuid' }) @ApiOkResponse({ type: AdminPortfolioStoryDto })
+  saveStoryDraft(@Req() req: AdminRequest, @Param('id', ParseUUIDPipe) id: string, @Body() dto: PortfolioStoryDraftSaveDto) {
+    return this.admin.saveStoryDraft(req.user.sub, id, dto.expectedVersion, dto.data, dto.items);
+  }
 
   @Get('stories/:id') @Header('Cache-Control', 'no-store')
   @ApiParam({ name: 'id', format: 'uuid' }) @ApiOkResponse({ type: AdminPortfolioStoryDto })

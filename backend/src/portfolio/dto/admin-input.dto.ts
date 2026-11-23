@@ -184,6 +184,18 @@ export class ReplaceStoryPhotosDto extends PublicationCommandDto {
   @ArrayUnique((item: PortfolioStoryPhotoInputDto) => item?.image?.mediaId)
   items!: PortfolioStoryPhotoInputDto[];
 }
+export class PortfolioStoryDraftCreateDto {
+  @Nested(PortfolioStoryDraftInputDto) data!: PortfolioStoryDraftInputDto;
+  @ApiProperty({ description: 'Complete ordered photo selection, saved atomically with data; may be empty in a draft', minItems: 0 })
+  @NestedList(PortfolioStoryPhotoInputDto, 10)
+  @ArrayUnique((item: PortfolioStoryPhotoInputDto) => item?.id)
+  @ArrayUnique((item: PortfolioStoryPhotoInputDto) => item?.image?.mediaId)
+  items!: PortfolioStoryPhotoInputDto[];
+}
+export class PortfolioStoryDraftSaveDto extends PortfolioStoryDraftCreateDto {
+  @Integer(1) expectedVersion!: number;
+}
+
 export class RequestPortfolioUploadDto {
   @ApiProperty({ minLength: 1, pattern: '^[^\\u0000-\\u001f\\u007f/\\\\]+$' })
   // Reject control characters as well as path separators in original filenames.

@@ -1,6 +1,6 @@
 # PF-UX-05 — Атомарне збереження всієї історії
 
-**Статус:** Заплановано.
+**Статус:** Реалізовано, перевірки відкладено.
 **Залежить від:** PF-UX-04.
 **Порядок і правила:** [PF-UX-00](PF-UX-00-INDEX.md).
 **Вимоги:** [UX-план](docs/portfolio-content/admin-ux-plan.md).
@@ -33,8 +33,13 @@
 
 ## Запис виконання
 
-- Зміни: ще не виконано.
-- Файли: —.
-- Відкладені перевірки й ризики: —.
-- Блокери: не оцінювалися.
+- Зміни: додано `POST /api/v1/portfolio/stories/draft` з `{data,items}` для створення та `PUT /api/v1/portfolio/stories/:id/draft` з `{expectedVersion,data,items}` для повної заміни чернетки. DTO зберігають whitelist/nested validation, 0..10 фото й унікальність placement/media IDs. Swagger документує запити, авторизацію, response та помилки. Старі POST /stories, PUT /stories/:id і PUT /stories/:id/photos збережені.
+- Атомарність: create використовує спільний createStoryWithPhotos, зокрема для чинного імпортера. Update працює всередині наявного withContentLock (Serializable + повтори): читає запис, один раз claimDraftVersion, перевіряє immutable slug, union фото/обкладинки, фотосесію, ownership невидалених медіа та зайняті placement IDs, оновлює draft і повністю замінює ordered photo placements. Помилка будь-якого кроку відкочує всю транзакцію разом із версією. Фото зі сховища не видаляються; published snapshot не змінюється.
+- Frontend/BFF: додано route handlers для combined endpoints із чинними auth/JSON/body-size/no-store перевірками. Одна форма та одна кнопка «Зберегти чернетку» зберігають опис, обкладинку, фото й порядок. PhotoFields доступні й для нового запису до першого save. Dirty враховує обидві частини, baseline draft/photos оновлюється тільки повним успішним response. Для переходу new→id повні дані відповіді спершу потрапляють у query cache, тому новий редактор отримує також збережені фото.
+- Конкуренція/відновлення: локальний pendingRef захищає від повторного запуску мутації до React rerender. Помилки/409 лишають draft/photos у формі; conflict блокує save/publish до явного розв’язання. Старі перевірки проти savedCover/savedPhotos та вимога послідовних save прибрані: ліміт перевіряється на цілісному поточному наборі.
+- Файли: backend `dto/admin-input.dto.ts`, `portfolio-admin.controller.ts`, `portfolio-admin.service.ts`; frontend `lib/api/portfolio-admin-server.ts`, `app/api/portfolio/stories/draft/route.ts`, `app/api/portfolio/stories/[id]/draft/route.ts`, `portfolio-workspace.tsx`, `portfolio-story-photos.tsx`.
+- Контрактний борг: нові DTO/endpoints зареєстровані у runtime Swagger через чинний workflow; генерацію OpenAPI snapshot/frontend declarations та --check виконати у PF-UX-14 (генератор запускає build). Generated files вручну не змінювалися. Response залишається AdminPortfolioStoryDto; frontend формує запит із чинних typed draft/photo даних.
+- Відкладені перевірки PF-UX-14: full create з фото й порожній create; data/items whitelist, duplicate placement/media IDs, union=10/11, чужий/видалений файл, placement ID іншої історії, неіснуюча фотосесія, immutable published slug; single version increment; stale expectedVersion; rollback після update/deleteMany/createMany failure; дві конкурентні сесії; retries Serializable; нові BFF routes, JSON/UUID/body-size/auth/no-store; регресія старих endpoints й імпортера; одна кнопка для photo-only edits; new→id без втрати фото; одночасна заміна 10 фото та cover без проміжних станів; 409 збереження правок і блок publish; timeout після commit; повторний submit; контрактна генерація, lint/typecheck/tests/build і browser QA.
+- Огляд: виконано читання коду та diff; автоматичні перевірки й браузерне QA не запускалися за вказівкою власника. Критерії приймання ще не підтверджені.
+- Блокери: на етапі огляду коду не виявлено; працездатність ще не перевірена. Міграції й зміна архітектури не потрібні.
 

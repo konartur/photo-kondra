@@ -325,7 +325,7 @@ export class PortfolioAdminService {
   }
   private async validateMedia(tx: Prisma.TransactionClient, ownerId: string, ids: string[]) {
     if (!ids.length) return;
-    const rows = await tx.portfolioMedia.findMany({ where: { id: { in: [...new Set(ids)] }, uploadedById: ownerId, status: 'READY' }, select: { id: true } });
-    if (rows.length !== new Set(ids).size) throw conflict('PORTFOLIO_NOT_READY');
+    const rows = await tx.portfolioMedia.findMany({ where: { id: { in: [...new Set(ids)] }, uploadedById: ownerId, status: { not: 'DELETED' } }, select: { id: true } });
+    if (rows.length !== new Set(ids).size) throw notFound();
   }
 }

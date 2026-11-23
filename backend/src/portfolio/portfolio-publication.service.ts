@@ -9,7 +9,7 @@ import type {
 } from './dto/admin-input.dto.js';
 import { PORTFOLIO_SETTINGS_ID, PortfolioPersistenceService } from './persistence/portfolio-persistence.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { storyPhotoLimitSatisfied } from './dto/admin-input.dto.js';
+import { portfolioMediaFields, portfolioReadinessErrors, type PortfolioReadinessError } from './portfolio-readiness.js';
 import { parsePortfolioSnapshot } from './persistence/portfolio-snapshot.js';
 import type { PortfolioPublicationResponseDto } from './dto/admin-response.dto.js';
 import type { PortfolioLocaleQueryDto } from './dto/query.dto.js';
@@ -18,7 +18,7 @@ import { contactSectionCopy } from './portfolio-contact-copy.js';
 
 const notFound = () => new NotFoundException({ code: 'PORTFOLIO_CONTENT_NOT_FOUND', message: 'Portfolio content not found' });
 const conflict = (code: string, message: string) => new ConflictException({ code, message });
-const incomplete = () => conflict('PORTFOLIO_NOT_READY', 'Portfolio draft is incomplete or has unavailable dependencies');
+const incomplete = (errors: PortfolioReadinessError[] = []) => new ConflictException({ code: 'PORTFOLIO_NOT_READY', message: 'Portfolio draft is incomplete or has unavailable dependencies', errors: errors.slice(0, 50) });
 const localized = (value: { uk: string; en: string }) => Boolean(value.uk.trim() && value.en.trim());
 
 function image(row: Record<string, unknown>, prefix: string) {
@@ -77,22 +77,13 @@ function textSet(...values: Array<{ uk: string; en: string }>) { return values.e
 function imageComplete(value: { alt: { uk: string; en: string } } | null) { return Boolean(value && textSet(value.alt)); }
 function seoComplete(value: PortfolioServiceDraftInputDto['seo']) { return textSet(value.title, value.description) && (!value.shareImage || imageComplete(value.shareImage)); }
 function serviceComplete(data: PortfolioServiceDraftInputDto) {
-  return Boolean(data.slug && textSet(data.title, data.description) && seoComplete(data.seo) && imageComplete(data.cardImage) && (!data.bookingEnabled || data.price));
+  return portfolioReadinessErrors(data).length === 0;
 }
 function storyComplete(data: PortfolioStoryDraftInputDto, photos: PortfolioStoryPhotoInputDto[]) {
-  return Boolean(data.slug && textSet(data.title, data.subtitle, data.description) && seoComplete(data.seo) && imageComplete(data.cover) && storyPhotoLimitSatisfied(data.cover?.mediaId ?? null, photos.map((p) => p.image.mediaId)) && photos.every((p) => imageComplete(p.image)));
+  return portfolioReadinessErrors(data, photos).length === 0;
 }
 function settingsComplete(data: PortfolioHomeDraftInputDto) {
-  return Boolean(localized(data.bookingIntro) && textSet(data.servicesSection.title, data.servicesSection.description, data.storiesSection.title, data.contactSection.title, data.contactSection.description, data.contactSection.buttonLabel) && seoComplete(data.seo) && imageComplete(data.hero.desktop) && imageComplete(data.hero.mobile) && imageComplete(data.contactSection.background) && data.servicesSection.serviceIds.length > 0 && data.storiesSection.items.length > 0 && data.storiesSection.items.every((item) => localized(item.caption) && (!item.image || imageComplete(item.image))));
-}
-function mediaReferences(data: PortfolioServiceDraftInputDto | PortfolioStoryDraftInputDto | PortfolioHomeDraftInputDto, photos: PortfolioStoryPhotoInputDto[] = []) {
-  const ids: string[] = [];
-  const add = (value: { mediaId: string } | null) => { if (value) ids.push(value.mediaId); };
-  if ('cardImage' in data) add(data.cardImage);
-  if ('cover' in data) { add(data.cover); photos.forEach((photo) => add(photo.image)); }
-  add(data.seo.shareImage);
-  if ('hero' in data) { add(data.hero.desktop); add(data.hero.mobile); add(data.contactSection.background); data.storiesSection.items.forEach(item => add(item.image ?? null)); }
-  return [...new Set(ids)];
+  return portfolioReadinessErrors(data).length === 0;
 }
 function response(id: string, status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED', draftVersion: bigint, publishedVersion: bigint | null, contentVersion: bigint, publishedAt: Date | null): PortfolioPublicationResponseDto {
   return { id, status, draftVersion: Number(draftVersion), publishedVersion: publishedVersion === null ? null : Number(publishedVersion), contentVersion: Number(contentVersion), publishedAt: publishedAt?.toISOString() ?? null };
@@ -156,12 +147,15 @@ export class PortfolioPublicationService {
   async preview(type: PortfolioEntityType, id: string, query: PortfolioLocaleQueryDto) {
     const draft = await this.readDraft(type, id);
     if (!draft) throw notFound();
-    const valid = type === PortfolioEntityType.SERVICE
-      ? serviceComplete(draft.data as PortfolioServiceDraftInputDto)
-      : type === PortfolioEntityType.STORY
-        ? storyComplete(draft.data as PortfolioStoryDraftInputDto, draft.photos ?? [])
-        : settingsComplete(draft.data as PortfolioHomeDraftInputDto);
-    if (!valid) throw incomplete();
+    const errors = portfolioReadinessErrors(draft.data as PortfolioServiceDraftInputDto | PortfolioStoryDraftInputDto | PortfolioHomeDraftInputDto, draft.photos);
+    if (errors.length) throw incomplete(errors);
+    const fields = portfolioMediaFields(draft.data as PortfolioServiceDraftInputDto | PortfolioStoryDraftInputDto | PortfolioHomeDraftInputDto, draft.photos);
+    if (fields.length) {
+      const ready = await this.prisma.portfolioMedia.findMany({ where: { id: { in: [...new Set(fields.map(field => field.mediaId))] }, status: 'READY', variants: { some: {} } }, select: { id: true } });
+      const readyIds = new Set(ready.map(media => media.id));
+      const unavailable = fields.filter(field => !readyIds.has(field.mediaId)).map(({ field }) => ({ field, code: 'MEDIA_NOT_READY' }));
+      if (unavailable.length) throw incomplete(unavailable);
+    }
     const settings = await this.prisma.portfolioSettings.findUnique({ where: { id: PORTFOLIO_SETTINGS_ID }, include: settingsInclude });
     if (!settings) throw notFound();
     const locale = query.locale;
@@ -182,35 +176,50 @@ export class PortfolioPublicationService {
   private async prepareSnapshot(tx: Prisma.TransactionClient, type: PortfolioEntityType, id: string) {
     let data: PortfolioServiceDraftInputDto | PortfolioStoryDraftInputDto | PortfolioHomeDraftInputDto;
     let photos: PortfolioStoryPhotoInputDto[] = [];
+    const errors: PortfolioReadinessError[] = [];
     if (type === PortfolioEntityType.SERVICE) {
       const row = await tx.portfolioService.findUnique({ where: { id } });
       if (!row) throw notFound();
       data = serviceDraft(row);
-      if (!serviceComplete(data)) throw incomplete();
+      errors.push(...portfolioReadinessErrors(data));
     } else if (type === PortfolioEntityType.STORY) {
       const row = await tx.portfolioStory.findUnique({ where: { id }, include: storyInclude });
       if (!row) throw notFound();
       const result = storyDraft(row);
       data = result.data; photos = result.photos;
-      if (!storyComplete(data, photos)) throw incomplete();
+      errors.push(...portfolioReadinessErrors(data, photos));
       const service = await tx.portfolioService.findUnique({ where: { id: data.serviceId }, select: { status: true } });
       if (service?.status !== 'PUBLISHED')
-        throw conflict('PORTFOLIO_STORY_SERVICE_UNPUBLISHED', 'Publish the linked service before publishing this story');
+        errors.push({ field: 'serviceId', code: 'DEPENDENCY_NOT_PUBLISHED' });
     } else {
       const row = await tx.portfolioSettings.findUnique({ where: { id }, include: settingsInclude });
       if (!row) throw notFound();
       data = settingsDraft(row);
-      if (!settingsComplete(data)) throw incomplete();
+      errors.push(...portfolioReadinessErrors(data));
       const [services, stories] = await Promise.all([
         tx.portfolioService.findMany({ where: { id: { in: data.servicesSection.serviceIds }, status: 'PUBLISHED' }, select: { id: true } }),
         tx.portfolioStory.findMany({ where: { id: { in: data.storiesSection.items.map((item) => item.storyId) }, status: 'PUBLISHED' }, select: { id: true } }),
       ]);
-      if (services.length !== data.servicesSection.serviceIds.length || stories.length !== data.storiesSection.items.length) throw incomplete();
+      const serviceIds = new Set(services.map(service => service.id));
+      const storyIds = new Set(stories.map(story => story.id));
+      data.servicesSection.serviceIds.forEach((serviceId, index) => {
+        if (!serviceIds.has(serviceId)) errors.push({ field: `servicesSection.serviceIds.${index}`, code: 'DEPENDENCY_NOT_PUBLISHED' });
+      });
+      data.storiesSection.items.forEach((item, index) => {
+        if (!storyIds.has(item.storyId)) errors.push({ field: `storiesSection.items.${index}.storyId`, code: 'DEPENDENCY_NOT_PUBLISHED' });
+      });
     }
-    const mediaIds = mediaReferences(data, photos);
+    const mediaFields = portfolioMediaFields(data, photos);
+    const mediaIds = [...new Set(mediaFields.map(field => field.mediaId))];
     if (mediaIds.length) {
       const ready = await tx.portfolioMedia.findMany({ where: { id: { in: mediaIds }, status: 'READY', variants: { some: {} } }, select: { id: true } });
-      if (ready.length !== mediaIds.length) throw incomplete();
+      const readyIds = new Set(ready.map(media => media.id));
+      errors.push(...mediaFields.filter(field => !readyIds.has(field.mediaId)).map(({ field }) => ({ field, code: 'MEDIA_NOT_READY' })));
+    }
+    if (errors.length) {
+      if (errors.every(error => error.field === 'serviceId' && error.code === 'DEPENDENCY_NOT_PUBLISHED'))
+        throw new ConflictException({ code: 'PORTFOLIO_STORY_SERVICE_UNPUBLISHED', message: 'Publish the linked service before publishing this story', errors });
+      throw incomplete(errors);
     }
     const snapshot = type === PortfolioEntityType.STORY
       ? { schemaVersion: 1, entityType: type, data, photos }
@@ -349,3 +358,4 @@ export class PortfolioPublicationService {
     };
   }
 }
+

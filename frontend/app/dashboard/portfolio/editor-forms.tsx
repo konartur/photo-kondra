@@ -156,7 +156,7 @@ function ContactAddress({ contact, name, change }: {
 }) {
   const { type, address } = contact;
   if (type === 'email') return <Field label="Email · адреса" name={name}>{a11y => (
-    <input {...a11y} className={input} type="email" autoComplete="email" value={address} maxLength={2048} required onChange={e => change(e.target.value)} />
+    <input {...a11y} className={input} type="email" autoComplete="email" value={address} maxLength={2048} onChange={e => change(e.target.value)} />
   )}</Field>;
 
   const profile = socialProfiles[type];
@@ -168,7 +168,7 @@ function ContactAddress({ contact, name, change }: {
       <p id={a11y.id + '-hint'} className="break-all text-sm text-zinc-700">{profile.prefix} · {profile.hint}</p>
       <input {...a11y} aria-describedby={[a11y.id + '-hint', a11y['aria-describedby']].filter(Boolean).join(' ')}
         className={input} autoCapitalize="none" spellCheck={false} autoComplete="off"
-        value={username} pattern={profile.pattern} title={profile.hint} required
+        value={username} pattern={profile.pattern} title={profile.hint}
         onChange={e => {
           const handle = e.target.value.trim().replace(/^@/, '');
           change(handle ? profile.prefix + handle : '');

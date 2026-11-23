@@ -2,7 +2,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
-  ArrayMinSize,
   ArrayUnique,
   IsArray,
   IsBoolean,
@@ -36,6 +35,7 @@ import {
 class PortfolioContactAddress implements ValidatorConstraintInterface {
   validate(value: unknown, args: ValidationArguments): boolean {
     if (typeof value !== 'string') return false;
+    if (!value) return true; // An explicitly empty contact is allowed only in drafts.
     const { type } = args.object as PortfolioContactInputDto;
     if (type === 'email') return isEmail(value);
     try {
@@ -177,10 +177,9 @@ export class ReplaceStoryPhotosDto extends PublicationCommandDto {
   @ApiProperty({
     description:
       'Unique placement IDs and media IDs; cover + items union must contain at most 10 media IDs. Checked atomically against the stored cover in the draft service.',
-    minItems: 1,
+    minItems: 0,
   })
   @NestedList(PortfolioStoryPhotoInputDto, 10)
-  @ArrayMinSize(1)
   @ArrayUnique((item: PortfolioStoryPhotoInputDto) => item?.id)
   @ArrayUnique((item: PortfolioStoryPhotoInputDto) => item?.image?.mediaId)
   items!: PortfolioStoryPhotoInputDto[];

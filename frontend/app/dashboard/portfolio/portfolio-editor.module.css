@@ -1,0 +1,90 @@
+.editor {
+  --portfolio-actions-height: 10rem;
+  --portfolio-toolbar-height: 8rem;
+  min-width: 0;
+}
+
+.toolbar {
+  position: sticky;
+  top: 1rem;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--color-zinc-200);
+  border-radius: 0.75rem;
+  background: var(--color-white);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.editor :is([data-portfolio-field], details, [data-editor-preview]) {
+  scroll-margin-block-start: calc(var(--portfolio-toolbar-height) + 2rem);
+  scroll-margin-block-end: 2rem;
+}
+
+.more {
+  position: relative;
+}
+
+.more summary {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  padding: 0.5rem;
+  cursor: pointer;
+}
+
+.menu {
+  position: absolute;
+  inset-inline-end: 0;
+  top: 100%;
+  z-index: 21;
+  width: min(20rem, calc(100vw - 3rem));
+  padding: 1rem;
+  border: 1px solid var(--color-zinc-200);
+  border-radius: 0.75rem;
+  background: var(--color-white);
+}
+
+@media (max-width: 639px) {
+  .editor {
+    padding-bottom: calc(var(--portfolio-actions-height) + 2rem);
+  }
+
+  .toolbar {
+    position: static;
+  }
+
+  .actions {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 20;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: 0.75rem max(0.75rem, env(safe-area-inset-right)) max(0.75rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
+    border-top: 1px solid var(--color-zinc-200);
+    background: var(--color-white);
+  }
+
+  .actions > * {
+    min-width: 0;
+    height: 100%;
+    padding-inline: 0.5rem;
+    overflow-wrap: anywhere;
+  }
+
+  .editor :is([data-portfolio-field], details, [data-editor-preview]) {
+    scroll-margin-block-start: 1rem;
+    scroll-margin-block-end: calc(var(--portfolio-actions-height) + 2rem);
+  }
+}

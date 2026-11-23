@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import type {
   AdminPortfolioMediaDto, AdminPortfolioSummaryDto, PortfolioContactInputDto, PortfolioHomeDraftInputDto,
-  PortfolioServiceDraftInputDto, PortfolioStoryDraftInputDto, PortfolioStoryPhotoInputDto,
+  PortfolioServiceDraftInputDto, PortfolioStoryDraftInputDto,
 } from '@/lib/portfolio/contracts';
-import { blankImage, blankSeo, blankText, button, Field, ImageRef, input, Localized, MediaSelect, panel, reorder, Seo } from './editor-fields';
+import { blankSeo, blankText, button, Field, ImageRef, input, Localized, panel, reorder, Seo } from './editor-fields';
+
+export { photoCount, PhotoFields } from './portfolio-story-photos';
 
 export const newService = (): PortfolioServiceDraftInputDto => ({
   slug: '', title: blankText(), description: blankText(), price: null, cardImage: null, bookingEnabled: false, seo: blankSeo(),
@@ -138,34 +140,9 @@ export function StoryFields({ value, change, media, lockedSlug, services, occupi
     <Localized label="Назва" name="title" value={value.title} change={title => change({ ...value, title })} />
     <Localized label="Підзаголовок" name="subtitle" value={value.subtitle} max={200} change={subtitle => change({ ...value, subtitle })} />
     <Localized label="Опис" name="description" value={value.description} max={4000} multiline change={description => change({ ...value, description })} />
-    <ImageRef label="Обкладинка" name="cover" media={media} value={value.cover} change={cover => change({ ...value, cover })} />
+
     <Seo value={value.seo} change={seo => change({ ...value, seo })} media={media} />
   </>;
-}
-
-export function photoCount(photos: PortfolioStoryPhotoInputDto[], coverId?: string) {
-  return new Set([...photos.map(photo => photo.image.mediaId), ...(coverId ? [coverId] : [])]).size;
-}
-
-export function PhotoFields({ value, change, media, coverId }: {
-  value: PortfolioStoryPhotoInputDto[]; change: (value: PortfolioStoryPhotoInputDto[]) => void; media: AdminPortfolioMediaDto[]; coverId?: string;
-}) {
-  const used = value.map(photo => photo.image.mediaId);
-  const count = photoCount(value, coverId);
-  const allowedToAdd = count >= 10 ? (coverId && value.length < 10 ? [coverId] : []) : undefined;
-  return <div className="space-y-4">
-    <p className="text-sm text-zinc-700" role="status">{count} з 10 унікальних фото разом з обкладинкою.</p>
-    <MediaSelect label="Додати фото" name="items" value="" options={media} used={used} allowedIds={allowedToAdd}
-      change={mediaId => { if (mediaId) change([...value, { id: crypto.randomUUID(), image: blankImage(mediaId) }]); }} />
-    <ol className="space-y-4">{value.map((photo, index) => <li key={photo.id} className="space-y-2">
-      <ImageRef label={'Фото ' + (index + 1)} name={'items.' + index + '.image'} value={photo.image} removable={false}
-        media={media} used={used.filter(id => id !== photo.image.mediaId)}
-        allowedIds={count >= 10 && photo.image.mediaId === coverId ? [coverId] : undefined}
-        change={image => { if (image) change(value.map(item => item.id === photo.id ? { ...item, image } : item)); }} />
-      <MoveButtons index={index} count={value.length} name={'фото ' + (index + 1)}
-        move={direction => change(reorder(value, index, direction))} remove={() => change(value.filter(item => item.id !== photo.id))} />
-    </li>)}</ol>
-  </div>;
 }
 
 const contactLabels = { email: 'Email', instagram: 'Instagram', telegram: 'Telegram' } as const;
@@ -276,3 +253,4 @@ export function HomeFields({ value, change, media, services, stories }: FieldsPr
     <Seo value={value.seo} change={seo => change({ ...value, seo })} media={media} />
   </>;
 }
+

@@ -130,6 +130,7 @@ function Editor({ resource, initial, media, services, stories, onDirty, onCreate
   const [draft, setDraft] = useState<Draft>(() => initial?.draft ?? (resource === 'stories' ? newStory() : newService()));
   const [photos, setPhotos] = useState<PortfolioStoryPhotoInputDto[]>(() => initial && 'photos' in initial ? initial.photos : []);
   const [pending, setPending] = useState(false);
+  const pendingRef = useRef(false);
   const [notice, setNotice] = useState('');
   const [problem, setProblem] = useState('');
   const [fieldErrors, setFieldErrors] = useState<readonly string[]>([]);
@@ -138,7 +139,6 @@ function Editor({ resource, initial, media, services, stories, onDirty, onCreate
   const [latest, setLatest] = useState<Entity | null>(null);
   const path = prefix + resource + (resource !== 'settings' && record ? '/' + record.id : '');
   const savedPhotos = record && 'photos' in record ? record.photos : [];
-  const savedCover = record && 'cover' in record.draft ? record.draft.cover?.mediaId : undefined;
   const draftDirty = !same(draft, record?.draft ?? (resource === 'stories' ? newStory() : newService()));
   const photosDirty = !same(photos, savedPhotos);
   const dirty = draftDirty || photosDirty;
@@ -172,6 +172,7 @@ function Editor({ resource, initial, media, services, stories, onDirty, onCreate
 
   function hasInvalidFields(form: ParentNode, missing: readonly string[] = [],
     message = 'Перевірте виділені поля.', selector = '[data-portfolio-field]:invalid') {
+    // Descendants include cover/photo controls inside collapsed details in the draft form.
     const invalid = Array.from(form.querySelectorAll<HTMLElement>(selector),
       field => field.getAttribute('data-portfolio-field')!);
     if (!invalid.length && !missing.length) return false;
@@ -182,6 +183,8 @@ function Editor({ resource, initial, media, services, stories, onDirty, onCreate
   }
 
   async function run(action: () => Promise<void>) {
+    if (pendingRef.current) return;
+    pendingRef.current = true;
     setPending(true);
     setNotice('');
     setProblem('');
@@ -201,7 +204,7 @@ function Editor({ resource, initial, media, services, stories, onDirty, onCreate
           setLatest(null);
         }
       }
-    } finally { setPending(false); }
+    } finally { pendingRef.current = false; setPending(false); }
   }
 
   function updateRecord(next: Entity) {
@@ -215,39 +218,27 @@ function Editor({ resource, initial, media, services, stories, onDirty, onCreate
     event.preventDefault();
     if (pending || conflict) return;
     const occupied = 'slug' in draft && occupiedSlugs.includes(draft.slug);
+    // Drafts require structural keys only; empty alt/translations are checked on publish.
     const missing: string[] = [];
     if ('slug' in draft && !draft.slug.trim()) missing.push('slug');
     if ('serviceId' in draft && !draft.serviceId) missing.push('serviceId');
     if (occupied) missing.push('slug');
     if (hasInvalidFields(event.currentTarget, missing, occupied ? occupiedSlugMessage(resource) : undefined)) return;
-    if (resource === 'stories' && editorRef.current && hasInvalidFields(editorRef.current, [], undefined,
-      '[data-story-cover-fields] [data-portfolio-field]:invalid')) return;
-    if ('cover' in draft && photoCount(savedPhotos, draft.cover?.mediaId) > 10) {
-      setProblem('Нова обкладинка перевищує ліміт. Спочатку скоротіть і збережіть поточний список фото.');
+    if ('cover' in draft && photoCount(photos, draft.cover?.mediaId) > 10) {
+      setProblem('Оберіть не більше 10 унікальних фото разом з обкладинкою.');
       return;
     }
     void run(async () => {
-      const request = record ? jsonRequest('PUT', { expectedVersion: record.draftVersion, data: draft }) : jsonRequest('POST', draft);
-      const next = await apiRequest<Entity>(path, request);
+      const completeStory = resource === 'stories';
+      const payload = completeStory ? { data: draft, items: photos } : { data: draft };
+      const request = record ? jsonRequest('PUT', { expectedVersion: record.draftVersion, ...payload })
+        : jsonRequest('POST', completeStory ? payload : draft);
+      const next = await apiRequest<Entity>(path + (completeStory ? '/draft' : ''), request);
       updateRecord(next);
       setDraft(next.draft);
-      setNotice(resource === 'stories' ? 'Опис і обкладинку збережено. Фото та порядок зберігаються окремо.' : 'Чернетку збережено.');
+      if ('photos' in next) setPhotos(next.photos);
+      setNotice(completeStory ? 'Чернетку історії збережено: опис, обкладинку, фото та порядок.' : 'Чернетку збережено.');
       if (!record) onCreated(next.id);
-    });
-  }
-
-  function savePhotos() {
-    if (!record || pending || conflict) return;
-    if (editorRef.current && hasInvalidFields(editorRef.current, [], undefined, '[data-story-photo-fields] [data-portfolio-field]:invalid')) return;
-    if (photoCount(photos, savedCover) > 10) {
-      setProblem('Разом зі збереженою обкладинкою допускається до 10 унікальних фото.');
-      return;
-    }
-    void run(async () => {
-      const next = await apiRequest<AdminPortfolioStoryDto>(path + '/photos', jsonRequest('PUT', { expectedVersion: record.draftVersion, items: photos }));
-      updateRecord(next);
-      setPhotos(next.photos);
-      setNotice('Фото та порядок збережено. Обкладинка зберігається разом з описом.');
     });
   }
 
@@ -324,22 +315,16 @@ function Editor({ resource, initial, media, services, stories, onDirty, onCreate
           {resource !== 'services' && <ListMore query={services} label="напрями" />}
           {resource === 'settings' && <ListMore query={stories} label="історії" />}
           <p className="text-sm text-zinc-700">Чернетку можна зберегти без фото, перекладів та завершених текстів. Їх потрібно заповнити перед публікацією.</p>
-          <button className={primary} type="submit" disabled={pending || conflict || Boolean(record && !draftDirty)}>
-            {resource === 'stories' ? 'Зберегти опис і обкладинку' : 'Зберегти чернетку'}
+          {resource === 'stories' && 'cover' in draft && <section className="space-y-4" aria-label="Фото та обкладинка історії">
+            <h3 className="font-semibold">Фото та обкладинка історії</h3>
+            <PhotoFields value={photos} change={setPhotos} media={mediaRows} cover={draft.cover}
+              changeCover={cover => setDraft({ ...draft, cover })} />
+          </section>}
+          <button className={primary} type="submit" disabled={pending || conflict || Boolean(record && !dirty)}>
+            Зберегти чернетку
           </button>
         </fieldset>
       </form>
-      {resource === 'stories' && 'cover' in draft && <section className={panel} aria-label="Фото та обкладинка історії">
-        <fieldset disabled={pending} className="space-y-4">
-          <legend className="font-semibold">Фото та обкладинка історії</legend>
-          <p className="text-sm text-zinc-700">Обкладинка зберігається кнопкою «Зберегти опис і обкладинку» вище. Список фото та порядок зберігаються окремо.</p>
-          <PhotoFields value={photos} change={setPhotos} media={mediaRows} cover={draft.cover}
-            changeCover={cover => setDraft({ ...draft, cover })} canEditPhotos={Boolean(record)} />
-          {photoCount(photos, savedCover) > 10 && <p className="text-sm text-red-700">Збережений варіант обкладинки перевищує ліміт із цим списком. Збережіть нову обкладинку або спочатку скоротіть список.</p>}
-          {photoCount(savedPhotos, draft.cover?.mediaId) > 10 && <p className="text-sm text-red-700">Щоб зберегти нову обкладинку, спочатку скоротіть і збережіть список фото.</p>}
-          <button className={primary} type="button" onClick={savePhotos} disabled={!record || pending || conflict || !photosDirty}>Зберегти фото та порядок</button>
-        </fieldset>
-      </section>}
     </FieldErrors.Provider>
     {record && <PortfolioPreview key={record.id + ':' + record.draftVersion} path={path} version={record.draftVersion} onInvalidFields={setFieldErrors} />}
   </div>;
@@ -404,3 +389,4 @@ export function PortfolioWorkspace() {
     />}
   </section>;
 }
+

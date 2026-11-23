@@ -254,6 +254,12 @@ export type PortfolioLocaleQueryDto = {
   locale?: 'uk' | 'en';
 };
 
+export type PortfolioMediaListQueryDto = {
+  limit?: number;
+  cursor?: string;
+  search?: string;
+};
+
 export type PortfolioPageBaseDto = {
   site: PortfolioSiteDto;
   contentVersion: number;
@@ -417,6 +423,11 @@ export type PortfolioStoryCardPageDto = {
   nextCursor: string | null;
 };
 
+export type PortfolioStoryDraftCreateDto = {
+  data: PortfolioStoryDraftInputDto;
+  items: Array<PortfolioStoryPhotoInputDto>;
+};
+
 export type PortfolioStoryDraftInputDto = {
   slug: string;
   title: LocalizedTitleDto;
@@ -425,6 +436,12 @@ export type PortfolioStoryDraftInputDto = {
   serviceId: string;
   cover: PortfolioImageRefDto | null;
   seo: PortfolioSeoInputDto;
+};
+
+export type PortfolioStoryDraftSaveDto = {
+  data: PortfolioStoryDraftInputDto;
+  items: Array<PortfolioStoryPhotoInputDto>;
+  expectedVersion: number;
 };
 
 export type PortfolioStoryDraftUpdateDto = {

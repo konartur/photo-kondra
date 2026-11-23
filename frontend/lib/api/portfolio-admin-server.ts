@@ -45,8 +45,8 @@ export async function forwardPortfolioAdminEntity(resource: 'services' | 'storie
   if (!uuid.test(id)) return invalid();
   return noStore(forwardAdminRequest(`/portfolio/${resource}/${id}`, { method }));
 }
-export function forwardPortfolioAdminCreate(request: Request, resource: 'services' | 'stories') {
-  return forwardJson(request, `/portfolio/${resource}`, 'POST');
+export function forwardPortfolioAdminCreate(request: Request, resource: 'services' | 'stories', suffix: '' | '/draft' = '') {
+  return forwardJson(request, `/portfolio/${resource}${suffix}`, 'POST');
 }
 export function forwardPortfolioAdminUpdate(request: Request, resource: 'services' | 'stories', id: string, suffix = '') {
   if (!uuid.test(id)) return Promise.resolve(invalid());

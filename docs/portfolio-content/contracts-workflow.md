@@ -17,6 +17,8 @@ npm --prefix backend run portfolio:contracts:check
 
 ## Swagger і майбутні маршрути
 
+PF-UX-05 додає atomic story draft endpoints: `POST /portfolio/stories/draft` (`{data,items}`) і `PUT /portfolio/stories/:id/draft` (`{expectedVersion,data,items}`). `items` — обов’язковий повний ordered список із 0..10 унікальних placements/media; cover+items union обмежено 10. Створення та update записують текст, cover й items у спільній транзакції; update збільшує draftVersion один раз. Response — чинний AdminPortfolioStoryDto. Старі story CRUD/photos endpoints залишаються сумісними. Генерацію артефактів і перевірки відкладено до PF-UX-14.
+
 `setupApp` реєструє всі DTO як `extraModels` у `/api/docs`. Із PF-CONTENT-03/04/05 snapshot включає реалізовані media, admin draft, publication/archive та preview paths з auth/response/error schemas; раніше paths були порожніми. Наявність маршруту в артефакті не означає пройдене DB/S3 приймання. Query DTO, admin/media lists, publication і preview мають конкретні schemas. Public routes додаються у PF-CONTENT-06 з використанням тих самих класів.
 
 `PortfolioApiErrorDto` розширює чинний `{statusCode, code, message}` лише необов'язковими деталями `errors[]`. Глобальний filter/validation response не змінювався: він поки повертає чинні три поля. Предметні коди, включно з `PORTFOLIO_UNAVAILABLE`, і повернення безпечних field errors потрібно підключати разом із відповідними операціями; наявний filter приховує специфічні 5xx codes. Schema документація цього контракту не означає, що коди вже повертаються реалізованими маршрутами.

@@ -95,6 +95,65 @@
   backdrop-filter: blur(16px);
 }
 
+.header[data-language-switch='true'] {
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+}
+
+.header[data-language-switch='true'] .menuToggle {
+  grid-column: 4;
+}
+
+.languages {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(44px, 1fr));
+  width: max-content;
+  align-self: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--stone);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.languages a {
+  display: grid;
+  min-height: 44px;
+  place-items: center;
+  border-radius: 8px;
+  font-size: var(--text-index);
+  font-weight: 600;
+  letter-spacing: .1em;
+}
+
+.languages a[aria-current='page'] {
+  background: var(--ink);
+  color: var(--ivory);
+  font-weight: 700;
+}
+
+.header[data-scrolled='false'] .languages {
+  border-color: rgb(247 247 244 / .45);
+  background: rgb(37 40 37 / .8);
+  color: var(--ivory);
+}
+
+.header[data-scrolled='false'] .languages a[aria-current='page'] {
+  background: var(--ivory);
+  color: var(--ink);
+}
+
+.languages a:hover {
+  text-decoration: underline;
+  text-underline-offset: .25em;
+}
+
+.menu > .languages {
+  position: absolute;
+  top: max(25px, env(safe-area-inset-top));
+  inset-inline-start: var(--gutter);
+}
+
 .header[data-hidden='true']:not(:has(:focus-visible)) {
   transform: translateY(-115%);
 }
@@ -138,6 +197,21 @@
 .headerBook > span {
   /* Match the native button's label baseline in the prototype. */
   margin-block-start: 1px;
+}
+
+.header[data-language-switch='true'] .headerBook {
+  justify-content: center;
+  padding-inline: clamp(0.625rem, 1.75vw, 1rem);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--ivory);
+  font-weight: 650;
+}
+
+.header[data-language-switch='true'][data-scrolled='false'] .headerBook {
+  background: var(--ivory);
+  color: var(--ink);
 }
 
 .menuToggle {
@@ -834,7 +908,7 @@
 .bookingField { display: grid; gap: 9px; min-width: 0; }
 .bookingField label { font-size: var(--text-small); letter-spacing: .03em; }
 
-.bookingField :is(input, select, textarea) {
+.bookingField :is(input, textarea) {
   width: 100%;
   min-height: 44px;
   padding: 10px 2px 13px;
@@ -886,6 +960,11 @@
     padding-inline: max(20px, env(safe-area-inset-left)) max(20px, env(safe-area-inset-right));
   }
   .headerBook { font-size: 9px; }
+  .header[data-language-switch='true'] {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+  .header[data-language-switch='true'] .menuToggle { grid-column: 3; }
+  .header .languages { display: none; }
   .brand { font-size: var(--text-index); }
   .brand span { font-size: 8px; }
   .menu nav a { font-size: clamp(30px, 8vw, 43px); }

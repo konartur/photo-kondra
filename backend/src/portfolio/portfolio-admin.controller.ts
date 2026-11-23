@@ -98,6 +98,7 @@ export class PortfolioAdminController {
   removeStory(@Param('id', ParseUUIDPipe) id: string, @Body() dto: PublicationCommandDto) { return this.admin.removeStory(id, dto.expectedVersion); }
 
   @Post('stories/:id/publish') @HttpCode(200) @Header('Cache-Control', 'no-store')
+  @ApiConflictResponse({ description: 'PORTFOLIO_STORY_SERVICE_UNPUBLISHED, PORTFOLIO_NOT_READY or PORTFOLIO_VERSION_CONFLICT' })
   @ApiParam({ name: 'id', format: 'uuid' }) @ApiOkResponse({ type: PortfolioPublicationResponseDto })
   publishStory(@Param('id', ParseUUIDPipe) id: string, @Body() dto: PublicationCommandDto) { return this.publication.publish(PortfolioEntityType.STORY, id, dto.expectedVersion); }
 

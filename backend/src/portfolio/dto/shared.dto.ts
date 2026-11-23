@@ -2,14 +2,16 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsIn, IsNumber, Max, Min } from 'class-validator';
 import { Integer, Text } from './fields.js';
 
+export const PORTFOLIO_BRAND = 'PhotoKondra';
 export const PORTFOLIO_MAX_PHOTOS_PER_STORY = 10;
-export const PORTFOLIO_MAX_UPLOAD_BYTES = 10_000_000;
+export const PORTFOLIO_MAX_UPLOAD_BYTES = 20_000_000;
 export const PORTFOLIO_WEBP_WIDTHS = [480, 960, 1600] as const;
 export const LOCALES = ['uk', 'en'] as const;
 export type Locale = (typeof LOCALES)[number];
 export const PUBLICATION_STATUSES = ['DRAFT', 'PUBLISHED', 'ARCHIVED'] as const;
 export const MEDIA_STATUSES = ['UPLOADING', 'PROCESSING', 'READY', 'FAILED', 'DELETED'] as const;
 export const CONTACT_TYPES = ['instagram', 'telegram', 'email'] as const;
+export const CONTACT_LABELS = { instagram: 'Instagram', telegram: 'Telegram', email: 'Email' } as const;
 
 export class LocalizedTextDto {
   @Text(4000) uk!: string;

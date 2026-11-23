@@ -26,7 +26,7 @@
 
 [Image processor](../../backend/src/portfolio/media/portfolio-image-processor.ts) виконує:
 
-1. Streaming download із byte counter у власний тимчасовий каталог ОС. При 10 000 001-му байті потік зупиняється; розмір має точно збігатися з upload metadata. У RAM не збирається повний оригінал.
+1. Streaming download із byte counter у власний тимчасовий каталог ОС. При 20 000 001-му байті потік зупиняється; розмір має точно збігатися з upload metadata. У RAM не збирається повний оригінал.
 2. Перевірка JPEG/PNG/WebP signatures та відповідності заявленому MIME, Sharp decode, pixel limit і metadata format. Якщо metadata повідомляє кілька сторінок/кадрів, файл відхиляється. Пошкоджений/невідповідний файл → FAILED/UnrecoverableError; зміна extension не обходить перевірку.
 3. Auto-rotate, EXIF stripping за стандартною поведінкою Sharp; оригінал не перекодовується. Media dimensions орієнтовані за EXIF, variant dimensions беруться з фактичного `OutputInfo`.
 4. Послідовне створення WebP на диску шириною `min(480/960/1600, orientedSourceWidth)`, з дедуплікацією однакових фактичних ширин. Менший оригінал не збільшується. Окремий output buffer на весь файл не накопичується.
@@ -64,7 +64,7 @@ Media list сортується за `(createdAt DESC,id DESC)`. Cursor HMAC-п�
 
 Після дозволу на тести та застосування PF-CONTENT-02 до окремої тестової БД виконати:
 
-1. Unit suites processor/orchestration/queue/cursor/processing lease та S3 adapter; byte boundary 10 000 000/10 000 001, actual MIME, corrupt/pixel-heavy/EXIF inputs, no-upscale widths.
+1. Unit suites processor/orchestration/queue/cursor/processing lease та S3 adapter; byte boundary 20 000 000/20 000 001, actual MIME, corrupt/pixel-heavy/EXIF inputs, no-upscale widths.
 2. Backend `portfolio-media.e2e-spec.ts`: JWT/ADMIN boundaries, DTO validation, redirect/no-store, відсутність public media routes. Playwright `portfolio-media.spec.ts`: BFF cookie gate, metadata cap, ID validation. Mock suites не замінюють реального S3 flow.
 3. Окремі test PostgreSQL/Redis/private S3: request → browser PUT зі signed Content-Length/Content-Type/If-None-Match → complete → READY → preview через BFF. Повтор complete/job, simultaneous retries, stop/restart на кожній фазі, Redis/S3 failures і tombstone cleanup після late PUT. Не використовувати production дані/credentials.
 4. Concurrent delete vs plan/upload/READY, reference checks для всіх draft/published placements; переконатися, що чужі та інші attempt keys не видаляються. Перевірити disk/temp cleanup після аварійної зупинки.

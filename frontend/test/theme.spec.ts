@@ -39,6 +39,15 @@ test('keeps an accessible fixed toggle and saved choice across Photo Cloud route
   await expect(toggle).toBeChecked();
   await expect(toggle).toHaveCSS('position', 'fixed');
   await page.screenshot({ path: testInfo.outputPath('dashboard-dark.png') });
+  const sections = page.getByRole('navigation', { name: 'Розділи адмінпанелі' });
+  const galleries = sections.getByRole('link', { name: 'Галереї' });
+  const portfolio = sections.getByRole('link', { name: 'Портфоліо' });
+  await galleries.click();
+  await expect(galleries).toHaveAttribute('aria-current', 'page');
+  await expect(galleries).toHaveCSS('background-color', 'rgb(250, 250, 250)');
+  await portfolio.click();
+  await expect(portfolio).toHaveAttribute('aria-current', 'page');
+  await expect(galleries).not.toHaveAttribute('aria-current');
   await page.goto('/missing-page');
   await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
   await expect(toggle).toBeChecked();

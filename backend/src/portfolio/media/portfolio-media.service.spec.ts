@@ -67,11 +67,11 @@ describe('Portfolio media orchestration', () => {
     const result = await test.service.requestUpload(id, {
       filename: 'fixture.jpg',
       mimeType: 'image/jpeg',
-      sizeBytes: 10_000_000,
+      sizeBytes: 20_000_000,
     });
     expect(test.storage.createUploadUrl).toHaveBeenCalledWith(
       expect.objectContaining({
-        contentLength: 10_000_000,
+        contentLength: 20_000_000,
         key: expect.stringMatching(/^portfolio\/media\//),
       }),
     );
@@ -80,7 +80,7 @@ describe('Portfolio media orchestration', () => {
       test.service.requestUpload(id, {
         filename: 'fixture.jpg',
         mimeType: 'image/jpeg',
-        sizeBytes: 10_000_001,
+        sizeBytes: 20_000_001,
       }),
     ).rejects.toThrow();
   });

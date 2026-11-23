@@ -2164,7 +2164,7 @@
             }
           },
           "409": {
-            "description": "PORTFOLIO_VERSION_CONFLICT, PORTFOLIO_NOT_READY, PORTFOLIO_SLUG_IMMUTABLE, PORTFOLIO_CONTENT_REFERENCED or PORTFOLIO_CURSOR_STALE",
+            "description": "PORTFOLIO_STORY_SERVICE_UNPUBLISHED, PORTFOLIO_NOT_READY or PORTFOLIO_VERSION_CONFLICT",
             "content": {
               "application/json": {
                 "schema": {
@@ -3449,7 +3449,7 @@
           "sizeBytes": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 10000000
+            "maximum": 20000000
           }
         },
         "required": [
@@ -4702,7 +4702,8 @@
             ]
           },
           "label": {
-            "nullable": false,
+            "deprecated": true,
+            "description": "Legacy contact label. The display name is determined by the channel.",
             "allOf": [
               {
                 "$ref": "#/components/schemas/LocalizedTitleDto"
@@ -4719,7 +4720,6 @@
         },
         "required": [
           "type",
-          "label",
           "address",
           "visible"
         ]

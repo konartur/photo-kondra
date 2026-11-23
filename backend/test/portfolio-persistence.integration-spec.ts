@@ -110,6 +110,13 @@ describe('Portfolio persistence on migrated PostgreSQL', () => {
       await expect(publication.publish('SERVICE', service, 1)).rejects.toBeInstanceOf(ConflictException);
       const key = 'portfolio/media/' + media + '/variants/' + randomUUID() + '/480.webp';
       const variant = await prisma.portfolioMediaVariant.create({ data: { mediaId: media, key, width: 480, height: 320 } });
+      await prisma.portfolioStory.create({ data: { ...content, id: story, slug: story, serviceId: service, subtitleUk: 'Серія', subtitleEn: 'Series', coverMediaId: media, coverAltUk: 'Кадр', coverAltEn: 'Frame' } });
+      await expect(publication.preview('STORY', story, { locale: 'en' })).resolves.toMatchObject({
+        page: { title: 'Series', service: { id: service, title: 'Series' } },
+      });
+      await expect(publication.publish('STORY', story, 1)).rejects.toMatchObject({
+        response: { code: 'PORTFOLIO_STORY_SERVICE_UNPUBLISHED' },
+      });
       await expect(reader.derivative(media, variant.id)).rejects.toMatchObject({ status: 404 });
       expect(createDownloadUrl).not.toHaveBeenCalled();
       const published = await publication.publish('SERVICE', service, 1);
@@ -124,6 +131,9 @@ describe('Portfolio persistence on migrated PostgreSQL', () => {
       expect(current.hasUnpublishedChanges).toBe(false);
       const edited = await admin.updateService(runId, service, 1, { ...current.draft, title: { uk: 'Зміна', en: '' } });
       expect(edited.hasUnpublishedChanges).toBe(true);
+      await expect(publication.preview('STORY', story, { locale: 'en' })).resolves.toMatchObject({
+        page: { service: { id: service, title: 'Series' } },
+      });
       const publicList = await reader.services({ locale: 'en', limit: 50 });
       expect(publicList.items.find(item => item.id === service)).toMatchObject({
         title: 'Series', cardImage: { url: '/api/public/portfolio/media/' + media + '/variants/' + variant.id },
@@ -145,7 +155,6 @@ describe('Portfolio persistence on migrated PostgreSQL', () => {
       changedVersions.push(BigInt(revision.contentVersion));
       await expect(reader.services({ locale: 'en', limit: 50, cursor })).rejects.toMatchObject({ status: 409 });
       expect((await admin.getService(service)).hasUnpublishedChanges).toBe(false);
-      await prisma.portfolioStory.create({ data: { ...content, id: story, slug: story, serviceId: service, subtitleUk: 'Серія', subtitleEn: 'Series', coverMediaId: media, coverAltUk: 'Кадр', coverAltEn: 'Frame' } });
       const results = await Promise.allSettled([publication.publish('STORY', story, 1), publication.archive('SERVICE', service, 3)]);
       for (const result of results) {
         if (result.status === 'fulfilled') changedVersions.push(BigInt(result.value.contentVersion));
@@ -161,8 +170,14 @@ describe('Portfolio persistence on migrated PostgreSQL', () => {
       }
       await expect(publication.archive('SERVICE', service, 3)).rejects.toBeInstanceOf(ConflictException);
       const image = { mediaId: media, alt: { uk: 'Кадр', en: 'Frame' }, focalPoint: null };
-      const settings = {
+      const settings: typeof homeDraftFixture = {
         ...homeDraftFixture,
+        brand: 'Previously configured name',
+        contacts: [
+          { type: 'instagram', label: { uk: 'Старий підпис', en: 'Old label' }, address: 'https://www.instagram.com/photographer', visible: true },
+          { type: 'email', address: 'test@example.invalid', visible: true },
+          { type: 'telegram', address: 'https://t.me/photographer', visible: false },
+        ],
         hero: { desktop: image, mobile: image },
         servicesSection: { ...homeDraftFixture.servicesSection, serviceIds: [service] },
         storiesSection: {
@@ -173,7 +188,14 @@ describe('Portfolio persistence on migrated PostgreSQL', () => {
       };
       await prisma.$transaction(async tx => {
         const mapper = new PortfolioPublicMapper(tx, 'uk');
-        expect((await mapper.site(settings)).booking.services).toEqual([]);
+        const site = await mapper.site(settings);
+        expect(site.brand).toBe('PhotoKondra');
+        expect(site.booking.services).toEqual([]);
+        expect(site.contacts).toEqual([
+          { type: 'instagram', label: 'Instagram', href: 'https://www.instagram.com/photographer' },
+          { type: 'email', label: 'Email', href: 'mailto:test@example.invalid' },
+        ]);
+        expect((await new PortfolioPublicMapper(tx, 'en').site(settings)).contacts).toEqual(site.contacts);
         expect(await mapper.home(settings)).toMatchObject({
           servicesSection: { items: [{ id: service, title: 'Зміна' }] },
           storiesSection: { items: [{ story: { id: story }, caption: 'Добірка' }] },

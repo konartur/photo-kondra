@@ -43,8 +43,8 @@ export function PortfolioMediaLibrary({ query, library = false }: { query: Retur
 
   async function upload() {
     if (!file || busy) return;
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size < 1 || file.size > 10_000_000) {
-      setError('Оберіть JPEG, PNG або WebP розміром від 1 байта до 10 МБ.');
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size < 1 || file.size > 20_000_000) {
+      setError('Оберіть JPEG, PNG або WebP розміром від 1 байта до 20 МБ.');
       return;
     }
     setBusy(true);
@@ -97,7 +97,7 @@ export function PortfolioMediaLibrary({ query, library = false }: { query: Retur
     <summary className="min-h-11 cursor-pointer py-2 font-semibold">Медіабібліотека · {items.length} завантажено у список</summary>
     <div className="space-y-3">
       <label className="block space-y-1 text-sm font-medium">
-        <span>Файл JPEG, PNG або WebP до 10 МБ</span>
+        <span>Файл JPEG, PNG або WebP до 20 МБ</span>
         <input ref={fileInput} className={input} type="file" accept="image/jpeg,image/png,image/webp" disabled={busy}
           onChange={e => { setFile(e.target.files?.[0] ?? null); setTransfer(null); setError(''); }} />
       </label>

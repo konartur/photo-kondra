@@ -88,11 +88,11 @@ describe('Portfolio bounded image processing', () => {
     }
   });
 
-  it('accepts the 10,000,000 byte boundary and rejects byte 10,000,001 while streaming', async () => {
+  it('accepts the 20,000,000 byte boundary and rejects byte 20,000,001 while streaming', async () => {
     const image = await sharp({ create: { width: 1, height: 1, channels: 3, background: 'red' } })
       .png()
       .toBuffer();
-    const exact = Buffer.concat([image, Buffer.alloc(10_000_000 - image.length)]);
+    const exact = Buffer.concat([image, Buffer.alloc(20_000_000 - image.length)]);
     const { processor, media } = fixture(exact);
     const prepared = await processor.prepare(media, new AbortController().signal);
     await prepared.cleanup();

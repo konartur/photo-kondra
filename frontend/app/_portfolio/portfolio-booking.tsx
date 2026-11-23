@@ -39,6 +39,7 @@ export function PortfolioBooking({ children, shootTypes, price, intro, contacts,
   locale?: 'uk' | 'en';
 }) {
   const en = locale === 'en';
+  const hasShootTypes = shootTypes.length > 0;
   const labels = en ? { name: 'Enter your name.', contact: 'Enter an email or messenger contact.', type: 'Select a session type.' } : requiredFields;
   const dialog = useRef<HTMLDialogElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
@@ -99,10 +100,11 @@ export function PortfolioBooking({ children, shootTypes, price, intro, contacts,
   }, [preparedText]);
 
   function openBooking(trigger: HTMLButtonElement, slug?: string) {
-    if (!dialog.current || !form.current || !typeSelect.current || dialog.current.open) return;
+    if (!dialog.current || !form.current || dialog.current.open) return;
     opener.current = trigger;
     form.current.reset();
-    typeSelect.current.value = shootTypes.some(type => type.slug === slug) ? slug ?? '' : '';
+    if (typeSelect.current)
+      typeSelect.current.value = shootTypes.some(type => type.slug === slug) ? slug ?? '' : '';
     if (scrollPanel.current) scrollPanel.current.scrollTop = 0;
     setErrors([]);
     setPreview(null);
@@ -148,10 +150,10 @@ export function PortfolioBooking({ children, shootTypes, price, intro, contacts,
     const invalid: RequiredField[] = [];
     if (!name) invalid.push('name');
     if (!contact) invalid.push('contact');
-    if (!type) invalid.push('type');
+    if (hasShootTypes && !type) invalid.push('type');
     setErrors(invalid);
 
-    if (!type || invalid.length) {
+    if (invalid.length) {
       setPreview(null);
       const first = bookingForm.elements.namedItem(invalid[0]);
       if (first instanceof HTMLElement) first.focus();
@@ -164,8 +166,10 @@ export function PortfolioBooking({ children, shootTypes, price, intro, contacts,
         en ? 'Hello! I would like to discuss a photo session.' : 'Вітаю! Хочу обговорити фотосесію.',
         `${en ? 'Name' : 'Ім’я'}: ${name}`,
         `${en ? 'Contact' : 'Контакт'}: ${contact}`,
-        `${en ? 'Session type' : 'Тип зйомки'}: ${type.title}`,
-        `${en ? 'Price' : 'Вартість'}: ${type.price ?? price}`,
+        ...(type ? [
+          `${en ? 'Session type' : 'Тип зйомки'}: ${type.title}`,
+          `${en ? 'Price' : 'Вартість'}: ${type.price ?? price}`,
+        ] : []),
         `${en ? 'Preferred date' : 'Бажана дата'}: ${value('date') || (en ? 'Undecided' : 'Поки не визначено')}`,
         `${en ? 'Notes' : 'Побажання'}: ${value('note') || '—'}`,
       ].join('\n'),
@@ -247,14 +251,14 @@ export function PortfolioBooking({ children, shootTypes, price, intro, contacts,
               <input id="booking-contact" name="contact" placeholder={en ? 'How can I reach you?' : 'Контакт для відповіді'} {...validation('contact')} />
               {error('contact')}
             </div>
-            <div className={styles.bookingField}>
+            {hasShootTypes && <div className={styles.bookingField}>
               <label htmlFor="booking-type">{en ? 'Session type *' : 'Тип фотосесії *'}</label>
               <select ref={typeSelect} id="booking-type" name="type" defaultValue="" {...validation('type')}>
                 <option value="" disabled>{en ? 'Select a session' : 'Оберіть напрямок'}</option>
                 {shootTypes.map(({ slug, title }) => <option key={slug} value={slug}>{title}</option>)}
               </select>
               {error('type')}
-            </div>
+            </div>}
             <div className={styles.bookingField}>
               <label htmlFor="booking-date">{en ? 'Preferred date (optional)' : 'Бажана дата (необов’язково)'}</label>
               <input id="booking-date" name="date" type="date" />

@@ -13,7 +13,8 @@ import { storyPhotoLimitSatisfied } from './dto/admin-input.dto.js';
 import { parsePortfolioSnapshot } from './persistence/portfolio-snapshot.js';
 import type { PortfolioPublicationResponseDto } from './dto/admin-response.dto.js';
 import type { PortfolioLocaleQueryDto } from './dto/query.dto.js';
-import type { Locale } from './dto/shared.dto.js';
+import { CONTACT_LABELS, PORTFOLIO_BRAND, type Locale } from './dto/shared.dto.js';
+import { contactSectionCopy } from './portfolio-contact-copy.js';
 
 const notFound = () => new NotFoundException({ code: 'PORTFOLIO_CONTENT_NOT_FOUND', message: 'Portfolio content not found' });
 const conflict = (code: string, message: string) => new ConflictException({ code, message });
@@ -62,13 +63,13 @@ function storyDraft(row: StoryWithPhotos) {
 type SettingsWithRelations = Prisma.PortfolioSettingsGetPayload<{ include: { contacts: { orderBy: { sortOrder: 'asc' } }; services: { orderBy: { sortOrder: 'asc' } }; featuredStories: { orderBy: { sortOrder: 'asc' } } } }>;
 function settingsDraft(row: SettingsWithRelations): PortfolioHomeDraftInputDto {
   return {
-    brand: row.brand,
-    contacts: row.contacts.map((contact) => ({ type: contact.type, label: { uk: contact.labelUk, en: contact.labelEn }, address: contact.address, visible: contact.visible })),
+    brand: PORTFOLIO_BRAND,
+    contacts: row.contacts.map(({ type, address, visible }) => ({ type, address, visible })),
     bookingIntro: { uk: row.bookingIntroUk, en: row.bookingIntroEn },
     hero: { desktop: image(row, 'desktop'), mobile: image(row, 'mobile') },
     servicesSection: { title: { uk: row.servicesTitleUk, en: row.servicesTitleEn }, description: { uk: row.servicesDescriptionUk, en: row.servicesDescriptionEn }, serviceIds: row.services.map((item) => item.serviceId) },
     storiesSection: { title: { uk: row.storiesTitleUk, en: row.storiesTitleEn }, items: row.featuredStories.map((item) => ({ storyId: item.storyId, caption: { uk: item.captionUk, en: item.captionEn }, ...(item.imageMediaId && { image: image(item, 'image') }) })) },
-    contactSection: { title: { uk: row.contactTitleUk, en: row.contactTitleEn }, description: { uk: row.contactDescriptionUk, en: row.contactDescriptionEn }, buttonLabel: { uk: row.contactButtonLabelUk, en: row.contactButtonLabelEn }, background: image(row, 'background') },
+    contactSection: { ...contactSectionCopy(row), background: image(row, 'background') },
     seo: seo(row),
   };
 }
@@ -82,7 +83,7 @@ function storyComplete(data: PortfolioStoryDraftInputDto, photos: PortfolioStory
   return Boolean(data.slug && textSet(data.title, data.subtitle, data.description) && seoComplete(data.seo) && imageComplete(data.cover) && storyPhotoLimitSatisfied(data.cover?.mediaId ?? null, photos.map((p) => p.image.mediaId)) && photos.every((p) => imageComplete(p.image)));
 }
 function settingsComplete(data: PortfolioHomeDraftInputDto) {
-  return Boolean(data.brand.trim() && localized(data.bookingIntro) && textSet(data.servicesSection.title, data.servicesSection.description, data.storiesSection.title, data.contactSection.title, data.contactSection.description, data.contactSection.buttonLabel) && seoComplete(data.seo) && imageComplete(data.hero.desktop) && imageComplete(data.hero.mobile) && imageComplete(data.contactSection.background) && data.servicesSection.serviceIds.length > 0 && data.storiesSection.items.length > 0 && data.storiesSection.items.every((item) => localized(item.caption) && (!item.image || imageComplete(item.image))) && data.contacts.every((contact) => !contact.visible || localized(contact.label)));
+  return Boolean(localized(data.bookingIntro) && textSet(data.servicesSection.title, data.servicesSection.description, data.storiesSection.title, data.contactSection.title, data.contactSection.description, data.contactSection.buttonLabel) && seoComplete(data.seo) && imageComplete(data.hero.desktop) && imageComplete(data.hero.mobile) && imageComplete(data.contactSection.background) && data.servicesSection.serviceIds.length > 0 && data.storiesSection.items.length > 0 && data.storiesSection.items.every((item) => localized(item.caption) && (!item.image || imageComplete(item.image))));
 }
 function mediaReferences(data: PortfolioServiceDraftInputDto | PortfolioStoryDraftInputDto | PortfolioHomeDraftInputDto, photos: PortfolioStoryPhotoInputDto[] = []) {
   const ids: string[] = [];
@@ -193,7 +194,8 @@ export class PortfolioPublicationService {
       data = result.data; photos = result.photos;
       if (!storyComplete(data, photos)) throw incomplete();
       const service = await tx.portfolioService.findUnique({ where: { id: data.serviceId }, select: { status: true } });
-      if (service?.status !== 'PUBLISHED') throw incomplete();
+      if (service?.status !== 'PUBLISHED')
+        throw conflict('PORTFOLIO_STORY_SERVICE_UNPUBLISHED', 'Publish the linked service before publishing this story');
     } else {
       const row = await tx.portfolioSettings.findUnique({ where: { id }, include: settingsInclude });
       if (!row) throw notFound();
@@ -255,8 +257,10 @@ export class PortfolioPublicationService {
     const found = ids.length ? await this.prisma.portfolioService.findMany({ where: { id: { in: ids } } }) : [];
     const byId = new Map(found.map((service) => [service.id, service]));
     return {
-      brand: row.brand, locale, supportedLocales: ['uk', 'en'],
-      contacts: row.contacts.filter((contact) => contact.visible).map((contact) => ({ type: contact.type, label: locale === 'uk' ? contact.labelUk : contact.labelEn, href: contact.type === 'email' ? `mailto:${contact.address}` : contact.address })),
+      brand: PORTFOLIO_BRAND, locale, supportedLocales: ['uk', 'en'],
+      contacts: row.contacts.filter((contact) => contact.visible).map(({ type, address }) => ({
+        type, label: CONTACT_LABELS[type], href: type === 'email' ? `mailto:${address}` : address,
+      })),
       booking: {
         intro: locale === 'uk' ? row.bookingIntroUk : row.bookingIntroEn,
         services: ids.flatMap((serviceId) => {
@@ -292,10 +296,16 @@ export class PortfolioPublicationService {
   private async previewStory(id: string, data: PortfolioStoryDraftInputDto, photos: PortfolioStoryPhotoInputDto[], locale: Locale) {
     if (!storyComplete(data, photos)) throw incomplete();
     const service = await this.prisma.portfolioService.findUnique({ where: { id: data.serviceId }, include: { publishedDocument: true } });
-    if (!service || service.status !== 'PUBLISHED' || !service.publishedDocument) throw incomplete();
-    const serviceSnapshot = await parsePortfolioSnapshot(service.publishedDocument.snapshot);
-    if (serviceSnapshot.entityType !== PortfolioEntityType.SERVICE) throw new ServiceUnavailableException('Published portfolio snapshot is invalid');
-    const serviceData = serviceSnapshot.data;
+    if (!service) throw incomplete();
+    let serviceData = serviceDraft(service);
+    if (service.status === 'PUBLISHED') {
+      if (!service.publishedDocument)
+        throw new ServiceUnavailableException('Published portfolio snapshot is unavailable');
+      const snapshot = await parsePortfolioSnapshot(service.publishedDocument.snapshot);
+      if (snapshot.entityType !== PortfolioEntityType.SERVICE)
+        throw new ServiceUnavailableException('Published portfolio snapshot is invalid');
+      serviceData = snapshot.data;
+    }
     const photoDtos = [];
     for (const photo of photos) photoDtos.push({ id: photo.id, image: await this.previewImage(photo.image, locale) });
     return {

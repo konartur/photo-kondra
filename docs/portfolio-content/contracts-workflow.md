@@ -26,7 +26,7 @@ npm --prefix backend run portfolio:contracts:check
 - Admin editorial fields — об'єкти з обов'язковими `uk` та `en`, без інших ключів. Draft дозволяє порожні переклади, trim і ліміти перевіряються на вході. Повнота обох мов перевірятиметься publish/preview service.
 - Nullable поля обов'язково присутні; `null` дозволений лише там, де погоджено. Unknown fields, URL, storage keys, status та server-generated values у write DTO відхиляються глобальним whitelist policy.
 - Фото списку мають унікальні placement/media IDs, 1..10 при повній заміні. `storyPhotoLimitSatisfied` перевіряє union з cover без подвоєння; PF-CONTENT-04/05 викликають її атомарно із version check, бо один DTO не знає збереженого cover.
-- Upload metadata: safe integer 1..10 000 000 bytes, JPEG/PNG/WebP; PF-CONTENT-03 додає незалежні streaming byte/header/decode/pixel checks. MIME з DTO не доводить фактичний тип файла.
+- Upload metadata: safe integer 1..20 000 000 bytes, JPEG/PNG/WebP; PF-CONTENT-03 додає незалежні streaming byte/header/decode/pixel checks. MIME з DTO не доводить фактичний тип файла.
 - Читання locale: omission → `en`, `uk/en` дозволені, інші/null відхиляються. Списки: default 24/max 50; перевірка cursor context/version — відповідальність майбутнього reader.
 - Контакти: email або HTTPS profile на instagram.com/www.instagram.com чи t.me/telegram.me, без credentials, port, query або fragment. Public href генерує mapper; arbitrary URL не приймається.
 

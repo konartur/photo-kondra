@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { portfolioBookingLabel } from '@/lib/portfolio/booking-label';
 import { formatPortfolioPrice } from '@/lib/portfolio/price';
 import type { PortfolioSiteDto } from '@/lib/portfolio/contracts';
 import { loadPortfolioHome, loadPortfolioStory } from '@/lib/portfolio/server';
@@ -29,7 +30,7 @@ function PortfolioNotice({ locale, empty }: { locale: PortfolioLocale; empty?: b
 
 function navigation(site: PortfolioSiteDto, prefix: string, storySlug?: string, bookingSlug?: string) {
   return <PortfolioNavigation storySlug={storySlug} bookingSlug={bookingSlug} brand={site.brand}
-    homeHref={prefix || '/'} locale={site.locale} bookingEnabled={site.booking.services.length > 0} />;
+    homeHref={prefix || '/'} locale={site.locale} languageSwitch />;
 }
 
 export async function PublishedHome({ locale, prefix }: { locale: PortfolioLocale; prefix: string }) {
@@ -95,7 +96,7 @@ export async function PublishedHome({ locale, prefix }: { locale: PortfolioLocal
           <div className={styles.finaleContent} data-portfolio-reveal>
             <h2 id="contact-title">{contactSection.title}</h2>
             <p className={styles.finaleDescription}>{contactSection.description}</p>
-            {site.booking.services.length > 0 && <BookingTrigger className={styles.primaryAction}>{contactSection.buttonLabel} <span aria-hidden="true">↗</span></BookingTrigger>}
+            <BookingTrigger className={styles.primaryAction}>{portfolioBookingLabel[locale]} <span aria-hidden="true">↗</span></BookingTrigger>
           </div>
         </section>
       </main>
@@ -129,11 +130,11 @@ export async function PublishedStory({ locale, prefix, slug }: { locale: Portfol
         {story.photos.length > 0 && <div className={`${styles.storyContainer} ${styles.storyEditorial}`}>
           {story.photos.map(photo => <PublishedPhoto key={photo.id} image={photo.image} sizes="(max-width: 760px) 100vw, 94vw" />)}
         </div>}
-        {booking && <section className={styles.storyBooking} id="story-booking" aria-labelledby="story-booking-title">
-          <h2 id="story-booking-title">{booking.title}</h2>
-          <p className={styles.storyPrice}>{formatPortfolioPrice(booking.price, locale)}</p>
-          <BookingTrigger className={styles.primaryAction} slug={booking.slug}>{en ? 'Book a photo session' : 'Забронювати фотосесію'} <span aria-hidden="true">↗</span></BookingTrigger>
-        </section>}
+        <section className={styles.storyBooking} id="story-booking" aria-labelledby="story-booking-title">
+          <h2 id="story-booking-title">{booking?.title ?? (en ? 'Photo session enquiry' : 'Запит на фотосесію')}</h2>
+          {booking && <p className={styles.storyPrice}>{formatPortfolioPrice(booking.price, locale)}</p>}
+          <BookingTrigger className={styles.primaryAction} slug={booking?.slug}>{en ? 'Book a photo session' : 'Забронювати фотосесію'} <span aria-hidden="true">↗</span></BookingTrigger>
+        </section>
         {next && <section className={`${styles.storyContainer} ${styles.nextStory}`} aria-labelledby="next-story-title">
           <h2 className={styles.eyebrow} id="next-story-title">{en ? 'NEXT STORY →' : 'НАСТУПНА ІСТОРІЯ →'}</h2>
           <Link href={`${prefix}/stories/${next.slug}`} prefetch={false}>

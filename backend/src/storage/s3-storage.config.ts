@@ -26,7 +26,7 @@ export function createS3StorageConfig(configService: ConfigService): S3StorageCo
   return {
     region: configService.get<string>('AWS_REGION'),
     bucket: configService.get<string>('AWS_S3_BUCKET'),
-    endpoint: configService.get<string>('AWS_S3_ENDPOINT'),
+    endpoint: configService.get<string>('AWS_S3_ENDPOINT')?.trim() || undefined,
     forcePathStyle: configService.get<string>('AWS_S3_FORCE_PATH_STYLE') === 'true',
     ...(accessKeyId && secretAccessKey && { credentials: { accessKeyId, secretAccessKey } }),
   };

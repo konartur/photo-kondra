@@ -98,14 +98,17 @@ PortfolioImageDto є спільним контрактом: mediaId, url, width/
 - Вкладені DTO: ValidateNested/Type та явні Swagger schemas; глобальний whitelist/forbidNonWhitelisted зберегти. Не використовувати IsOptional для полів, де null заборонений; розрізняти omitted/null.
 - Response fields присутні завжди; nullable позначений явно. price=null означає індивідуальну ціну. Share image та nextStory можуть бути null.
 - amountMinor і durationMinutes — цілі числа в межах контракту; focal x/y — finite 0..1; versions — додатні safe integers (contentVersion починається з 0 до першої публікації).
-- Контакти: Instagram/Telegram — HTTPS на дозволених хостах цих каналів без credentials; email перевірити як email, href mailto побудувати сервером. Текст заявки не додавати до URL.
+- Контакти мають сталі назви Instagram, Telegram та Email в обох мовах. Адмін вводить нікнейм, а редактор додає HTTPS-префікс платформи. API перевіряє посилання на дозволених хостах без credentials. Email перевіряється як адреса, а mailto будує сервер. Попередні snapshots зберігають сумісність із полем label. Текст заявки залишається в браузері.
+- Назва бренду завжди `PhotoKondra`. Поле `brand` збережене в контракті для сумісності зі старими клієнтами та знімками. API використовує фіксовану назву під час читання й збереження.
 - Дати в JSON — ISO 8601 UTC; BigInt size — десятковий рядок; гроші не float.
 - Default pagination limit=24, max=50; стабільне сортування (sortOrder, id). Opaque cursor містить контекст і contentVersion/draftVersion: при зміні версії повернути 409 PORTFOLIO_CURSOR_STALE й почати список заново.
-- Input sizeBytes — safe integer 1..10 000 000 (10 МБ), формати JPEG/PNG/WebP. Worker створює WebP 480/960/1600 px без upscale; це ліміти саме портфоліо, а не чинних приватних галерей. File header/decode/pixel limit перевіряються worker, незалежно від DTO MIME.
+- Input sizeBytes — safe integer 1..20 000 000 (20 МБ), формати JPEG/PNG/WebP. Worker створює WebP 480/960/1600 px без upscale; це ліміти саме портфоліо, а не чинних приватних галерей. File header/decode/pixel limit перевіряються worker, незалежно від DTO MIME.
 - CanonicalPath, url, sizes, hasUnpublishedChanges, contentVersion та publishedAt створюються backend, а не довіряються входу.
 - Public JSON не містить draft, uploadUrl, keys, оригіналів, processing lock, user/session або службових failure details.
 
 ## Помилки та коди
+
+Приватний перегляд історії доступний, поки її напрям у чернетці. Публікація історії потребує опублікованого напряму та повертає `409 PORTFOLIO_STORY_SERVICE_UNPUBLISHED`, якщо він ще не опублікований.
 
 Зберегти чинний формат ApiErrorDto {statusCode, code, message}, без нового exception envelope:
 400 VALIDATION_FAILED; 401/403 чинної auth; 404 PORTFOLIO_CONTENT_NOT_FOUND; 409 PORTFOLIO_VERSION_CONFLICT, PORTFOLIO_NOT_READY, PORTFOLIO_CONTENT_REFERENCED, PORTFOLIO_SLUG_IMMUTABLE, PORTFOLIO_CURSOR_STALE; 503 PORTFOLIO_UNAVAILABLE. Розрізняти 404 та 503 у frontend. Swagger описує всі маршрути, вкладені schemas, nullability та помилки.
@@ -118,7 +121,7 @@ PortfolioImageDto є спільним контрактом: mediaId, url, width/
 4. Вхідні references відокремлено від вихідних URL.
 5. Чернетки, publication commands і concurrency описані окремо.
 6. Public DTO обов’язково кешуються backend Redis; Next/HTTP no-store запобігає незалежному другому кешу. Admin/preview — тільки DB. Cache keys містять contentVersion із DB, publish/archive інвалідує Redis з надійним retry; Redis outage → DB fallback.
-7. Фото історії — один масив до 10, без зайвої pagination; upload до 10 МБ, похідні 480/960/1600 px. MVP імпортує всі 21 початкових фото без загального ліміту медіабібліотеки.
+7. Фото історії — один масив до 10, без зайвої pagination; upload до 20 МБ, похідні 480/960/1600 px. MVP імпортує всі 21 початкових фото без загального ліміту медіабібліотеки.
 
 
 

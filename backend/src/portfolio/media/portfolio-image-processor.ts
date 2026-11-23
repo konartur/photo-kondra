@@ -74,7 +74,7 @@ export class PortfolioImageProcessor {
             header = Buffer.concat([header, chunk.subarray(0, 12 - header.length)]);
           callback(
             size > PORTFOLIO_MAX_UPLOAD_BYTES
-              ? new TerminalPortfolioMediaError('Original exceeds 10 MB')
+              ? new TerminalPortfolioMediaError('Original exceeds 20 MB')
               : null,
             chunk,
           );

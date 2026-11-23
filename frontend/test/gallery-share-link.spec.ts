@@ -45,6 +45,8 @@ test('copies a private URL for READY and reuses it on repeated clicks', async ({
     return route.fulfill({ status: 201, json: { id: 'link', url } });
   });
   await page.goto('/dashboard/galleries/gallery');
+  await expect(page.getByRole('navigation', { name: 'Розділи адмінпанелі' })
+    .getByRole('link', { name: 'Галереї' })).toHaveAttribute('aria-current', 'location');
   await page.getByRole('button', { name: 'Copy private link', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Private link copied.' })).toBeVisible();
   await expect(page.getByLabel('Private gallery link')).toHaveValue(url);

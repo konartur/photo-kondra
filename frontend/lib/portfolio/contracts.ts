@@ -158,7 +158,7 @@ export type PortfolioContactDto = {
 
 export type PortfolioContactInputDto = {
   type: 'instagram' | 'telegram' | 'email';
-  label: LocalizedTitleDto;
+  label?: LocalizedTitleDto;
   address: string;
   visible: boolean;
 };

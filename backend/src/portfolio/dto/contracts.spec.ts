@@ -172,11 +172,11 @@ describe('Portfolio input contracts through the global validation policy', () =>
     expect(storyPhotoLimitSatisfied(fixtureId, ids.slice(0, 9))).toBe(true);
   });
   it('enforces upload bytes independently from gallery limits and rejects unsafe filenames/MIME', async () => {
-    const file = { filename: ' photo.jpg ', mimeType: 'image/jpeg', sizeBytes: 10_000_000 };
+    const file = { filename: ' photo.jpg ', mimeType: 'image/jpeg', sizeBytes: 20_000_000 };
     await expect(input(RequestPortfolioUploadDto, file)).resolves.toMatchObject({
       filename: 'photo.jpg',
     });
-    for (const sizeBytes of [0, -1, 10_000_001, 1.5, Number.MAX_SAFE_INTEGER + 1, '10'])
+    for (const sizeBytes of [0, -1, 20_000_001, 1.5, Number.MAX_SAFE_INTEGER + 1, '10'])
       await expect(input(RequestPortfolioUploadDto, { ...file, sizeBytes })).rejects.toThrow();
     for (const filename of ['', '../x.jpg', 'a\\x.jpg', 'a\u0000.jpg'])
       await expect(input(RequestPortfolioUploadDto, { ...file, filename })).rejects.toThrow();
@@ -235,8 +235,14 @@ describe('Portfolio input contracts through the global validation policy', () =>
     { type: 'email', address: 'test@example.invalid' },
   ])('accepts channel-specific contact %p', async (contact) => {
     await expect(
-      input(PortfolioContactInputDto, { ...contact, label: { uk: '', en: '' }, visible: true }),
+      input(PortfolioContactInputDto, { ...contact, visible: true }),
     ).resolves.toBeDefined();
+  });
+  it('still accepts the stored label from an older contact snapshot', async () => {
+    await expect(input(PortfolioContactInputDto, {
+      type: 'email', label: { uk: 'Написати', en: 'Email me' },
+      address: 'test@example.invalid', visible: true,
+    })).resolves.toBeDefined();
   });
   it('defaults missing locale to en, accepts uk and rejects unsupported/null locale and bad pagination', async () => {
     await expect(input(PortfolioLocaleQueryDto, {})).resolves.toMatchObject({ locale: 'en' });
@@ -302,7 +308,7 @@ describe('Portfolio OpenAPI contract schemas', () => {
     expect(schemas.PortfolioStoryDto.properties!.photos).toMatchObject({ maxItems: 10 });
     expect(schemas.PortfolioStoryDto.properties).not.toHaveProperty('nextCursor');
     expect(schemas.RequestPortfolioUploadDto.properties!.sizeBytes).toMatchObject({
-      maximum: 10_000_000,
+      maximum: 20_000_000,
     });
     expect(schemas.PortfolioApiErrorDto.required).toEqual(['statusCode', 'code', 'message']);
   });

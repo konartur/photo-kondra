@@ -31,6 +31,28 @@ test('renders localized published DTOs, memoizes metadata and reflects publicati
   expect(xml).toContain('hreflang="en"');
 });
 
+test('switches the public language on desktop and in the mobile menu', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/uk?from=menu#services');
+  await page.evaluate(() => window.scrollTo({ top: 32, behavior: 'instant' }));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(32);
+  const language = page.getByRole('group', { name: 'Мова портфоліо' });
+  await expect(language.getByRole('link', { name: 'Українська' })).toHaveAttribute('aria-current', 'page');
+  await language.getByRole('link', { name: 'English' }).click();
+  await expect(page).toHaveURL(/\/en\?from=menu#services$/);
+  await expect(page.getByRole('group', { name: 'Portfolio language' }).getByRole('link', { name: 'English' }))
+    .toHaveAttribute('aria-current', 'page');
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(32);
+
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto('/en/stories/' + slug + '?from=menu#home');
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  const menu = page.getByRole('dialog', { name: 'Navigation' });
+  await menu.getByRole('link', { name: 'Українська' }).click();
+  await expect(page).toHaveURL('/uk/stories/' + slug + '?from=menu#home');
+  await expect(page.locator('[data-portfolio]')).toHaveAttribute('lang', 'uk');
+});
+
 test('renders new story slugs and all ten photos and books using the published service', async ({ page, request }) => {
   await request.post(fixture + '?mode=draft');
   expect((await page.goto('/en/stories/' + slug))?.status()).toBe(404);
@@ -52,6 +74,30 @@ test('renders new story slugs and all ten photos and books using the published s
   await expect(book).toBeFocused();
   await page.goto('/#story/' + slug);
   await expect(page).toHaveURL(new RegExp('/stories/' + slug + '$'));
+});
+
+test('keeps a general booking enquiry when no session types are bookable', async ({ page, request }) => {
+  await request.post(fixture + '?mode=no-booking');
+  await page.goto('/uk');
+  await expect(page.getByRole('region', { name: 'Контакт' }).getByRole('button', { name: 'Забронювати фотосесію', exact: true })).toBeVisible();
+  await page.goto('/en');
+  await expect(page.getByRole('group', { name: 'Portfolio language' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Contact' }).getByRole('button', { name: 'Book a photo session', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Book', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: /Tell me.*your story/ });
+  await dialog.getByLabel(/Your name/).fill('Tester');
+  await dialog.getByLabel(/Email or messenger/).fill('tester@example.invalid');
+  await expect(dialog.getByLabel(/Session type/)).toHaveCount(0);
+  await dialog.getByRole('button', { name: /prepare message/i }).click();
+  await expect(dialog.getByLabel('Your message')).toHaveValue(/discuss a photo session/);
+  await expect(dialog.getByLabel('Your message')).not.toHaveValue(/Price:/);
+
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto('/en/stories/' + slug);
+  await expect(page.getByRole('region', { name: 'Photo session enquiry' }).getByRole('button')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Book', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Navigation' }).getByRole('group', { name: 'Portfolio language' })).toBeVisible();
 });
 
 test('distinguishes missing, empty, malformed and unavailable published content', async ({ page, request }) => {

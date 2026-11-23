@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { BookingTrigger } from './portfolio-booking';
 import { portfolioBrand } from './portfolio-brand';
 import styles from './portfolio.module.css';
@@ -12,10 +14,33 @@ const sections = [
   { href: '#contact', label: 'Контакти' },
 ];
 
+function PortfolioLanguages({ locale, storySlug, onNavigate }: {
+  locale: 'uk' | 'en'; storySlug?: string; onNavigate?: () => void;
+}) {
+  const router = useRouter();
+  return <div className={styles.languages} role="group" aria-label={locale === 'uk' ? 'Мова портфоліо' : 'Portfolio language'}>
+    {(['uk', 'en'] as const).map(language => {
+      const href = '/' + language + (storySlug ? '/stories/' + storySlug : '');
+      return <Link key={language} href={href} hrefLang={language} lang={language} prefetch={false} scroll={false}
+        aria-label={language === 'uk' ? 'Українська' : 'English'} aria-current={locale === language ? 'page' : undefined}
+        onNavigate={event => {
+          onNavigate?.();
+          const { search, hash } = window.location;
+          if (!search && !hash) return;
+          event.preventDefault();
+          router.push(href + search + hash, { scroll: false });
+        }}>
+        {language.toUpperCase()}
+      </Link>;
+    })}
+  </div>;
+}
+
 export function PortfolioNavigation({
-  storySlug, bookingSlug, brand = portfolioBrand, homeHref = '/', locale = 'uk', bookingEnabled = true,
+  storySlug, bookingSlug, brand = portfolioBrand, homeHref = '/', locale = 'uk', languageSwitch = false,
 }: {
-  storySlug?: string; bookingSlug?: string; brand?: string; homeHref?: string; locale?: 'uk' | 'en'; bookingEnabled?: boolean;
+  storySlug?: string; bookingSlug?: string; brand?: string; homeHref?: string; locale?: 'uk' | 'en';
+  languageSwitch?: boolean;
 }) {
   const storyPage = Boolean(storySlug);
   const english = locale === 'en';
@@ -106,13 +131,15 @@ export function PortfolioNavigation({
         data-scrolled={storyPage || header.scrolled || menuOpen}
         data-hidden={header.hidden && !menuOpen}
         data-menu-open={menuOpen}
+        data-language-switch={languageSwitch}
       >
         <a className={styles.brand} href={storyPage ? homeHref : '#home'}>
           {brand}<span>PHOTOGRAPHY</span>
         </a>
-        {bookingEnabled && <BookingTrigger className={styles.headerBook} slug={bookingSlug ?? storySlug}>
+        <BookingTrigger className={styles.headerBook} slug={bookingSlug ?? storySlug}>
           <span>{english ? 'Book' : 'Забронювати'} <span className={styles.headerBookIcon} aria-hidden="true">↗&#xFE0E;</span></span>
-        </BookingTrigger>}
+        </BookingTrigger>
+        {languageSwitch && <PortfolioLanguages locale={locale} storySlug={storySlug} />}
         <button
           className={styles.menuToggle}
           type="button"
@@ -147,6 +174,7 @@ export function PortfolioNavigation({
           controls[next]?.focus();
         }}
       >
+        {languageSwitch && <PortfolioLanguages locale={locale} storySlug={storySlug} onNavigate={() => dialog.current?.close()} />}
         <button
           className={styles.closeMenu}
           type="button"

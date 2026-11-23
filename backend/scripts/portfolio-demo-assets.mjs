@@ -4,7 +4,7 @@ import sharp from 'sharp';
 import { imageMime } from '../dist/portfolio/media/portfolio-image-processor.js';
 import { sha256 } from './portfolio-demo-plan.mjs';
 
-export const maxBytes = 10_000_000;
+export const maxBytes = 20_000_000;
 const maxSourceBytes = 32_000_000;
 const maxPixels = 40_000_000;
 const extensions = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };

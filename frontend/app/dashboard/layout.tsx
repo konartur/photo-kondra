@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { REFRESH_TOKEN_COOKIE } from '@/lib/auth/constants';
 import { getAdminSession } from '@/lib/auth/server';
 import { SessionUnavailable } from '@/app/auth/session-unavailable';
+import { DashboardNavigation } from './dashboard-navigation';
 import { LogoutButton } from './logout-button';
 
 export default async function DashboardLayout({
@@ -35,10 +36,7 @@ export default async function DashboardLayout({
           <LogoutButton />
         </div>
       </header>
-      <nav aria-label="Розділи адмінпанелі" className="mx-auto mt-4 flex max-w-5xl flex-wrap gap-2">
-        <Link href="/dashboard/galleries" className="inline-flex min-h-11 items-center rounded-lg border border-zinc-300 px-4 text-sm font-medium text-zinc-900">Галереї</Link>
-        <Link href="/dashboard/portfolio" className="inline-flex min-h-11 items-center rounded-lg border border-zinc-300 px-4 text-sm font-medium text-zinc-900">Портфоліо</Link>
-      </nav>
+      <DashboardNavigation />
       {children}
     </main>
   );

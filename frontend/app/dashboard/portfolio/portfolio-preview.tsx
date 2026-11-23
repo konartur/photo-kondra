@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { ApiError, apiRequest } from '@/lib/api/client';
+import { portfolioBookingLabel } from '@/lib/portfolio/booking-label';
 import type {
   PortfolioHomePreviewDto, PortfolioServicePreviewDto, PortfolioStoryPreviewDto,
 } from '@/lib/portfolio/contracts';
-import { AdminImage, button, input, panel } from './editor-fields';
+import { AdminImage, button, panel } from './editor-fields';
 
 type Preview = PortfolioHomePreviewDto | PortfolioServicePreviewDto | PortfolioStoryPreviewDto;
 
@@ -31,7 +32,7 @@ export function PortfolioPreview({ path, version }: { path: string; version: num
     <h3 className="font-semibold">Попередній перегляд збереженої чернетки</h3>
     <div className="flex flex-wrap items-end gap-2">
       <label className="block text-sm font-medium">Мова
-        <select className={input} value={locale} disabled={busy} onChange={e => {
+        <select value={locale} disabled={busy} onChange={e => {
           setLocale(e.target.value === 'en' ? 'en' : 'uk');
           setPreview(null);
         }}>
@@ -60,7 +61,7 @@ export function PortfolioPreview({ path, version }: { path: string; version: num
           <AdminImage url={story.cover.url} alt={story.cover.alt} />{story.title} · {caption}
         </li>)}</ul>
         <AdminImage url={page.contactSection.background.url} alt={page.contactSection.background.alt} />
-        <p>{page.contactSection.title} · {page.contactSection.description} · {page.contactSection.buttonLabel}</p>
+        <p>{page.contactSection.title} · {page.contactSection.description} · {portfolioBookingLabel[preview.site.locale]}</p>
       </> : <>
         {'subtitle' in page && <p>{page.subtitle}</p>}
         <p>{page.description}</p>

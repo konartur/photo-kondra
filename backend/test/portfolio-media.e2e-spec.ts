@@ -95,8 +95,8 @@ describe('Portfolio media HTTP boundaries (no DB/S3)', () => {
         .expect(403);
     }
   });
-  it('validates the portfolio 10 MB boundary and forbidden fields before invoking the service', async () => {
-    const body = { filename: 'synthetic.jpg', mimeType: 'image/jpeg', sizeBytes: 10_000_000 };
+  it('validates the portfolio 20 MB boundary and forbidden fields before invoking the service', async () => {
+    const body = { filename: 'synthetic.jpg', mimeType: 'image/jpeg', sizeBytes: 20_000_000 };
     await request(app.getHttpServer())
       .post('/api/v1/portfolio/media/upload-url')
       .set('Authorization', 'Bearer fixture-admin')
@@ -105,7 +105,7 @@ describe('Portfolio media HTTP boundaries (no DB/S3)', () => {
       .expect('Cache-Control', 'no-store');
     expect(api.requestUpload).toHaveBeenCalledTimes(1);
     for (const invalid of [
-      { ...body, sizeBytes: 10_000_001 },
+      { ...body, sizeBytes: 20_000_001 },
       { ...body, originalKey: 'foreign/key' },
       { ...body, status: 'READY' },
     ])

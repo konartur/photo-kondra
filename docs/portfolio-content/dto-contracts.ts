@@ -5,7 +5,7 @@
  */
 // Reference limits; implementation must enforce them in DTOs and domain operations.
 export const PORTFOLIO_MAX_PHOTOS_PER_STORY = 10;
-export const PORTFOLIO_MAX_UPLOAD_BYTES = 10_000_000;
+export const PORTFOLIO_MAX_UPLOAD_BYTES = 20_000_000;
 export const PORTFOLIO_WEBP_WIDTHS = [480, 960, 1600] as const;
 // No fixed total portfolio image cap; initial import contains 21 unique images.
 export type Locale = 'uk' | 'en';
@@ -137,7 +137,7 @@ export interface PortfolioSeoInputDto {
 }
 export interface PortfolioContactInputDto {
   type: ContactType;
-  label: LocalizedTextDto;
+  label?: LocalizedTextDto; // Legacy input; the channel supplies its display name.
   address: string; // Validated HTTPS profile or email; href derived server-side.
   visible: boolean;
 }

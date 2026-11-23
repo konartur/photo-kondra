@@ -44,7 +44,7 @@ async function handleStorage(req, res) {
     let length = 0;
     for await (const chunk of req) {
       length += chunk.length;
-      if (length > 10_000_000) { res.writeHead(413); return res.end(); }
+      if (length > 20_000_000) { res.writeHead(413); return res.end(); }
       chunks.push(chunk);
     }
     const bytes = Buffer.concat(chunks);

@@ -6,10 +6,10 @@ const imageUrl = '/api/portfolio/media/' + mediaId + '/variants/' + id;
 const now = '2026-11-22T12:00:00.000Z';
 const book = { uk: 'Портрет', en: 'Portrait' };
 const seo = { title: book, description: book, shareImage: null };
-const blank = { uk: '', en: '' };
+const image = { mediaId, alt: book, focalPoint: null };
 const initialDraft = {
-  slug: 'portrait', title: book, description: blank, price: null,
-  cardImage: null, bookingEnabled: false, seo,
+  slug: 'portrait', title: book, description: book, price: null,
+  cardImage: image, bookingEnabled: false, seo,
 };
 const readyMedia = {
   id: mediaId, filename: 'studio.jpg', mimeType: 'image/jpeg', sizeBytes: '16',
@@ -27,6 +27,7 @@ test.beforeEach(async ({ context, page }) => {
 });
 
 test('creates a bilingual service, previews the saved draft and publishes the expected version', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
   let created = false;
   let status = 'DRAFT';
   let submitted = initialDraft;
@@ -61,23 +62,43 @@ test('creates a bilingual service, previews the saved draft and publishes the ex
 
   await page.goto('/dashboard/portfolio');
   await page.getByRole('button', { name: 'Створити напрям' }).click();
-  await page.getByLabel('Slug', { exact: true }).fill('studio');
+  const category = page.getByLabel('Тип фотосесії', { exact: true });
+  const theme = page.getByRole('switch', { name: 'Dark mode' });
+  await expect(category).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await theme.click();
+  await expect(category).toHaveCSS('background-color', 'rgb(24, 24, 27)');
+  await expect(category.getByRole('option')).toHaveCount(7);
+  await category.selectOption({ label: 'Сімейна фотосесія' });
   await page.getByLabel('Назва · UK', { exact: true }).fill('Студія');
   await page.getByLabel('Назва · EN', { exact: true }).fill('Studio');
+  await expect(category).toHaveValue('family');
+  const saveDraft = page.getByRole('button', { name: 'Зберегти чернетку' });
+  await saveDraft.click();
+  const description = page.getByLabel('Опис · UK', { exact: true });
+  await expect(description).toHaveAttribute('aria-invalid', 'true');
+  await expect(description).toBeFocused();
+  await expect(description).toBeInViewport();
+  expect(created).toBe(false);
+  await description.fill('Портретна студія');
+  await page.getByLabel('Опис · EN', { exact: true }).fill('Portrait studio');
   await page.getByLabel('Фото напряму · файл').selectOption(mediaId);
   await page.getByLabel('Альтернативний опис · UK').fill('Студійний портрет');
   await page.getByLabel('Альтернативний опис · EN').fill('Studio portrait');
+  await page.getByLabel('SEO заголовок · UK').fill('Студія');
+  await page.getByLabel('SEO заголовок · EN').fill('Studio');
+  await page.getByLabel('SEO опис · UK').fill('Портретна студія');
+  await page.getByLabel('SEO опис · EN').fill('Portrait studio');
   await expect(page.getByRole('button', { name: 'Опублікувати' })).toBeDisabled();
-  await page.getByRole('button', { name: 'Зберегти чернетку' }).click();
+  await saveDraft.click();
   await expect(page.getByRole('status').filter({ hasText: 'збережена v1' })).toBeVisible();
-  expect(submitted).toMatchObject({ slug: 'studio', title: { uk: 'Студія', en: 'Studio' }, cardImage: { mediaId } });
+  expect(submitted).toMatchObject({ slug: 'family', title: { uk: 'Студія', en: 'Studio' }, cardImage: { mediaId } });
   await page.getByLabel('Мова').selectOption('en');
   await page.getByRole('button', { name: 'Показати чернетку' }).click();
   await expect(page.getByRole('heading', { name: 'Studio', exact: true })).toBeVisible();
   await expect(page.getByRole('img', { name: 'Studio portrait' })).toHaveAttribute('src', imageUrl);
   await page.getByRole('button', { name: 'Опублікувати' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'версія публікації v1' })).toBeVisible();
-  await expect(page.getByLabel('Slug', { exact: true })).toBeDisabled();
+  await expect(category).toBeDisabled();
 });
 
 test('keeps local input on version conflict and marks field errors', async ({ page }) => {
@@ -112,6 +133,8 @@ test('keeps local input on version conflict and marks field errors', async ({ pa
   await page.getByRole('button', { name: 'Зберегти мої правки у формі' }).click();
   await save.click();
   await expect(title).toHaveAttribute('aria-invalid', 'true');
+  await expect(title).toBeFocused();
+  await expect(title).toBeInViewport();
   await expect(title).toHaveValue('Local edit');
 });
 
@@ -169,6 +192,7 @@ test('reorders story photos with the keyboard and saves the current version', as
   await page.goto('/dashboard/portfolio');
   await page.getByRole('button', { name: 'Історії', exact: true }).click();
   await page.getByLabel('Вибрати запис').selectOption(id);
+  await expect(page.getByLabel('Адреса історії')).toHaveValue('studio');
   const move = page.getByRole('button', { name: 'Вище · фото 2' });
   await move.focus();
   await page.keyboard.press('Enter');
@@ -177,13 +201,148 @@ test('reorders story photos with the keyboard and saves the current version', as
   await expect(page.getByRole('status').filter({ hasText: 'збережена v4' })).toBeVisible();
 });
 
+test('chooses a story address from the six portfolio categories', async ({ page }) => {
+  await page.route('**/api/portfolio/services?*', route => route.fulfill({ json: { items: [], nextCursor: null } }));
+  await page.route('**/api/portfolio/stories?*', route => route.fulfill({
+    json: { items: [{ id, slug: 'portrait', title: book, status: 'PUBLISHED' }], nextCursor: null },
+  }));
+  await page.goto('/dashboard/portfolio');
+  await page.getByRole('button', { name: 'Історії', exact: true }).click();
+  await page.getByRole('button', { name: 'Створити історію' }).click();
+  const address = page.getByRole('combobox', { name: 'Адреса історії' });
+  await expect(address.locator('option')).toHaveCount(7);
+  await expect(address.locator('option[value="portrait"]')).toBeDisabled();
+  await address.selectOption({ label: 'Сімейна фотосесія' });
+  await expect(address).toHaveValue('family');
+});
+
+test('focuses a newly occupied story address and allows saving with another address', async ({ page }) => {
+  const draft = { slug: 'portrait', title: book, subtitle: book, description: book, serviceId: id, cover: image, seo };
+  let story = { id, draft, photos: [], status: 'DRAFT', draftVersion: 1, publishedVersion: null,
+    hasUnpublishedChanges: true, publishedAt: null, updatedAt: now };
+  let saves = 0;
+  await page.route('**/api/portfolio/services?*', route => route.fulfill({
+    json: { items: [{ id, slug: 'portrait', title: book, status: 'PUBLISHED' }], nextCursor: null },
+  }));
+  await page.route('**/api/portfolio/stories?*', route => route.fulfill({
+    json: { items: [
+      { id, slug: story.draft.slug, title: book, status: 'DRAFT' },
+      ...(saves ? [{ id: mediaId, slug: 'family', title: book, status: 'DRAFT' }] : []),
+    ], nextCursor: null },
+  }));
+  await page.route('**/api/portfolio/stories/' + id, route => {
+    if (route.request().method() === 'GET') return route.fulfill({ json: story });
+    saves++;
+    const change = route.request().postDataJSON();
+    if (saves === 1) {
+      expect(change).toMatchObject({ expectedVersion: 1, data: { slug: 'family' } });
+      return route.fulfill({ status: 409, json: { code: 'PORTFOLIO_SLUG_TAKEN' } });
+    }
+    expect(change).toMatchObject({ expectedVersion: 1, data: { slug: 'pets' } });
+    story = { ...story, draft: change.data, draftVersion: 2 };
+    return route.fulfill({ json: story });
+  });
+  await page.goto('/dashboard/portfolio');
+  await page.getByRole('button', { name: 'Історії', exact: true }).click();
+  await page.getByLabel('Вибрати запис').selectOption(id);
+  const address = page.getByRole('combobox', { name: 'Адреса історії' });
+  const save = page.getByRole('button', { name: 'Зберегти чернетку' });
+  await address.selectOption('family');
+  await save.click();
+  await expect(address).toHaveAttribute('aria-invalid', 'true');
+  await expect(address).toBeFocused();
+  await expect(address.locator('option[value="family"]')).toBeDisabled();
+  await save.click();
+  expect(saves).toBe(1);
+  await address.selectOption('pets');
+  await save.click();
+  await expect(page.getByRole('status').filter({ hasText: 'збережена v2' })).toBeVisible();
+});
+
+test('previews a story and links to the draft service blocking publication', async ({ page }) => {
+  const base = { status: 'DRAFT', draftVersion: 1, publishedVersion: null,
+    hasUnpublishedChanges: true, publishedAt: null, updatedAt: now };
+  const story = {
+    ...base, id, photos: [],
+    draft: { slug: 'family', title: book, subtitle: book, description: book, serviceId: mediaId, cover: image, seo },
+  };
+  await page.route('**/api/portfolio/stories?*', route => route.fulfill({
+    json: { items: [{ ...base, id, slug: 'family', title: book }], nextCursor: null },
+  }));
+  await page.route('**/api/portfolio/stories/' + id, route => route.fulfill({ json: story }));
+  await page.route('**/api/portfolio/services?*', route => route.fulfill({
+    json: { items: [{ ...base, id: mediaId, slug: 'portrait', title: book }], nextCursor: null },
+  }));
+  await page.route('**/api/portfolio/services/' + mediaId, route => route.fulfill({
+    json: { ...base, id: mediaId, draft: initialDraft },
+  }));
+  await page.route('**/api/portfolio/stories/' + id + '/preview?locale=uk', route => route.fulfill({
+    json: {
+      draftVersion: 1, site: { brand: 'Synthetic', locale: 'uk', contacts: [], booking: { intro: '', services: [] } },
+      page: { title: 'Приватна історія', subtitle: '', description: '', cover: { url: imageUrl, alt: 'Обкладинка' },
+        photos: [], seo: { title: '', description: '', shareImage: null } },
+    },
+  }));
+  await page.goto('/dashboard/portfolio');
+  await page.getByRole('button', { name: 'Історії', exact: true }).click();
+  await page.getByLabel('Вибрати запис').selectOption(id);
+  const openService = page.getByRole('button', { name: 'Відкрити напрям' });
+  await expect(openService).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Опублікувати' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Показати чернетку' }).click();
+  await expect(page.getByRole('heading', { name: 'Приватна історія' })).toBeVisible();
+  await openService.click();
+  await expect(page.getByLabel('Тип фотосесії')).toHaveValue('portrait');
+});
+
+test('keeps added home placements visible and selectable again after removal', async ({ page }) => {
+  const draft = {
+    brand: 'PhotoKondra', bookingIntro: book, contacts: [], seo,
+    hero: { desktop: image, mobile: image },
+    servicesSection: { title: book, description: book, serviceIds: [] },
+    storiesSection: { title: book, items: [] },
+    contactSection: { title: book, description: book, buttonLabel: book, background: image },
+  };
+  await page.route('**/api/portfolio/settings', route => route.fulfill({
+    json: { id, draft, draftVersion: 1, publishedVersion: null, status: 'DRAFT',
+      hasUnpublishedChanges: true, publishedAt: null, updatedAt: now },
+  }));
+  for (const resource of ['services', 'stories']) {
+    await page.route('**/api/portfolio/' + resource + '?*', route => route.fulfill({
+      json: { items: [
+        { id, title: book, slug: 'portrait', status: 'PUBLISHED' },
+        { id: mediaId, title: { uk: 'Родина', en: 'Family' }, slug: 'family', status: 'PUBLISHED' },
+      ], nextCursor: null },
+    }));
+  }
+  await page.goto('/dashboard/portfolio');
+  await page.getByRole('button', { name: 'Головна та контакти' }).click();
+  for (const [section, label] of [['Напрями на головній', 'Додати напрям'], ['Добірка історій', 'Додати історію']]) {
+    const group = page.getByRole('group', { name: section });
+    const select = group.getByRole('combobox', { name: label });
+    const portrait = select.locator('option[value="' + id + '"]');
+    await select.selectOption(id);
+    await expect(select).toHaveValue(id);
+    await expect(portrait).toBeDisabled();
+    await expect(portrait).toContainText('додано');
+    await select.selectOption(mediaId);
+    await expect(select).toHaveValue(mediaId);
+    await expect(group.getByRole('button', { name: 'Прибрати · Портрет · portrait' })).toHaveCount(1);
+    await group.getByRole('button', { name: 'Прибрати · Портрет · portrait' }).click();
+    await expect(portrait).toBeEnabled();
+    await expect(select).toHaveValue(mediaId);
+    await select.selectOption(id);
+    await expect(group.getByRole('button', { name: 'Прибрати · Портрет · portrait' })).toHaveCount(1);
+  }
+});
+
 test('edits the home draft and archives a saved revision explicitly', async ({ page }) => {
   const draft = {
-    brand: 'PhotoKondra', bookingIntro: blank, contacts: [], seo,
-    hero: { desktop: null, mobile: null },
-    servicesSection: { title: blank, description: blank, serviceIds: [] },
-    storiesSection: { title: blank, items: [] },
-    contactSection: { title: blank, description: blank, buttonLabel: blank, background: null },
+    brand: 'PhotoKondra', bookingIntro: book, contacts: [], seo,
+    hero: { desktop: image, mobile: image },
+    servicesSection: { title: book, description: book, serviceIds: [id] },
+    storiesSection: { title: book, items: [{ storyId: id, caption: book }] },
+    contactSection: { title: book, description: book, buttonLabel: book, background: image },
   };
   const settings = {
     id, draft, draftVersion: 5, publishedVersion: 4,
@@ -196,8 +355,13 @@ test('edits the home draft and archives a saved revision explicitly', async ({ p
     const change = route.request().postDataJSON();
     expect(change).toMatchObject({
       expectedVersion: 5,
-      data: { contacts: [{ type: 'email', label: { uk: 'Написати', en: 'Email me' }, address: 'synthetic@example.invalid', visible: true }] },
+      data: { contactSection: draft.contactSection, contacts: [
+        { type: 'email', address: 'synthetic@example.invalid', visible: true },
+        { type: 'instagram', address: 'https://www.instagram.com/photo.kondra', visible: true },
+        { type: 'telegram', address: 'https://t.me/photo_kondra', visible: true },
+      ] },
     });
+    expect(change.data.contacts.every((contact: { label?: unknown }) => !('label' in contact))).toBe(true);
     Object.assign(settings, { draft: change.data, draftVersion: 6 });
     return route.fulfill({ json: settings });
   });
@@ -208,11 +372,30 @@ test('edits the home draft and archives a saved revision explicitly', async ({ p
   await page.goto('/dashboard/portfolio');
   await page.getByRole('button', { name: 'Головна та контакти' }).click();
   await page.getByRole('button', { name: 'Додати Email' }).click();
+  await expect(page.getByLabel('Назва бренду')).toHaveCount(0);
+  const bookingSection = page.getByRole('group', { name: 'Секція бронювання' });
+  await expect(bookingSection.getByRole('combobox', { name: 'Фонове фото · файл' })).toBeVisible();
+  await expect(page.getByLabel(/Заголовок контактів|Опис контактів|Текст кнопки бронювання/)).toHaveCount(0);
   await page.getByLabel('Email · адреса').fill('synthetic@example.invalid');
-  await page.getByLabel('Email · назва · UK').fill('Написати');
-  await page.getByLabel('Email · назва · EN').fill('Email me');
+  await page.getByRole('button', { name: 'Додати Instagram' }).click();
+  const instagram = page.getByLabel('Instagram · нікнейм');
+  await instagram.fill('photo/kondra');
+  expect(await instagram.evaluate(input => (input as HTMLInputElement).validity.valid)).toBe(false);
+  await page.getByRole('button', { name: 'Зберегти чернетку' }).click();
+  await expect(instagram).toHaveAttribute('aria-invalid', 'true');
+  await expect(instagram).toBeFocused();
+  await expect(instagram).toBeInViewport();
+  await instagram.fill('@photo.kondra');
+  await page.getByRole('button', { name: 'Додати Telegram' }).click();
+  const telegram = page.getByLabel('Telegram · нікнейм');
+  await telegram.fill('photo.kondra');
+  expect(await telegram.evaluate(input => (input as HTMLInputElement).validity.valid)).toBe(false);
+  await telegram.fill('photo_kondra');
+  await expect(page.getByLabel(/· назва · (UK|EN)/)).toHaveCount(0);
   await page.getByRole('button', { name: 'Зберегти чернетку' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'збережена v6' })).toBeVisible();
+  await expect(instagram).toHaveValue('photo.kondra');
+  await expect(telegram).toHaveValue('photo_kondra');
   page.once('dialog', dialog => void dialog.accept());
   await page.getByRole('button', { name: 'Архівувати' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Запис перенесено в архів' })).toBeVisible();

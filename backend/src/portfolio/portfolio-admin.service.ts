@@ -11,8 +11,8 @@ import type {
   PortfolioServiceDraftInputDto,
   PortfolioStoryDraftInputDto,
   PortfolioStoryPhotoInputDto,
-  PortfolioContactInputDto,
 } from './dto/admin-input.dto.js';
+import { CONTACT_LABELS, PORTFOLIO_BRAND } from './dto/shared.dto.js';
 import {
   storyPhotoLimitSatisfied,
 } from './dto/admin-input.dto.js';
@@ -27,6 +27,7 @@ import { PORTFOLIO_SETTINGS_ID, PortfolioPersistenceService } from './persistenc
 import { PrismaService } from '../prisma/prisma.service.js';
 import { decodePortfolioAdminCursor, encodePortfolioAdminCursor } from './portfolio-admin-cursor.js';
 import type { PortfolioListQueryDto } from './dto/query.dto.js';
+import { contactSectionCopy } from './portfolio-contact-copy.js';
 
 const notFound = () => new NotFoundException({ code: 'PORTFOLIO_CONTENT_NOT_FOUND', message: 'Portfolio content not found' });
 const conflict = (code = 'PORTFOLIO_CONTENT_REFERENCED') => new ConflictException({ code, message: 'Portfolio content cannot be changed' });
@@ -72,7 +73,7 @@ function photoColumns(photo: PortfolioStoryPhotoInputDto, sortOrder: number) {
 }
 function settingsColumns(data: PortfolioHomeDraftInputDto) {
   return {
-    brand: data.brand, bookingIntroUk: data.bookingIntro.uk, bookingIntroEn: data.bookingIntro.en,
+    brand: PORTFOLIO_BRAND, bookingIntroUk: data.bookingIntro.uk, bookingIntroEn: data.bookingIntro.en,
     servicesTitleUk: data.servicesSection.title.uk, servicesTitleEn: data.servicesSection.title.en,
     servicesDescriptionUk: data.servicesSection.description.uk,
     servicesDescriptionEn: data.servicesSection.description.en,
@@ -137,12 +138,14 @@ function storyResponse(row: StoryWithPhotos): AdminPortfolioStoryDto {
 }
 function settingsResponse(row: SettingsWithChildren): AdminPortfolioSettingsDto {
   return { ...base(row), draft: {
-    brand: row.brand, bookingIntro: { uk: row.bookingIntroUk, en: row.bookingIntroEn },
-    contacts: row.contacts.map((c) => ({ type: c.type.toLowerCase() as PortfolioContactInputDto['type'], label: { uk: c.labelUk, en: c.labelEn }, address: c.address, visible: c.visible })),
+    brand: PORTFOLIO_BRAND, bookingIntro: { uk: row.bookingIntroUk, en: row.bookingIntroEn },
+    contacts: row.contacts.map(({ type, address, visible }) => ({
+      type, address, visible, label: { uk: CONTACT_LABELS[type], en: CONTACT_LABELS[type] },
+    })),
     hero: { desktop: imageFrom(row, 'desktop'), mobile: imageFrom(row, 'mobile') },
     servicesSection: { title: { uk: row.servicesTitleUk, en: row.servicesTitleEn }, description: { uk: row.servicesDescriptionUk, en: row.servicesDescriptionEn }, serviceIds: row.services.map((x) => x.serviceId) },
     storiesSection: { title: { uk: row.storiesTitleUk, en: row.storiesTitleEn }, items: row.featuredStories.map((x) => ({ storyId: x.storyId, caption: { uk: x.captionUk, en: x.captionEn }, ...(x.imageMediaId && { image: imageFrom(x, 'image') }) })) },
-    contactSection: { title: { uk: row.contactTitleUk, en: row.contactTitleEn }, description: { uk: row.contactDescriptionUk, en: row.contactDescriptionEn }, buttonLabel: { uk: row.contactButtonLabelUk, en: row.contactButtonLabelEn }, background: imageFrom(row, 'background') },
+    contactSection: { ...contactSectionCopy(row), background: imageFrom(row, 'background') },
     seo: seoFrom(row),
   } };
 }
@@ -279,7 +282,12 @@ export class PortfolioAdminService {
       await tx.portfolioContact.deleteMany({ where: { settingsId: id } });
       await tx.portfolioHomeService.deleteMany({ where: { settingsId: id } });
       await tx.portfolioFeaturedStory.deleteMany({ where: { settingsId: id } });
-      if (data.contacts.length) await tx.portfolioContact.createMany({ data: data.contacts.map((c, sortOrder) => ({ settingsId: id, type: c.type, labelUk: c.label.uk, labelEn: c.label.en, address: c.address, visible: c.visible, sortOrder })) });
+      if (data.contacts.length) await tx.portfolioContact.createMany({
+        data: data.contacts.map(({ type, address, visible }, sortOrder) => ({
+          settingsId: id, type, address, visible, sortOrder,
+          labelUk: CONTACT_LABELS[type], labelEn: CONTACT_LABELS[type],
+        })),
+      });
       if (data.servicesSection.serviceIds.length) await tx.portfolioHomeService.createMany({ data: data.servicesSection.serviceIds.map((serviceId, sortOrder) => ({ settingsId: id, serviceId, sortOrder })) });
       if (data.storiesSection.items.length) await tx.portfolioFeaturedStory.createMany({ data: data.storiesSection.items.map((item, sortOrder) => ({ settingsId: id, storyId: item.storyId, captionUk: item.caption.uk, captionEn: item.caption.en, ...imageColumns('image', item.image ?? null), sortOrder })) });
       return settingsResponse(await tx.portfolioSettings.findUniqueOrThrow({ where: { id }, include: { contacts: { orderBy: { sortOrder: 'asc' } }, services: { orderBy: { sortOrder: 'asc' } }, featuredStories: { orderBy: { sortOrder: 'asc' } } } }));

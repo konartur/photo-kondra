@@ -5,7 +5,7 @@ import { Redis } from 'ioredis';
 import { AppLogger } from '../common/logging/app-logger.js';
 import { QUEUE_CONFIG, type QueueInfrastructureConfig } from '../queues/queue.config.js';
 
-const schema = 1;
+const schema = 3;
 const prefix = 'portfolio:public:v1:';
 const fence = prefix + 'current';
 const maxEntries = 64;

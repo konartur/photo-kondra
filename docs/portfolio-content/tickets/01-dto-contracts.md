@@ -14,7 +14,7 @@ backend/src/portfolio/dto; frontend/lib/portfolio/contracts.ts; OpenAPI tooling.
 1. Зіставити dto-contracts.ts і dto-architecture.md з чинними NestJS DTO, global ValidationPipe та ApiErrorDto.
 2. Реалізувати decorated input/output/query класи, конкретні wrappers замість generic-only schemas; покрити також admin summaries, списки та media routes.
 3. Визначити відтворюване отримання frontend типів з OpenAPI (чинний механізм або мінімальний скрипт), без Prisma/Nest runtime у browser bundle.
-4. Додати контрактні fixtures для site/home/service/story; перевірити вкладену валідацію, nullability, unknown fields, гроші, version і межі масивів: 10 фото разом з cover, відхилення 11-го; upload 10 000 000 байтів; story photos без pagination.
+4. Додати контрактні fixtures для site/home/service/story; перевірити вкладену валідацію, nullability, unknown fields, гроші, version і межі масивів: 10 фото разом з cover, відхилення 11-го; upload 20 000 000 байтів; story photos без pagination.
 
 ## Критерії приймання
 
@@ -38,7 +38,7 @@ backend/src/portfolio/dto; frontend/lib/portfolio/contracts.ts; OpenAPI tooling.
 ## Результат виконання — 2026-11-21
 
 - Додано `backend/src/portfolio/dto`: shared/input/query/public/admin-response класи, конкретні page/update/preview/list wrappers. Вкладені `{uk,en}` мають contextual text limits, trim і strict validation; omission відрізняється від nullable значень.
-- Вхідні DTO перевіряють гроші/версії/масиви/посилання, дозволені контакти, JPEG/PNG/WebP та upload до 10 000 000 bytes. Photos DTO відхиляє 11-й елемент і дублікати; чиста перевірка union cover+photos підготовлена й протестована. Атомарне застосування зі stored cover/version виконується лише в PF-CONTENT-04/05.
+- Вхідні DTO перевіряють гроші/версії/масиви/посилання, дозволені контакти, JPEG/PNG/WebP та upload до 20 000 000 bytes. Photos DTO відхиляє 11-й елемент і дублікати; чиста перевірка union cover+photos підготовлена й протестована. Атомарне застосування зі stored cover/version виконується лише в PF-CONTENT-04/05.
 - `setupApp` включає схеми в чинний Swagger через `extraModels`; реальні portfolio endpoints не додаються в цьому тікеті. Schema-only [OpenAPI snapshot](../openapi.json) навмисно не містить робочих paths. Коди помилок задокументовані; глобальний filter/exception behavior збережено, optional errors[] і предметні 5xx потребують підключення разом з endpoints.
 - Додано генератор `backend/scripts/generate-portfolio-contracts.mjs` та `portfolio:contracts` / `portfolio:contracts:check`. Він не потребує БД/Redis/S3 й використовує наявні dependencies. Generated frontend types не мають runtime imports; compile-only checks перевіряють відповідність погодженому wire design.
 - [Workflow і межі](../contracts-workflow.md) описують regeneration, drift check і відповідальність наступних сервісів. PF-CONTENT-02 та наступні тікети не виконувалися. Сторонній untracked `docs/performance/` з попереднього завдання збережено.

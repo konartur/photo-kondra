@@ -79,7 +79,9 @@ export class PortfolioContactInputDto {
   @ApiProperty({ enum: [...CONTACT_TYPES] })
   @IsIn(CONTACT_TYPES)
   type!: (typeof CONTACT_TYPES)[number];
-  @Nested(LocalizedTitleDto) label!: LocalizedTitleDto;
+  @ApiPropertyOptional({ type: () => LocalizedTitleDto, deprecated: true, description: 'Legacy contact label. The display name is determined by the channel.' })
+  @IsOptional() @IsObject() @ValidateNested() @Type(() => LocalizedTitleDto)
+  label?: LocalizedTitleDto;
   @Text(2048) @Validate(PortfolioContactAddress) address!: string;
   @ApiProperty() @IsBoolean() visible!: boolean;
 }
@@ -141,6 +143,7 @@ export class PortfolioContactSectionInputDto {
   @Nested(PortfolioImageRefDto, true) background!: PortfolioImageRefDto | null;
 }
 export class PortfolioHomeDraftInputDto {
+  // Retained in the wire format for existing clients and snapshots; writes use the fixed brand.
   @Text(120) brand!: string;
   @NestedList(PortfolioContactInputDto, 3)
   @ArrayUnique((item: PortfolioContactInputDto) => item?.type)

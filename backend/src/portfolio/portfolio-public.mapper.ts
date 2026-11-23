@@ -4,7 +4,7 @@ import type {
   PortfolioServiceDraftInputDto,
 } from './dto/admin-input.dto.js';
 import type { PortfolioHomeDto, PortfolioSiteDto } from './dto/public.dto.js';
-import { LOCALES, type Locale } from './dto/shared.dto.js';
+import { CONTACT_LABELS, LOCALES, PORTFOLIO_BRAND, type Locale } from './dto/shared.dto.js';
 import { parsePortfolioSnapshot } from './persistence/portfolio-snapshot.js';
 
 type DocumentRow = { id: string; publishedDocument: { snapshot: Prisma.JsonValue } | null };
@@ -129,14 +129,14 @@ export class PortfolioPublicMapper {
       }),
     );
     return {
-      brand: data.brand,
+      brand: PORTFOLIO_BRAND,
       locale: this.locale,
       supportedLocales: [...LOCALES],
       contacts: data.contacts
         .filter((contact) => contact.visible)
-        .map(({ type, label, address }) => ({
+        .map(({ type, address }) => ({
           type,
-          label: label[this.locale],
+          label: CONTACT_LABELS[type],
           href: type === 'email' ? 'mailto:' + address : address,
         })),
       booking: {

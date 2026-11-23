@@ -12,9 +12,9 @@ export const blankSeo = (): PortfolioSeoInputDto => ({ title: blankText(), descr
 export const blankImage = (mediaId: string): PortfolioImageRefDto => ({ mediaId, alt: blankText(), focalPoint: null });
 export const FieldErrors = createContext<readonly string[]>([]);
 
-export function Field({ label, name, children }: {
-  label: string; name: string;
-  children: (props: { id: string; 'aria-invalid'?: true; 'aria-describedby'?: string }) => ReactNode;
+export function Field({ label, name, errorMessage = 'Перевірте значення цього поля.', children }: {
+  label: string; name: string; errorMessage?: string;
+  children: (props: { id: string; 'data-portfolio-field': string; 'aria-invalid'?: true; 'aria-describedby'?: string }) => ReactNode;
 }) {
   const id = useId();
   const errors = useContext(FieldErrors);
@@ -22,8 +22,8 @@ export function Field({ label, name, children }: {
   return (
     <div className="min-w-0 space-y-1">
       <label htmlFor={id} className="block text-sm font-medium text-zinc-900">{label}</label>
-      {children({ id, 'aria-invalid': invalid || undefined, 'aria-describedby': invalid ? id + '-error' : undefined })}
-      {invalid && <p id={id + '-error'} className="text-sm text-red-700">Перевірте значення цього поля.</p>}
+      {children({ id, 'data-portfolio-field': name, 'aria-invalid': invalid || undefined, 'aria-describedby': invalid ? id + '-error' : undefined })}
+      {invalid && <p id={id + '-error'} className="text-sm text-red-700">{errorMessage}</p>}
     </div>
   );
 }
@@ -56,7 +56,7 @@ export function MediaSelect({ name, label, value, change, options, used = [] }: 
 }) {
   const ready = options.filter(item => item.status === 'READY' && !used.includes(item.id));
   return <Field label={label} name={name}>{a11y => (
-    <select {...a11y} className={input} value={value} onChange={e => change(e.target.value)}>
+    <select {...a11y} value={value} onChange={e => change(e.target.value)}>
       <option value="">Оберіть готове зображення</option>
       {value && !ready.some(item => item.id === value) && <option value={value}>Поточне зображення</option>}
       {ready.map(item => <option key={item.id} value={item.id}>{item.filename}</option>)}

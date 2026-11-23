@@ -51,14 +51,14 @@ export function handlePortfolioFixture(request, response) {
   const site = {
     brand: 'Synthetic Portfolio', locale, supportedLocales: ['uk', 'en'],
     contacts: [{ type: 'email', href: 'mailto:demo@example.invalid', label: 'Send email' }],
-    booking: { intro: t('Опублікований вступ', 'Published booking intro'), services: [service] },
+    booking: { intro: t('Опублікований вступ', 'Published booking intro'), services: mode === 'no-booking' ? [] : [service] },
   };
   const page = route === 'home'
     ? {
       hero: { desktop: image('Desktop hero'), mobile: image('Mobile hero') },
       servicesSection: { title: t('Послуги', 'Published services') + ' ' + revision, description: 'Description', items: [{ ...service, description: 'Portrait description', cardImage: image('Service') }] },
       storiesSection: { title: t('Історії', 'Stories'), items: [{ story, caption: t('Добірка', 'Featured story') }] },
-      contactSection: { title: t('Контакт', 'Contact'), description: 'Description', buttonLabel: t('Забронювати фотосесію', 'Book a photo session'), background: image('Background') },
+      contactSection: { title: t('Контакт', 'Contact'), description: 'Description', buttonLabel: t('Написати мені', 'Get in touch'), background: image('Background') },
       seo: seo('', t('Опубліковане портфоліо', 'Published portfolio') + ' ' + revision),
     }
     : {

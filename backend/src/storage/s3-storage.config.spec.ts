@@ -3,6 +3,12 @@ import { describe, expect, it } from '@jest/globals';
 import { createS3StorageConfig } from './s3-storage.config.js';
 
 describe('createS3StorageConfig', () => {
+  it.each(['', '  '])('uses the AWS default when the optional endpoint is blank (%j)', (endpoint) => {
+    const config = new ConfigService({ AWS_S3_ENDPOINT: endpoint });
+
+    expect(createS3StorageConfig(config).endpoint).toBeUndefined();
+  });
+
   it('uses explicit S3-compatible settings and static credentials when both are configured', () => {
     const values: Record<string, string> = {
       AWS_REGION: 'eu-central-1',

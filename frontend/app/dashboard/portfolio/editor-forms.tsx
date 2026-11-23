@@ -152,14 +152,15 @@ export function PhotoFields({ value, change, media, coverId }: {
 }) {
   const used = value.map(photo => photo.image.mediaId);
   const count = photoCount(value, coverId);
-  const selectable = count >= 10 ? media.filter(item => item.id === coverId && value.length < 10) : media;
+  const allowedToAdd = count >= 10 ? (coverId && value.length < 10 ? [coverId] : []) : undefined;
   return <div className="space-y-4">
     <p className="text-sm text-zinc-700" role="status">{count} з 10 унікальних фото разом з обкладинкою.</p>
-    <MediaSelect label="Додати фото" name="items" value="" options={selectable} used={used}
+    <MediaSelect label="Додати фото" name="items" value="" options={media} used={used} allowedIds={allowedToAdd}
       change={mediaId => { if (mediaId) change([...value, { id: crypto.randomUUID(), image: blankImage(mediaId) }]); }} />
     <ol className="space-y-4">{value.map((photo, index) => <li key={photo.id} className="space-y-2">
       <ImageRef label={'Фото ' + (index + 1)} name={'items.' + index + '.image'} value={photo.image} removable={false}
-        media={media.filter(item => item.id === photo.image.mediaId || (!used.includes(item.id) && (count < 10 || item.id === coverId || photo.image.mediaId !== coverId)))}
+        media={media} used={used.filter(id => id !== photo.image.mediaId)}
+        allowedIds={count >= 10 && photo.image.mediaId === coverId ? [coverId] : undefined}
         change={image => { if (image) change(value.map(item => item.id === photo.id ? { ...item, image } : item)); }} />
       <MoveButtons index={index} count={value.length} name={'фото ' + (index + 1)}
         move={direction => change(reorder(value, index, direction))} remove={() => change(value.filter(item => item.id !== photo.id))} />

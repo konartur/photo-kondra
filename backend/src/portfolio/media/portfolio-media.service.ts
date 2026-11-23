@@ -22,7 +22,7 @@ import {
   AdminPortfolioMediaListDto,
   PortfolioUploadResponseDto,
 } from '../dto/admin-response.dto.js';
-import { PortfolioListQueryDto } from '../dto/query.dto.js';
+import { PortfolioMediaListQueryDto } from '../dto/query.dto.js';
 import { PORTFOLIO_MAX_UPLOAD_BYTES } from '../dto/shared.dto.js';
 import { PortfolioMediaJobs } from './portfolio-media.jobs.js';
 import { PortfolioMediaCleanupService } from './portfolio-media-cleanup.service.js';
@@ -146,7 +146,7 @@ export class PortfolioMediaService {
   async detail(ownerId: string, mediaId: string): Promise<AdminPortfolioMediaDto> {
     const media = await this.prisma.portfolioMedia.findFirst({
       where: { id: mediaId, uploadedById: ownerId, status: { not: 'DELETED' } },
-      include: { variants: { orderBy: { width: 'desc' }, take: 1 } },
+      include: { variants: { orderBy: { width: 'asc' }, take: 1 } },
     });
     if (!media) throw notFound();
     return mediaResponse(media, media.variants[0]?.id);
@@ -154,10 +154,11 @@ export class PortfolioMediaService {
 
   async list(
     ownerId: string,
-    { limit, cursor }: PortfolioListQueryDto,
+    { limit, cursor, search: inputSearch }: PortfolioMediaListQueryDto,
   ): Promise<AdminPortfolioMediaListDto> {
     const secret = this.config.getOrThrow<string>('JWT_ACCESS_SECRET');
-    const after = cursor ? decodeMediaCursor(cursor, secret, ownerId, limit) : null;
+    const search = inputSearch?.trim() ?? '';
+    const after = cursor ? decodeMediaCursor(cursor, secret, ownerId, limit, search) : null;
     return this.prisma.$transaction(
       async (tx) => {
         const state = await tx.portfolioContentState.findUniqueOrThrow({ where: { id: 1 } });
@@ -172,6 +173,7 @@ export class PortfolioMediaService {
             uploadedById: ownerId,
             status: { not: 'DELETED' },
             createdAt: { lte: new Date(asOf) },
+            ...(search ? { filename: { contains: search.replace(/[\\%_]/g, '\\$&'), mode: 'insensitive' as const } } : {}),
             ...(after
               ? {
                   OR: [
@@ -183,7 +185,7 @@ export class PortfolioMediaService {
           },
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           take: limit + 1,
-          include: { variants: { orderBy: { width: 'desc' }, take: 1 } },
+          include: { variants: { orderBy: { width: 'asc' }, take: 1 } },
         });
         const items = rows.slice(0, limit);
         const last = items.at(-1);
@@ -196,6 +198,7 @@ export class PortfolioMediaService {
                     v: 1,
                     ownerId,
                     limit,
+                    ...(search ? { search } : {}),
                     contentVersion: state.contentVersion.toString(),
                     asOf,
                     createdAt: last.createdAt.toISOString(),

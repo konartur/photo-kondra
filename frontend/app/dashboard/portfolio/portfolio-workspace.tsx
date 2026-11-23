@@ -363,7 +363,7 @@ export function PortfolioWorkspace() {
         {names[name]}
       </button>)}
     </nav>
-    <PortfolioMediaLibrary query={media} library={section === 'media'} />
+    {section === 'media' && <PortfolioMediaLibrary />}
     {(section === 'services' || section === 'stories') && <div className={panel}>
       <h3 className="font-semibold">{names[section]}</h3>
       <label className="block space-y-1 text-sm font-medium">Вибрати запис

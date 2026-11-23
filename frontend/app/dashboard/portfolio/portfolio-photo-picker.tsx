@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { AdminPortfolioMediaDto } from '@/lib/portfolio/contracts';
-import { AdminImage, button, primary } from './editor-fields';
+import { AdminImage, button, input, primary } from './editor-ui';
 import styles from './portfolio-photo-picker.module.css';
 
-type MediaSource = {
+export type MediaSource = {
   items: readonly AdminPortfolioMediaDto[];
   isLoading?: boolean;
   isLoadingMore?: boolean;
@@ -14,6 +14,16 @@ type MediaSource = {
   isError?: boolean;
   onRetry?: () => void;
   onLoadMore?: () => void;
+  search?: string;
+  onSearchChange?: (value: string) => void;
+  isSearching?: boolean;
+  upload?: ReactNode;
+  isUploading?: boolean;
+  onRetryMedia?: (media: AdminPortfolioMediaDto) => void;
+  retryingMediaId?: string;
+  onOpenChange?: (open: boolean) => void;
+  onSelectionChange?: (ids: string[]) => void;
+  allowedIds?: readonly string[];
 };
 
 type Selection = {
@@ -74,13 +84,17 @@ export function PortfolioPhotoPicker(props: PortfolioPhotoPickerProps) {
       aria-invalid={props['aria-invalid']}
       aria-describedby={props['aria-describedby']}
       data-portfolio-field={props['data-portfolio-field']}
-      onClick={() => setOpen(true)}
+      onClick={() => { setOpen(true); props.onOpenChange?.(true); }}
     >{values.length ? 'Замінити' : 'Обрати фото'} · {props.label}</button>
     {open && createPortal(<PhotoPickerDialog
       {...props}
       dialogId={dialogId}
       initialSelection={values}
-      onDismiss={() => setOpen(false)}
+      onDismiss={() => {
+        if (props.isUploading) return;
+        setOpen(false);
+        props.onOpenChange?.(false);
+      }}
     />, document.body)}
   </div>;
 }
@@ -98,10 +112,11 @@ function PhotoPickerDialog(props: PortfolioPhotoPickerProps & {
   const limit = props.mode === 'single' ? 1 : Number.isFinite(props.limit) ? Math.max(0, Math.floor(props.limit)) : 0;
   const [selection, setSelection] = useState(() => [...new Set(props.initialSelection)].filter(id => !used.includes(id)));
   const items = [...new Map(props.items.map(item => [item.id, item])).values()];
-  const validSelection = selection.filter(id => items.some(item => item.id === id && item.status === 'READY') && !used.includes(id));
+  const validSelection = selection.filter(id => items.some(item => item.id === id && item.status === 'READY')
+    && !used.includes(id) && (!props.allowedIds || props.allowedIds.includes(id)));
   const invalidSelection = validSelection.length !== selection.length;
   const overLimit = selection.length > limit;
-  const canConfirm = !props.disabled && !props.isLoading && selection.length > 0 && !invalidSelection && !overLimit;
+  const canConfirm = !props.disabled && !props.isLoading && !props.isUploading && selection.length > 0 && !invalidSelection && !overLimit;
 
   useEffect(() => {
     const element = dialog.current;
@@ -121,12 +136,17 @@ function PhotoPickerDialog(props: PortfolioPhotoPickerProps & {
 
   function toggle(item: AdminPortfolioMediaDto) {
     if (props.disabled) return;
-    setSelection(current => {
-      if (current.includes(item.id)) return current.filter(id => id !== item.id);
-      if (item.status !== 'READY' || used.includes(item.id) || limit === 0) return current;
-      if (props.mode === 'single') return [item.id];
-      return current.length < limit ? [...current, item.id] : current;
-    });
+    let next: string[];
+    if (selection.includes(item.id)) next = selection.filter(id => id !== item.id);
+    else {
+      if (item.status !== 'READY' || used.includes(item.id) || limit === 0
+        || props.allowedIds && !props.allowedIds.includes(item.id)) return;
+      if (props.mode === 'single') next = [item.id];
+      else if (selection.length < limit) next = [...selection, item.id];
+      else return;
+    }
+    setSelection(next);
+    props.onSelectionChange?.(next);
   }
 
   function confirm() {
@@ -153,23 +173,32 @@ function PhotoPickerDialog(props: PortfolioPhotoPickerProps & {
             {props.mode === 'single' ? 'Оберіть одне фото та підтвердьте вибір.' : `Оберіть до ${limit} фото та підтвердьте вибір.`}
           </p>
         </div>
-        <button ref={cancelButton} type="button" className={button} onClick={props.onDismiss}>Скасувати</button>
+        <button ref={cancelButton} type="button" className={button} disabled={props.isUploading} onClick={props.onDismiss}>Скасувати</button>
       </header>
       <div className={styles.content} aria-busy={props.isLoading || props.isLoadingMore || undefined}>
+        {props.upload}
+        {props.isUploading && <p role="status">Дочекайтеся завершення завантаження перед закриттям.</p>}
+        {props.onSearchChange && <label className="block space-y-1 text-sm font-medium">Пошук фото за назвою
+          <input className={input} type="search" value={props.search ?? ''} maxLength={120}
+            onChange={event => props.onSearchChange?.(event.target.value)} />
+        </label>}
+        {props.isSearching && <p role="status">Шукаємо фотографії…</p>}
+        {props.search && <p className="text-sm text-zinc-700">Вибрані та щойно завантажені фото залишаються видимими під час пошуку.</p>}
         {props.isLoading && <p role="status">Завантажуємо фотографії…</p>}
         {props.isError && <div className="space-y-2">
           <p role="alert" className="text-red-700">Не вдалося завантажити фотографії. Ваш вибір збережено в діалозі.</p>
           {props.onRetry && <button type="button" className={button} disabled={props.isLoading || props.isLoadingMore} onClick={props.onRetry}>Повторити</button>}
         </div>}
-        {!props.isLoading && !props.isError && !items.length && <p>Тут ще немає фото. Додайте їх у фотобібліотеку.</p>}
+        {!props.isLoading && !props.isError && !items.length && <p>{props.search ? 'За цією назвою фото не знайдено.' : 'Тут ще немає фото. Завантажте перше зображення.'}</p>}
         {items.length > 0 && <ul className={styles.grid} aria-label="Фотографії для вибору">
           {items.map(item => {
             const checked = selection.includes(item.id);
             const alreadyUsed = used.includes(item.id);
-            const unavailable = item.status !== 'READY' || alreadyUsed;
+            const outsideAllowed = props.allowedIds !== undefined && !props.allowedIds.includes(item.id);
+            const unavailable = item.status !== 'READY' || alreadyUsed || outsideAllowed;
             const full = props.mode === 'multiple' && selection.length >= limit;
             const blocked = props.disabled || !checked && (unavailable || full || limit === 0);
-            const status = alreadyUsed ? 'Уже додано' : checked ? (unavailable ? statuses[item.status] : 'Вибрано')
+            const status = alreadyUsed ? 'Уже додано' : outsideAllowed ? 'Недоступне через ліміт історії' : checked ? (unavailable ? statuses[item.status] : 'Вибрано')
               : unavailable ? statuses[item.status] : full || limit === 0 ? 'Досягнуто ліміту' : 'Готове';
             return <li key={item.id} className="min-w-0">
               <button
@@ -186,11 +215,14 @@ function PhotoPickerDialog(props: PortfolioPhotoPickerProps & {
                 <span className="block break-words text-sm text-zinc-700">{item.filename}</span>
                 <span className="block text-sm font-medium">{checked && <span aria-hidden="true">✓ </span>}{status}</span>
               </button>
+              {item.status === 'FAILED' && props.onRetryMedia && <button type="button" className={button}
+                disabled={props.disabled || props.retryingMediaId !== undefined}
+                onClick={() => props.onRetryMedia?.(item)}>Повторити обробку</button>}
             </li>;
           })}
         </ul>}
         {props.hasMore && props.onLoadMore && <button type="button" className={button}
-          disabled={props.isLoading || props.isLoadingMore} onClick={props.onLoadMore}>
+          disabled={props.isLoading || props.isLoadingMore || props.isSearching} onClick={props.onLoadMore}>
           {props.isLoadingMore ? 'Завантажуємо…' : 'Показати ще фото'}
         </button>}
       </div>
@@ -201,7 +233,8 @@ function PhotoPickerDialog(props: PortfolioPhotoPickerProps & {
           {overLimit && <p role="alert" className="text-sm text-red-700">Зменште вибір до {limit} фото.</p>}
         </div>
         <div className="flex flex-wrap gap-2">
-          {selection.length > 0 && <button type="button" className={button} disabled={props.disabled} onClick={() => setSelection([])}>Скинути вибір</button>}
+          {selection.length > 0 && <button type="button" className={button} disabled={props.disabled}
+            onClick={() => { setSelection([]); props.onSelectionChange?.([]); }}>Скинути вибір</button>}
           <button type="button" className={primary} disabled={!canConfirm} onClick={confirm}>
             {props.mode === 'single' ? 'Обрати фото' : `Додати ${selection.length} фото`}
           </button>

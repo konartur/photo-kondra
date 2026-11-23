@@ -2,11 +2,10 @@
 
 import { createContext, useContext, useId, type ReactNode } from 'react';
 import type { AdminPortfolioMediaDto, LocalizedTextDto, PortfolioImageRefDto, PortfolioSeoInputDto } from '@/lib/portfolio/contracts';
+import { button, input, panel } from './editor-ui';
+import { PortfolioMediaPicker } from './portfolio-media-picker';
 
-export const button = 'inline-flex min-h-11 items-center justify-center rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-100 disabled:opacity-50';
-export const primary = 'inline-flex min-h-11 items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50';
-export const input = 'min-h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base text-zinc-950 aria-invalid:border-red-700';
-export const panel = 'space-y-4 rounded-xl border border-zinc-200 bg-white p-4 sm:p-5';
+export { AdminImage, button, primary, input, panel } from './editor-ui';
 export const blankText = (): LocalizedTextDto => ({ uk: '', en: '' });
 export const blankSeo = (): PortfolioSeoInputDto => ({ title: blankText(), description: blankText(), shareImage: null });
 export const blankImage = (mediaId: string): PortfolioImageRefDto => ({ mediaId, alt: blankText(), focalPoint: null });
@@ -51,29 +50,27 @@ export function Localized({ label, name, value, change, max = 120, multiline }: 
   </fieldset>;
 }
 
-export function MediaSelect({ name, label, value, change, options, used = [] }: {
-  name: string; label: string; value: string; change: (id: string) => void; options: AdminPortfolioMediaDto[]; used?: readonly string[];
+export function MediaSelect({ name, label, value, change, options, used = [], allowedIds }: {
+  name: string; label: string; value: string; change: (id: string) => void; options: AdminPortfolioMediaDto[];
+  used?: readonly string[]; allowedIds?: readonly string[];
 }) {
-  const ready = options.filter(item => item.status === 'READY' && !used.includes(item.id));
   return <Field label={label} name={name}>{a11y => (
-    <select {...a11y} value={value} onChange={e => change(e.target.value)}>
-      <option value="">Оберіть готове зображення</option>
-      {value && !ready.some(item => item.id === value) && <option value={value}>Поточне зображення</option>}
-      {ready.map(item => <option key={item.id} value={item.id}>{item.filename}</option>)}
-    </select>
+    <PortfolioMediaPicker {...a11y} label={label} mode="single" value={value || null}
+      initialItems={options} used={used} allowedIds={allowedIds} onConfirm={change} />
   )}</Field>;
 }
 
-export function ImageRef({ label, name, value, change, media, removable = true }: {
+export function ImageRef({ label, name, value, change, media, removable = true, used, allowedIds }: {
   label: string; name: string; value: PortfolioImageRefDto | null;
   change: (value: PortfolioImageRefDto | null) => void; media: AdminPortfolioMediaDto[]; removable?: boolean;
+  used?: readonly string[]; allowedIds?: readonly string[];
 }) {
-  const selected = media.find(item => item.id === value?.mediaId);
   return <fieldset className="space-y-3 rounded-lg border border-zinc-200 p-3">
     <legend className="px-1 text-sm font-semibold">{label}</legend>
     <MediaSelect name={name + '.mediaId'} label={label + ' · файл'} value={value?.mediaId ?? ''} options={media}
-      change={id => { if (id) change(value ? { ...value, mediaId: id } : blankImage(id)); else if (removable) change(null); }} />
-    {selected?.previewUrl && <AdminImage url={selected.previewUrl} alt={selected.filename} />}
+      used={used} allowedIds={allowedIds}
+      change={id => change(value ? { ...value, mediaId: id } : blankImage(id))} />
+    {value && removable && <button type="button" className={button} onClick={() => change(null)}>Прибрати фото</button>}
     {value && <>
       <Localized name={name + '.alt'} label="Альтернативний опис" value={value.alt} max={500}
         change={alt => change({ ...value, alt })} />
@@ -104,12 +101,6 @@ export function Seo({ value, change, media }: {
     <Localized label="SEO опис" name="seo.description" value={value.description} max={320} multiline change={description => change({ ...value, description })} />
     <ImageRef label="Фото для поширення" name="seo.shareImage" value={value.shareImage} change={shareImage => change({ ...value, shareImage })} media={media} />
   </fieldset>;
-}
-
-export function AdminImage({ url, alt }: { url: string; alt: string }) {
-  if (!/^\/api\/portfolio\/media\/[0-9a-f-]{36}\/variants\/[0-9a-f-]{36}$/i.test(url)) return null;
-  // eslint-disable-next-line @next/next/no-img-element -- The URL is an authenticated derivative redirect.
-  return <img src={url} alt={alt} loading="lazy" className="aspect-[3/2] w-full max-w-80 rounded-lg bg-zinc-100 object-cover" />;
 }
 
 export function reorder<T>(items: readonly T[], index: number, direction: -1 | 1): T[] {

@@ -38,7 +38,7 @@ import {
   AdminPortfolioMediaListDto,
   PortfolioUploadResponseDto,
 } from './dto/admin-response.dto.js';
-import { PortfolioListQueryDto } from './dto/query.dto.js';
+import { PortfolioMediaListQueryDto } from './dto/query.dto.js';
 import { PortfolioMediaService } from './media/portfolio-media.service.js';
 
 interface AdminRequest extends Request {
@@ -100,13 +100,13 @@ export class PortfolioMediaController {
   @Get()
   @Header('Cache-Control', 'no-store')
   @ApiOperation({
-    summary: 'List own portfolio media with an authenticated context/version-bound cursor',
+    summary: 'Search own portfolio media by filename with an authenticated search/context/version-bound cursor',
   })
   @ApiOkResponse({ type: AdminPortfolioMediaListDto })
   @ApiConflictResponse({
     description: 'PORTFOLIO_CURSOR_STALE: restart pagination after publication changes',
   })
-  list(@Req() request: AdminRequest, @Query() query: PortfolioListQueryDto) {
+  list(@Req() request: AdminRequest, @Query() query: PortfolioMediaListQueryDto) {
     return this.media.list(request.user.sub, query);
   }
 

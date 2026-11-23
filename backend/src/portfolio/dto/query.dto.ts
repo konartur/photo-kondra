@@ -27,3 +27,11 @@ export class PortfolioPublicListQueryDto extends PortfolioListQueryDto {
   @IsIn(LOCALES)
   locale: Locale = 'en';
 }
+
+export class PortfolioMediaListQueryDto extends PortfolioListQueryDto {
+  @ApiPropertyOptional({ description: 'Case-insensitive filename substring; cursor is bound to the trimmed search', maxLength: 120 })
+  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsString()
+  @MaxLength(120)
+  search?: string;
+}

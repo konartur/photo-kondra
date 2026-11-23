@@ -6,6 +6,7 @@ export interface PortfolioMediaCursor {
   v: 1;
   ownerId: string;
   limit: number;
+  search?: string;
   contentVersion: string;
   asOf: string;
   createdAt: string;
@@ -20,6 +21,7 @@ export function decodeMediaCursor(
   secret: string,
   ownerId: string,
   limit: number,
+  search = '',
 ): PortfolioMediaCursor {
   const invalid = () =>
     new BadRequestException({
@@ -47,10 +49,11 @@ export function decodeMediaCursor(
       Number.isFinite(Date.parse(text)) &&
       new Date(text).toISOString() === text;
     if (
-      Object.keys(cursor).sort().join(',') !== 'asOf,contentVersion,createdAt,id,limit,ownerId,v' ||
+      Object.keys(cursor).sort().join(',') !== (search ? 'asOf,contentVersion,createdAt,id,limit,ownerId,search,v' : 'asOf,contentVersion,createdAt,id,limit,ownerId,v') ||
       cursor.v !== 1 ||
       cursor.ownerId !== ownerId ||
       cursor.limit !== limit ||
+      (cursor.search ?? '') !== search ||
       typeof cursor.contentVersion !== 'string' ||
       !/^\d{1,16}$/.test(cursor.contentVersion) ||
       !date(cursor.asOf) ||

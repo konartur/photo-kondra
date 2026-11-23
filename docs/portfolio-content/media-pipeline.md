@@ -71,3 +71,11 @@ Media list сортується за `(createdAt DESC,id DESC)`. Cursor HMAC-п�
 5. Регресії gallery image-processing, storage signed URL і archive multipart upload, на які впливають shared helper/optional StorageService parameters. Підтвердити якість/вагу похідних на репрезентативних фото.
 
 Стан результатів і команд збережений у [тікеті](tickets/03-portfolio-media.md). Публічні media routes, CRUD редакційних текстів та UI editor належать наступним тікетам.
+# PF-UX-02: пошук і вибір фото (2026-11-23)
+
+Admin list підтримує необов’язковий `search` (до 120 символів): пошук підрядка у filename без урахування регістру по власній бібліотеці, з cursor-пагінацією. `%`, `_` і backslash трактуються буквально. Непорожній trimmed search прив’язаний до підписаного cursor; для порожнього пошуку збережено попередній формат cursor. List/detail повертають маршрут найменшої доступної захищеної похідної, без оригіналу.
+
+У редакторі спільний picker використовує окремі detail queries для поточного вибору та нових завантажень: вони залишаються видимими при зміні search. Бібліотека та picker повторно використовують direct PUT/upload-complete з повторною спробою; нові PROCESSING-файли опитуються до завершення. Повний список медіа розміщено тільки у розділі бібліотеки.
+
+Реалізовано без запуску перевірок. Генерація OpenAPI/types і приймання відкладені до [PF-UX-14](../../PF-UX-14-final-acceptance.md) за вказівкою власника; runtime Swagger DTO/controller оновлено.
+

@@ -1,6 +1,6 @@
 # PF-UX-02 — Єдина фотобібліотека та завантаження у виборі фото
 
-**Статус:** Заплановано.
+**Статус:** Реалізовано, перевірки відкладено.
 **Залежить від:** PF-UX-01.
 **Порядок і правила:** [PF-UX-00](PF-UX-00-INDEX.md).
 **Вимоги:** [UX-план](docs/portfolio-content/admin-ux-plan.md).
@@ -33,8 +33,13 @@
 
 ## Запис виконання
 
-- Зміни: ще не виконано.
-- Файли: —.
-- Відкладені перевірки й ризики: —.
-- Блокери: не оцінювалися.
+- Зміни: усі MediaSelect/ImageRef тепер використовують спільний picker, включно з hero, фотосесією, історією, SEO, добірками й фоном. Повна бібліотека відображається лише у власному розділі. Окрема кнопка прибирає необов’язкове фото; заміна зберігає контекстні alt/focalPoint.
+- Спільні модулі: `editor-ui.tsx` містить наявні UI-примітиви та захищений AdminImage без циклічних імпортів; `portfolio-media-data.ts` містить query keys, list/detail fetching і пошук; `portfolio-media-upload.tsx` повторно використовується бібліотекою та діалогом; `portfolio-media-picker.tsx` з’єднує діалог з API.
+- Пошук: `GET /portfolio/media?search=...` шукає підрядок у filename без урахування регістру на всій власній бібліотеці, до 120 символів, зі збереженням ownership, версійності й пагінації. LIKE-символи екрануються як звичайні символи. Непорожній пошук включено у підписаний cursor; cursor іншого пошуку відхиляється. Старий cursor без search залишається чинним для порожнього пошуку. Swagger оновлено у runtime DTO/controller.
+- Вибір і upload: metadata вибраних та нових фото завантажується окремо за ID; пошук/пагінація не скидають локальний вибір. Після direct PUT і upload-complete новий файл закріплено в діалозі, PROCESSING опитується до готовності, FAILED можна повторити. Під час PUT/підтвердження закриття діалогу блокується з поясненням; таймаут і повторне використання upload target збережені. Для мініатюр list/detail обирають найменшу наявну захищену похідну; оригінали не використовуються.
+- Файли: backend `dto/query.dto.ts`, `portfolio-media.controller.ts`, `media/portfolio-media.service.ts`, `media/portfolio-media-cursor.ts`; frontend `editor-ui.tsx`, `editor-fields.tsx`, `editor-forms.tsx`, `portfolio-media-data.ts`, `portfolio-media-upload.tsx`, `portfolio-media-picker.tsx`, `portfolio-media-library.tsx`, `portfolio-photo-picker.tsx`, `portfolio-workspace.tsx`.
+- Контрактний борг до PF-UX-14: згенерувати OpenAPI snapshot і frontend declarations через чинний portfolio:contracts workflow та виконати --check. Generated files вручну не змінювалися; генератор запускає build, тому його відкладено за вказівкою власника. Response DTO не змінено; frontend формує необов’язковий search через URLSearchParams.
+- Відкладені сценарії PF-UX-14: пошук поза першою сторінкою; Unicode/пробіли/%, _, backslash і maxLength; cursor іншого search/owner/limit/version; single/multiple вибір між пошуковими запитами; поточне фото поза першою сторінкою/404/помилкою detail; retry і stale cursor без втрати вибору; upload при активному пошуку; PROCESSING→READY/FAILED→retry; повтор PUT після 412/403/410/мережевого збою; confirm/cancel/Escape/фокус; контекстні alt/focalPoint; обмеження історії при заміні обкладинки й додаванні фото; видимість необов’язкового прибирання; desktop/mobile/темна тема.
+- Огляд: виконано читання зміненого коду й diff. Тести, lint/typecheck/build, генерація контрактів і браузерне QA не запускалися; критерії приймання вище лишаються непідтвердженими до PF-UX-14.
+- Блокери: на етапі огляду не виявлено; працездатність ще не перевірена.
 

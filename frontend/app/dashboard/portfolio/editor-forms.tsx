@@ -618,33 +618,59 @@ export function HomeFields({
               return (
                 <li key={storyId} className="space-y-2">
                   <p>{name}</p>
-                  <Localized
-                    label="Підпис історії"
-                    name={'storiesSection.items.' + index + '.caption'}
-                    value={caption}
-                    max={4000}
-                    multiline
-                    change={(next) =>
-                      setFeatured(
-                        featured.map((item) =>
-                          item.storyId === storyId ? { ...item, caption: next } : item,
-                        ),
-                      )
-                    }
-                  />
-                  <ImageRef
-                    label="Окреме фото добірки"
-                    name={'storiesSection.items.' + index + '.image'}
-                    media={media}
-                    value={image ?? null}
-                    change={(next) =>
-                      setFeatured(
-                        featured.map((item) =>
-                          item.storyId === storyId ? { ...item, image: next } : item,
-                        ),
-                      )
-                    }
-                  />
+                  <p className="text-sm text-zinc-700">
+                    За замовчуванням — опис і обкладинка опублікованої історії. Зміни історії
+                    з’являться тут після повторного збереження та публікації головної.
+                  </p>
+                  <details
+                    open={Boolean(caption.uk.trim() || caption.en.trim() || image) || undefined}
+                  >
+                    <summary className="min-h-11 cursor-pointer py-2">
+                      Інший підпис або фото для головної
+                    </summary>
+                    <Localized
+                      label="Підпис історії"
+                      name={'storiesSection.items.' + index + '.caption'}
+                      value={caption}
+                      max={4000}
+                      multiline
+                      change={(next) =>
+                        setFeatured(
+                          featured.map((item) =>
+                            item.storyId === storyId ? { ...item, caption: next } : item,
+                          ),
+                        )
+                      }
+                    />
+                    <ImageRef
+                      label="Окреме фото добірки"
+                      name={'storiesSection.items.' + index + '.image'}
+                      media={media}
+                      value={image ?? null}
+                      change={(next) =>
+                        setFeatured(
+                          featured.map((item) =>
+                            item.storyId === storyId ? { ...item, image: next } : item,
+                          ),
+                        )
+                      }
+                    />
+                    <button
+                      type="button"
+                      className={button}
+                      onClick={() =>
+                        setFeatured(
+                          featured.map((item) =>
+                            item.storyId === storyId
+                              ? { ...item, caption: blankText(), image: null }
+                              : item,
+                          ),
+                        )
+                      }
+                    >
+                      Використати значення історії
+                    </button>
+                  </details>
                   <MoveButtons
                     name={name}
                     index={index}

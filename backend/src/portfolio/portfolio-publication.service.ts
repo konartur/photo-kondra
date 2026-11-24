@@ -198,7 +198,7 @@ export class PortfolioPublicationService {
       errors.push(...portfolioReadinessErrors(data));
       const [services, stories] = await Promise.all([
         tx.portfolioService.findMany({ where: { id: { in: data.servicesSection.serviceIds }, status: 'PUBLISHED' }, select: { id: true } }),
-        tx.portfolioStory.findMany({ where: { id: { in: data.storiesSection.items.map((item) => item.storyId) }, status: 'PUBLISHED' }, select: { id: true } }),
+        tx.portfolioStory.findMany({ where: { id: { in: data.storiesSection.items.map((item) => item.storyId) }, status: 'PUBLISHED' }, include: { publishedDocument: true } }),
       ]);
       const serviceIds = new Set(services.map(service => service.id));
       const storyIds = new Set(stories.map(story => story.id));
@@ -208,6 +208,13 @@ export class PortfolioPublicationService {
       data.storiesSection.items.forEach((item, index) => {
         if (!storyIds.has(item.storyId)) errors.push({ field: `storiesSection.items.${index}.storyId`, code: 'DEPENDENCY_NOT_PUBLISHED' });
       });
+      data.storiesSection.items = await Promise.all(data.storiesSection.items.map(async placement => {
+        const row = stories.find(story => story.id === placement.storyId);
+        if (!row?.publishedDocument) return placement;
+        const snapshot = await parsePortfolioSnapshot(row.publishedDocument.snapshot);
+        if (snapshot.entityType !== 'STORY') throw new ServiceUnavailableException('Published story snapshot unavailable');
+        return { ...placement, caption: placement.caption.uk.trim() || placement.caption.en.trim() ? placement.caption : snapshot.data.description, image: placement.image ?? snapshot.data.cover };
+      }));
     }
     const mediaFields = portfolioMediaFields(data, photos);
     const mediaIds = [...new Set(mediaFields.map(field => field.mediaId))];
@@ -347,7 +354,7 @@ export class PortfolioPublicationService {
       if (!story?.publishedDocument) throw incomplete();
       const snapshot = await parsePortfolioSnapshot(story.publishedDocument.snapshot);
       if (snapshot.entityType !== PortfolioEntityType.STORY) throw new ServiceUnavailableException('Published portfolio snapshot is invalid');
-      featuredStories.push({ story: { id: story.id, slug: story.slug, title: this.selected(snapshot.data.title, locale), subtitle: this.selected(snapshot.data.subtitle, locale), cover: await this.previewImage(placement.image ?? snapshot.data.cover, locale) }, caption: this.selected(placement.caption, locale) });
+      featuredStories.push({ story: { id: story.id, slug: story.slug, title: this.selected(snapshot.data.title, locale), subtitle: this.selected(snapshot.data.subtitle, locale), cover: await this.previewImage(placement.image ?? snapshot.data.cover, locale) }, caption: this.selected(placement.caption.uk.trim() || placement.caption.en.trim() ? placement.caption : snapshot.data.description, locale) });
     }
     return {
       hero: { desktop: await this.previewImage(data.hero.desktop, locale), mobile: await this.previewImage(data.hero.mobile, locale) },

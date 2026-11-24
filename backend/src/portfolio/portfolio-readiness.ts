@@ -34,7 +34,7 @@ export function portfolioReadinessErrors(data: Draft, photos: readonly Portfolio
     if (!data.servicesSection.serviceIds.length) errors.push({ field: 'servicesSection.serviceIds', code: 'REQUIRED_FOR_PUBLICATION' });
     if (!data.storiesSection.items.length) errors.push({ field: 'storiesSection.items', code: 'REQUIRED_FOR_PUBLICATION' });
     data.storiesSection.items.forEach((item, index) => {
-      localized(`storiesSection.items.${index}.caption`, item.caption);
+      if (item.caption.uk.trim() || item.caption.en.trim()) localized(`storiesSection.items.${index}.caption`, item.caption);
       if (item.image) image(`storiesSection.items.${index}.image`, item.image);
     });
     data.contacts.forEach((contact, index) => required(`contacts.${index}.address`, contact.address));

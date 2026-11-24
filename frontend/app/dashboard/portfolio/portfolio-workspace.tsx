@@ -34,20 +34,22 @@ import styles from './portfolio-editor.module.css';
 import { deriveEditorStatus, retainUnchangedFieldErrors } from './portfolio-editor-state';
 import { mediaKey } from './portfolio-media-data';
 import { publicUrl } from '@/lib/portfolio/public-url';
+import { usePortfolioNavigation, type PortfolioSection } from './portfolio-navigation-state';
 import { portfolioSiteSettings } from '@/lib/portfolio/site-settings';
 
 type Entity = AdminPortfolioServiceDto | AdminPortfolioStoryDto | AdminPortfolioSettingsDto;
 type Draft = Entity['draft'];
 type Resource = 'services' | 'stories' | 'settings';
-type Section = Resource | 'media';
+type Section = PortfolioSection;
 
 const prefix = '/api/portfolio/';
 const queryPrefix = ['portfolio-admin'] as const;
 const names: Record<Section, string> = {
-  services: 'Напрями',
+  services: 'Фотосесії',
   stories: 'Історії',
-  settings: 'Головна та контакти',
-  media: 'Медіа',
+  settings: 'Головна сторінка',
+  contacts: 'Контакти та запис',
+  media: 'Фотобібліотека',
 };
 const statuses: Record<AdminPortfolioEntityBaseDto['status'], string> = {
   DRAFT: 'Чернетка',
@@ -136,8 +138,12 @@ function Editor({
   onDirty,
   onCreated,
   onOpenService,
+  settingsView = 'home',
+  onSettingsView,
 }: {
   resource: Resource;
+  settingsView?: 'home' | 'contacts';
+  onSettingsView: (view: 'home' | 'contacts') => void;
   initial?: Entity;
   media: ReturnType<typeof usePortfolioMedia>;
   services: ReturnType<typeof useEntries>;
@@ -405,6 +411,14 @@ function Editor({
   }
 
   function focusField(name: string) {
+    if (resource === 'settings')
+      onSettingsView(
+        name.startsWith('contacts.') || name.startsWith('bookingIntro.') ? 'contacts' : 'home',
+      );
+    requestAnimationFrame(() => focusVisibleField(name));
+  }
+
+  function focusVisibleField(name: string) {
     const fields = Array.from(
       editorRef.current?.querySelectorAll<HTMLElement>('[data-portfolio-field]:not(:disabled)') ??
         [],
@@ -602,7 +616,7 @@ function Editor({
         </p>
         <p className="text-sm text-zinc-700">
           {resource === 'settings'
-            ? 'Публікуються головна та контакти разом.'
+            ? 'Головна сторінка та контакти мають спільну чернетку й публікуються разом. Перевірте обидва розділи перед публікацією.'
             : 'Публікується лише цей запис. Добірки головної оновлюються окремо.'}
         </p>
         {readiness.checking && (
@@ -742,6 +756,7 @@ function Editor({
             {'brand' in draft ? (
               <HomeFields
                 value={draft}
+                view={settingsView}
                 change={editDraft}
                 media={mediaRows}
                 services={choices(serviceRows.filter((item) => item.status === 'PUBLISHED'))}
@@ -765,7 +780,7 @@ function Editor({
                 occupiedSlugs={occupiedSlugs}
               />
             )}
-            {resource !== 'services' && <ListMore query={services} label="напрями" />}
+            {resource !== 'services' && <ListMore query={services} label="фотосесії" />}
             {resource === 'settings' && <ListMore query={stories} label="історії" />}
             <p className="text-sm text-zinc-700">
               Чернетку можна зберегти без фото, перекладів та завершених текстів. Їх потрібно
@@ -812,35 +827,31 @@ function Editor({
 }
 
 export function PortfolioWorkspace() {
-  const [section, setSection] = useState<Section>('services');
-  const [id, setId] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
-  const [editorKey, setEditorKey] = useState(0);
+  const { section, id, navigate, ready, session: editorKey } = usePortfolioNavigation(dirty);
+  const resource = section === 'contacts' ? 'settings' : section;
   const media = usePortfolioMedia();
   const services = useEntries(
     'services',
-    section === 'services' || section === 'stories' || section === 'settings',
+    section === 'services' || section === 'stories' || resource === 'settings',
   );
-  const stories = useEntries('stories', section === 'stories' || section === 'settings');
+  const stories = useEntries('stories', section === 'stories' || resource === 'settings');
   const sectionList = section === 'services' ? services : stories;
   const rows = sectionList.data?.pages.flatMap((page) => page.items) ?? [];
-  const editing = section !== 'media' && (section === 'settings' || Boolean(id));
+  const editing = resource !== 'media' && (resource === 'settings' || Boolean(id));
   const record = useQuery({
-    queryKey: [...queryPrefix, section, id ?? 'singleton'],
-    enabled: editing && id !== 'new',
+    queryKey: [...queryPrefix, resource, id ?? 'singleton'],
+    enabled: ready && editing && id !== 'new',
     queryFn: ({ signal }) =>
-      apiRequest<Entity>(prefix + section + (id ? '/' + id : ''), { signal, cache: 'no-store' }),
+      apiRequest<Entity>(prefix + resource + (id ? '/' + id : ''), { signal, cache: 'no-store' }),
     retry: false,
   });
 
-  function navigate(next: Section, account: string | null = null) {
-    if (next === section && id === account) return;
-    if (dirty && !window.confirm('Залишити редактор без збереження введених змін?')) return;
+  useEffect(() => {
     setDirty(false);
-    setSection(next);
-    setId(account);
-    setEditorKey((value) => value + 1);
-  }
+  }, [editorKey]);
+
+  if (!ready) return <p role="status">Відкриваємо розділ…</p>;
 
   return (
     <section className="mx-auto max-w-5xl space-y-5 pt-8 text-zinc-950">
@@ -881,7 +892,7 @@ export function PortfolioWorkspace() {
           {sectionList.isError && <p role="alert">Список недоступний.</p>}
           {sectionList.isSuccess && !rows.length && <p>У цьому розділі ще немає записів.</p>}
           <button type="button" className={button} onClick={() => navigate(section, 'new')}>
-            Створити {section === 'services' ? 'напрям' : 'історію'}
+            Створити {section === 'services' ? 'фотосесію' : 'історію'}
           </button>
           <ListMore query={sectionList} label={names[section]} />
         </div>
@@ -897,14 +908,16 @@ export function PortfolioWorkspace() {
       )}
       {editing && (id === 'new' || record.data) && (
         <Editor
-          key={section + ':' + editorKey}
-          resource={section}
+          key={resource + ':' + editorKey}
+          resource={resource as Resource}
           initial={id === 'new' ? undefined : record.data}
           media={media}
           services={services}
           stories={stories}
           onDirty={setDirty}
-          onCreated={setId}
+          onCreated={(id) => navigate(section, id, true)}
+          settingsView={section === 'contacts' ? 'contacts' : 'home'}
+          onSettingsView={(view) => navigate(view === 'contacts' ? 'contacts' : 'settings')}
           onOpenService={(serviceId) => navigate('services', serviceId)}
         />
       )}

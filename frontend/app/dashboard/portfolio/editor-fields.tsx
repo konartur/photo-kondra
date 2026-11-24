@@ -8,6 +8,7 @@ import type {
   PortfolioSeoInputDto,
 } from '@/lib/portfolio/contracts';
 import { button, input, panel } from './editor-ui';
+import { PortfolioFocalEditor } from './portfolio-focal-editor';
 import { seoFromPage } from './portfolio-seo-defaults';
 import { PortfolioMediaPicker } from './portfolio-media-picker';
 
@@ -231,52 +232,15 @@ export function ImageRef({
         <>
           <Localized
             name={name + '.alt'}
-            label="Альтернативний опис"
+            label="Опис зображення для доступності"
             value={value.alt}
             max={500}
             change={(alt) => change({ ...value, alt })}
           />
-          <label className="flex min-h-11 items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={value.focalPoint !== null}
-              onChange={(e) =>
-                change({ ...value, focalPoint: e.target.checked ? { x: 0.5, y: 0.5 } : null })
-              }
-            />
-            Задати точку кадрування
-          </label>
-          {value.focalPoint && (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {(['x', 'y'] as const).map((axis) => (
-                <Field
-                  label={axis.toUpperCase() + ' · від 0 до 1'}
-                  name={name + '.focalPoint.' + axis}
-                  key={axis}
-                >
-                  {(a11y) => (
-                    <input
-                      {...a11y}
-                      className={input}
-                      type="number"
-                      min="0"
-                      max="1"
-                      step="any"
-                      required
-                      value={value.focalPoint![axis]}
-                      onChange={(e) => {
-                        if (value.focalPoint && Number.isFinite(e.target.valueAsNumber))
-                          change({
-                            ...value,
-                            focalPoint: { ...value.focalPoint, [axis]: e.target.valueAsNumber },
-                          });
-                      }}
-                    />
-                  )}
-                </Field>
-              ))}
-            </div>
-          )}
+          <p className="text-sm text-zinc-700">
+            Наприклад: «Пара тримається за руки на березі озера». Опишіть зміст фото обома мовами.
+          </p>
+          <PortfolioFocalEditor value={value} name={name} media={media} change={change} />
         </>
       )}
     </fieldset>

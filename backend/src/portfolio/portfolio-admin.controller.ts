@@ -21,7 +21,7 @@ import {
   AdminPortfolioStoryListDto, AdminPortfolioSettingsDto, PortfolioPublicationResponseDto,
   PortfolioServicePreviewDto, PortfolioStoryPreviewDto, PortfolioHomePreviewDto,
 } from './dto/admin-response.dto.js';
-import { PortfolioListQueryDto, PortfolioLocaleQueryDto } from './dto/query.dto.js';
+import { PortfolioAdminListQueryDto, PortfolioLocaleQueryDto } from './dto/query.dto.js';
 import { PortfolioAdminService } from './portfolio-admin.service.js';
 import { PortfolioPublicationService } from './portfolio-publication.service.js';
 
@@ -42,7 +42,7 @@ export class PortfolioAdminController {
 
   @Get('services') @Header('Cache-Control', 'no-store')
   @ApiOkResponse({ type: AdminPortfolioServiceListDto })
-  listServices(@Query() query: PortfolioListQueryDto) { return this.admin.listServices(query); }
+  listServices(@Query() query: PortfolioAdminListQueryDto) { return this.admin.listServices(query); }
 
   @Post('services') @Header('Cache-Control', 'no-store')
   @ApiOperation({ summary: 'Create an incomplete or complete bilingual service draft' })
@@ -75,7 +75,7 @@ export class PortfolioAdminController {
 
   @Get('stories') @Header('Cache-Control', 'no-store')
   @ApiOkResponse({ type: AdminPortfolioStoryListDto })
-  listStories(@Query() query: PortfolioListQueryDto) { return this.admin.listStories(query); }
+  listStories(@Query() query: PortfolioAdminListQueryDto) { return this.admin.listStories(query); }
 
   @Post('stories') @Header('Cache-Control', 'no-store')
   @ApiOperation({ summary: 'Create an incomplete or complete bilingual story draft' })

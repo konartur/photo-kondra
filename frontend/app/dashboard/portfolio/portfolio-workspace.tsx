@@ -12,6 +12,7 @@ import type {
   PortfolioPublicationResponseDto,
   PortfolioStoryPhotoInputDto,
 } from '@/lib/portfolio/contracts';
+import { PortfolioEntryRow } from './portfolio-entry-list';
 import { button, FieldErrors, panel, primary } from './editor-fields';
 import {
   choices,
@@ -58,16 +59,18 @@ const statuses: Record<AdminPortfolioEntityBaseDto['status'], string> = {
 };
 const storyServiceUnpublished = 'Спочатку опублікуйте напрям, до якого належить ця історія.';
 
-function useEntries(resource: 'services' | 'stories', enabled: boolean) {
+function useEntries(resource: 'services' | 'stories', enabled: boolean, search = '', status = '') {
   return useInfiniteQuery({
-    queryKey: [...queryPrefix, resource],
+    queryKey: [...queryPrefix, resource, 'list', search.trim(), status],
     enabled,
     initialPageParam: '',
     queryFn: ({ pageParam, signal }) =>
       apiRequest<{ items: AdminPortfolioSummaryDto[]; nextCursor: string | null }>(
         prefix +
           resource +
-          '?limit=50' +
+          '?limit=24&search=' +
+          encodeURIComponent(search.trim()) +
+          (status ? '&status=' + status : '') +
           (pageParam ? '&cursor=' + encodeURIComponent(pageParam) : ''),
         { signal, cache: 'no-store' },
       ),
@@ -307,9 +310,9 @@ function Editor({
           );
         setFieldErrors(error.code === 'PORTFOLIO_SLUG_TAKEN' ? ['slug'] : error.fields);
         if (error.code === 'PORTFOLIO_SLUG_TAKEN')
-          void client.invalidateQueries({ queryKey: [...queryPrefix, resource], exact: true });
+          void client.invalidateQueries({ queryKey: [...queryPrefix, resource, 'list'] });
         if (error.code === 'PORTFOLIO_STORY_SERVICE_UNPUBLISHED')
-          void client.invalidateQueries({ queryKey: [...queryPrefix, 'services'], exact: true });
+          void client.invalidateQueries({ queryKey: [...queryPrefix, 'services', 'list'] });
         if (notReady) {
           const active = currentRecord.current;
           if (active)
@@ -836,7 +839,16 @@ export function PortfolioWorkspace() {
     section === 'services' || section === 'stories' || resource === 'settings',
   );
   const stories = useEntries('stories', section === 'stories' || resource === 'settings');
-  const sectionList = section === 'services' ? services : stories;
+  const [filters, setFilters] = useState<Record<string, { search: string; status: string }>>({});
+  const filter = filters[section] ?? { search: '', status: '' };
+  const sectionList = useEntries(
+    section === 'services' ? 'services' : 'stories',
+    section === 'services' || section === 'stories',
+    filter.search,
+    filter.status,
+  );
+  const updateFilter = (next: Partial<typeof filter>) =>
+    setFilters((previous) => ({ ...previous, [section]: { ...filter, ...next } }));
   const rows = sectionList.data?.pages.flatMap((page) => page.items) ?? [];
   const editing = resource !== 'media' && (resource === 'settings' || Boolean(id));
   const record = useQuery({
@@ -873,29 +885,51 @@ export function PortfolioWorkspace() {
         ))}
       </nav>
       {section === 'media' && <PortfolioMediaLibrary />}
-      {(section === 'services' || section === 'stories') && (
+      {(section === 'services' || section === 'stories') && !id && (
         <div className={panel}>
           <h3 className="font-semibold">{names[section]}</h3>
-          <label className="block space-y-1 text-sm font-medium">
-            Вибрати запис
-            <select value={id ?? ''} onChange={(e) => navigate(section, e.target.value || null)}>
-              <option value="">Оберіть чернетку чи публікацію</option>
-              {id === 'new' && <option value="new">Новий запис</option>}
-              {rows.map((row) => (
-                <option value={row.id} key={row.id}>
-                  {row.title.uk || row.title.en || row.slug} · {statuses[row.status]}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="flex flex-wrap gap-3">
+            <label>
+              Пошук
+              <input
+                className="block rounded border border-zinc-300 p-2"
+                value={filter.search}
+                maxLength={120}
+                onChange={(event) => updateFilter({ search: event.target.value })}
+              />
+            </label>
+            <label>
+              Статус
+              <select
+                className="block rounded border border-zinc-300 p-2"
+                value={filter.status}
+                onChange={(event) => updateFilter({ status: event.target.value })}
+              >
+                <option value="">Усі</option>
+                <option value="DRAFT">Чернетки</option>
+                <option value="PUBLISHED">Опубліковані</option>
+                <option value="ARCHIVED">Архів</option>
+              </select>
+            </label>
+            <button type="button" className={button} onClick={() => navigate(section, 'new')}>
+              {section === 'services' ? 'Додати фотосесію' : 'Додати історію'}
+            </button>
+          </div>
+          <ul className="space-y-3">
+            {rows.map((row) => (
+              <PortfolioEntryRow key={row.id} row={row} open={() => navigate(section, row.id)} />
+            ))}
+          </ul>
           {sectionList.isPending && <p role="status">Завантажуємо список…</p>}
           {sectionList.isError && <p role="alert">Список недоступний.</p>}
           {sectionList.isSuccess && !rows.length && <p>У цьому розділі ще немає записів.</p>}
-          <button type="button" className={button} onClick={() => navigate(section, 'new')}>
-            Створити {section === 'services' ? 'фотосесію' : 'історію'}
-          </button>
           <ListMore query={sectionList} label={names[section]} />
         </div>
+      )}
+      {editing && (section === 'services' || section === 'stories') && (
+        <button type="button" className={button} onClick={() => navigate(section)}>
+          ← До списку
+        </button>
       )}
       {editing && id !== 'new' && record.isPending && <p role="status">Завантажуємо чернетку…</p>}
       {editing && id !== 'new' && record.isError && (

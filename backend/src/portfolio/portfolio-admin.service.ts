@@ -26,7 +26,7 @@ import type {
 import { PORTFOLIO_SETTINGS_ID, PortfolioPersistenceService } from './persistence/portfolio-persistence.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { decodePortfolioAdminCursor, encodePortfolioAdminCursor } from './portfolio-admin-cursor.js';
-import type { PortfolioListQueryDto } from './dto/query.dto.js';
+import type { PortfolioAdminListQueryDto } from './dto/query.dto.js';
 import { contactSectionCopy } from './portfolio-contact-copy.js';
 
 const notFound = () => new NotFoundException({ code: 'PORTFOLIO_CONTENT_NOT_FOUND', message: 'Portfolio content not found' });
@@ -161,36 +161,36 @@ function settingsResponse(row: SettingsWithChildren): AdminPortfolioSettingsDto 
 export class PortfolioAdminService {
   constructor(private readonly prisma: PrismaService, private readonly persistence: PortfolioPersistenceService, private readonly config: ConfigService) {}
 
-  async listServices(query: PortfolioListQueryDto): Promise<AdminPortfolioServiceListDto> {
+  async listServices(query: PortfolioAdminListQueryDto): Promise<AdminPortfolioServiceListDto> {
     const secret = this.config.getOrThrow<string>('JWT_ACCESS_SECRET');
-    const after = query.cursor ? decodePortfolioAdminCursor(query.cursor, secret, 'services') : null;
+    const after = query.cursor ? decodePortfolioAdminCursor(query.cursor, secret, 'services', JSON.stringify([query.search?.trim() ?? '', query.status ?? ''])) : null;
     return this.prisma.$transaction(async (tx) => {
       const state = await tx.portfolioContentState.findUniqueOrThrow({ where: { id: 1 } });
       if (after && after.contentVersion !== state.contentVersion.toString()) throw new ConflictException({ code: 'PORTFOLIO_CURSOR_STALE', message: 'Portfolio cursor version changed' });
       const asOf = after?.asOf ?? new Date().toISOString();
       const rows = await tx.portfolioService.findMany({
-        where: { createdAt: { lte: new Date(asOf) }, ...(after ? { OR: [{ sortOrder: { gt: after.sortOrder } }, { sortOrder: after.sortOrder, id: { gt: after.id } }] } : {}) },
+        where: { AND: [ ...(query.status ? [{ status: query.status }] : []), ...(query.search?.trim() ? [{ OR: ['titleUk', 'titleEn', 'slug'].map(field => ({ [field]: { contains: query.search!.trim(), mode: 'insensitive' as const } })) }] : []) ], createdAt: { lte: new Date(asOf) }, ...(after ? { OR: [{ sortOrder: { gt: after.sortOrder } }, { sortOrder: after.sortOrder, id: { gt: after.id } }] } : {}) },
         orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }], take: query.limit + 1,
       });
       const items = rows.slice(0, query.limit);
       const last = items.at(-1);
-      return { items: items.map((r) => ({ ...base(r), slug: r.slug, title: { uk: r.titleUk, en: r.titleEn } })), nextCursor: rows.length > query.limit && last ? encodePortfolioAdminCursor({ v: 1, type: 'services', sortOrder: last.sortOrder, id: last.id, asOf, contentVersion: state.contentVersion.toString() }, secret) : null };
+      return { items: items.map((r) => ({ ...base(r), slug: r.slug, title: { uk: r.titleUk, en: r.titleEn }, thumbnailMediaId: r.cardMediaId })), nextCursor: rows.length > query.limit && last ? encodePortfolioAdminCursor({ v: 1, type: 'services', sortOrder: last.sortOrder, id: last.id, asOf, contentVersion: state.contentVersion.toString(), context: JSON.stringify([query.search?.trim() ?? '', query.status ?? '']) }, secret) : null };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
   }
-  async listStories(query: PortfolioListQueryDto): Promise<AdminPortfolioStoryListDto> {
+  async listStories(query: PortfolioAdminListQueryDto): Promise<AdminPortfolioStoryListDto> {
     const secret = this.config.getOrThrow<string>('JWT_ACCESS_SECRET');
-    const after = query.cursor ? decodePortfolioAdminCursor(query.cursor, secret, 'stories') : null;
+    const after = query.cursor ? decodePortfolioAdminCursor(query.cursor, secret, 'stories', JSON.stringify([query.search?.trim() ?? '', query.status ?? ''])) : null;
     return this.prisma.$transaction(async (tx) => {
       const state = await tx.portfolioContentState.findUniqueOrThrow({ where: { id: 1 } });
       if (after && after.contentVersion !== state.contentVersion.toString()) throw new ConflictException({ code: 'PORTFOLIO_CURSOR_STALE', message: 'Portfolio cursor version changed' });
       const asOf = after?.asOf ?? new Date().toISOString();
       const rows = await tx.portfolioStory.findMany({
-        where: { createdAt: { lte: new Date(asOf) }, ...(after ? { OR: [{ sortOrder: { gt: after.sortOrder } }, { sortOrder: after.sortOrder, id: { gt: after.id } }] } : {}) },
+        where: { AND: [ ...(query.status ? [{ status: query.status }] : []), ...(query.search?.trim() ? [{ OR: ['titleUk', 'titleEn', 'slug'].map(field => ({ [field]: { contains: query.search!.trim(), mode: 'insensitive' as const } })) }] : []) ], createdAt: { lte: new Date(asOf) }, ...(after ? { OR: [{ sortOrder: { gt: after.sortOrder } }, { sortOrder: after.sortOrder, id: { gt: after.id } }] } : {}) },
         orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }], take: query.limit + 1,
       });
       const items = rows.slice(0, query.limit);
       const last = items.at(-1);
-      return { items: items.map((r) => ({ ...base(r), slug: r.slug, title: { uk: r.titleUk, en: r.titleEn } })), nextCursor: rows.length > query.limit && last ? encodePortfolioAdminCursor({ v: 1, type: 'stories', sortOrder: last.sortOrder, id: last.id, asOf, contentVersion: state.contentVersion.toString() }, secret) : null };
+      return { items: items.map((r) => ({ ...base(r), slug: r.slug, title: { uk: r.titleUk, en: r.titleEn } })), nextCursor: rows.length > query.limit && last ? encodePortfolioAdminCursor({ v: 1, type: 'stories', sortOrder: last.sortOrder, id: last.id, asOf, contentVersion: state.contentVersion.toString(), context: JSON.stringify([query.search?.trim() ?? '', query.status ?? '']) }, secret) : null };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
   }
   async createService(ownerId: string, data: PortfolioServiceDraftInputDto, seed?: { id: string; sortOrder: number }) {

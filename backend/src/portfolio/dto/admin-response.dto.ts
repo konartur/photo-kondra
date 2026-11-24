@@ -37,6 +37,7 @@ export class AdminPortfolioSettingsDto extends AdminPortfolioEntityBaseDto {
   @ApiProperty({ type: () => PortfolioHomeDraftInputDto }) draft!: PortfolioHomeDraftInputDto;
 }
 export class AdminPortfolioSummaryDto extends AdminPortfolioEntityBaseDto {
+  @ApiProperty({ type: String, format: 'uuid', nullable: true }) thumbnailMediaId!: string | null;
   @ApiProperty() slug!: string;
   @ApiProperty({ type: () => LocalizedTitleDto }) title!: LocalizedTitleDto;
 }

@@ -266,3 +266,30 @@ export function usePortfolioReadiness(
     },
   };
 }
+
+function emptyTranslations<T>(value: T): T {
+  if (Array.isArray(value)) return value.map((item) => emptyTranslations(item)) as T;
+  if (value && typeof value === 'object')
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        (key === 'uk' || key === 'en') && typeof item === 'string' ? '' : emptyTranslations(item),
+      ]),
+    ) as T;
+  return value;
+}
+export function translationProgress(
+  draft: PortfolioEditorDraft,
+  photos: readonly PortfolioStoryPhotoInputDto[],
+) {
+  const required = requiredDraftFields(emptyTranslations(draft), emptyTranslations(photos));
+  const missing = new Set(requiredDraftFields(draft, photos));
+  return (['uk', 'en'] as const).map((locale) => {
+    const fields = required.filter((field) => field.endsWith('.' + locale));
+    return {
+      locale,
+      total: fields.length,
+      filled: fields.filter((field) => !missing.has(field)).length,
+    };
+  });
+}

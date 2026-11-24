@@ -13,7 +13,7 @@ import type {
   PortfolioStoryPhotoInputDto,
 } from '@/lib/portfolio/contracts';
 import { PortfolioEntryRow } from './portfolio-entry-list';
-import { button, FieldErrors, panel, primary } from './editor-fields';
+import { button, EditorLocale, FieldErrors, panel, primary } from './editor-fields';
 import {
   choices,
   HomeFields,
@@ -29,6 +29,7 @@ import { PortfolioPreview, type PortfolioPreviewData } from './portfolio-preview
 import {
   describePortfolioField,
   requiredDraftFields,
+  translationProgress,
   usePortfolioReadiness,
 } from './portfolio-editor-readiness';
 import styles from './portfolio-editor.module.css';
@@ -163,6 +164,7 @@ function Editor({
   const [photos, setPhotos] = useState<PortfolioStoryPhotoInputDto[]>(() =>
     initial && 'photos' in initial ? initial.photos : [],
   );
+  const [locale, setLocale] = useState<'uk' | 'en'>('uk');
   const [pending, setPending] = useState(false);
   const pendingRef = useRef(false);
   const [notice, setNotice] = useState('');
@@ -260,8 +262,7 @@ function Editor({
     for (let parent = field.parentElement; parent; parent = parent.parentElement) {
       if (parent instanceof HTMLDetailsElement) parent.open = true;
     }
-    field.scrollIntoView({ block: 'center', behavior: 'instant' });
-    field.focus({ preventScroll: true });
+    focusField(field.getAttribute('data-portfolio-field')!);
   }, [fieldErrors, pending]);
 
   function hasInvalidFields(
@@ -414,6 +415,8 @@ function Editor({
   }
 
   function focusField(name: string) {
+    if (name.endsWith('.uk')) setLocale('uk');
+    if (name.endsWith('.en')) setLocale('en');
     if (resource === 'settings')
       onSettingsView(
         name.startsWith('contacts.') || name.startsWith('bookingIntro.') ? 'contacts' : 'home',
@@ -746,68 +749,84 @@ function Editor({
           </div>
         )}
       </section>
-      <FieldErrors.Provider value={fieldErrors}>
-        <form
-          id={formId}
-          ref={formRef}
-          className={panel}
-          onSubmit={save}
-          noValidate
-          aria-label="Поля чернетки"
-        >
-          <fieldset disabled={pending} className="space-y-4">
-            {'brand' in draft ? (
-              <HomeFields
-                value={draft}
-                view={settingsView}
-                change={editDraft}
-                media={mediaRows}
-                services={choices(serviceRows.filter((item) => item.status === 'PUBLISHED'))}
-                stories={choices(storyRows.filter((item) => item.status === 'PUBLISHED'))}
-              />
-            ) : 'serviceId' in draft ? (
-              <StoryFields
-                value={draft}
-                change={editDraft}
-                media={mediaRows}
-                services={choices(serviceRows)}
-                lockedSlug={record?.publishedVersion != null}
-                occupiedSlugs={occupiedSlugs}
-              />
-            ) : (
-              <ServiceFields
-                value={draft}
-                change={editDraft}
-                media={mediaRows}
-                lockedSlug={record?.publishedVersion != null}
-                occupiedSlugs={occupiedSlugs}
-              />
-            )}
-            {resource !== 'services' && <ListMore query={services} label="фотосесії" />}
-            {resource === 'settings' && <ListMore query={stories} label="історії" />}
-            <p className="text-sm text-zinc-700">
-              Чернетку можна зберегти без фото, перекладів та завершених текстів. Їх потрібно
-              заповнити перед публікацією.
-            </p>
-            {resource === 'stories' && 'cover' in draft && (
-              <section
-                className="space-y-4"
-                aria-label="Фото та обкладинка історії"
-                data-story-photos-section
-              >
-                <h3 className="font-semibold">Фото та обкладинка історії</h3>
-                <PhotoFields
-                  value={photos}
-                  change={editPhotos}
+      <div className="flex flex-wrap items-center gap-3" role="group" aria-label="Мова контенту">
+        {translationProgress(draft, photos).map((progress) => (
+          <button
+            type="button"
+            className={locale === progress.locale ? primary : button}
+            aria-pressed={locale === progress.locale}
+            key={progress.locale}
+            onClick={() => setLocale(progress.locale)}
+          >
+            {progress.locale === 'uk' ? 'Українська' : 'English'} · {progress.filled}/
+            {progress.total}
+          </button>
+        ))}
+      </div>
+      <EditorLocale.Provider value={locale}>
+        <FieldErrors.Provider value={fieldErrors}>
+          <form
+            id={formId}
+            ref={formRef}
+            className={panel}
+            onSubmit={save}
+            noValidate
+            aria-label="Поля чернетки"
+          >
+            <fieldset disabled={pending} className="space-y-4">
+              {'brand' in draft ? (
+                <HomeFields
+                  value={draft}
+                  view={settingsView}
+                  change={editDraft}
                   media={mediaRows}
-                  cover={draft.cover}
-                  changeCover={(cover) => editDraft({ ...draft, cover })}
+                  services={choices(serviceRows.filter((item) => item.status === 'PUBLISHED'))}
+                  stories={choices(storyRows.filter((item) => item.status === 'PUBLISHED'))}
                 />
-              </section>
-            )}
-          </fieldset>
-        </form>
-      </FieldErrors.Provider>
+              ) : 'serviceId' in draft ? (
+                <StoryFields
+                  value={draft}
+                  change={editDraft}
+                  media={mediaRows}
+                  services={choices(serviceRows)}
+                  lockedSlug={record?.publishedVersion != null}
+                  occupiedSlugs={occupiedSlugs}
+                />
+              ) : (
+                <ServiceFields
+                  value={draft}
+                  change={editDraft}
+                  media={mediaRows}
+                  lockedSlug={record?.publishedVersion != null}
+                  occupiedSlugs={occupiedSlugs}
+                />
+              )}
+              {resource !== 'services' && <ListMore query={services} label="фотосесії" />}
+              {resource === 'settings' && <ListMore query={stories} label="історії" />}
+              <p className="text-sm text-zinc-700">
+                Чернетку можна зберегти без фото, перекладів та завершених текстів. Їх потрібно
+                заповнити перед публікацією.
+              </p>
+              {resource === 'stories' && 'cover' in draft && (
+                <section
+                  className="space-y-4"
+                  aria-label="Фото та обкладинка історії"
+                  data-story-photos-section
+                >
+                  <h3 className="font-semibold">Фото та обкладинка історії</h3>
+                  <PhotoFields
+                    value={photos}
+                    change={editPhotos}
+                    media={mediaRows}
+                    cover={draft.cover}
+                    changeCover={(cover) => editDraft({ ...draft, cover })}
+                  />
+                </section>
+              )}
+            </fieldset>
+          </form>
+        </FieldErrors.Provider>
+      </EditorLocale.Provider>
       {preview && record && (
         <PortfolioPreview
           preview={preview}

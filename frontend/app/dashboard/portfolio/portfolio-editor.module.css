@@ -14,9 +14,9 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 1rem;
-  border: 1px solid var(--color-zinc-200);
+  border: 1px solid var(--color-zinc-200, #e4e4e7);
   border-radius: 0.75rem;
-  background: var(--color-white);
+  background: var(--color-white, #fff);
 }
 
 .actions {
@@ -50,9 +50,9 @@
   z-index: 21;
   width: min(20rem, calc(100vw - 3rem));
   padding: 1rem;
-  border: 1px solid var(--color-zinc-200);
+  border: 1px solid var(--color-zinc-200, #e4e4e7);
   border-radius: 0.75rem;
-  background: var(--color-white);
+  background: var(--color-white, #fff);
 }
 
 @media (max-width: 639px) {
@@ -71,16 +71,16 @@
     z-index: 20;
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    padding: 0.75rem max(0.75rem, env(safe-area-inset-right)) max(0.75rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
-    border-top: 1px solid var(--color-zinc-200);
-    background: var(--color-white);
+    padding: 0.75rem max(0.75rem, env(safe-area-inset-right))
+      max(0.75rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
+    border-top: 1px solid var(--color-zinc-200, #e4e4e7);
+    background: var(--color-white, #fff);
   }
 
   .actions > * {
     min-width: 0;
     height: 100%;
     padding-inline: 0.5rem;
-    overflow-wrap: anywhere;
   }
 
   .editor :is([data-portfolio-field], details, [data-editor-preview]) {

@@ -695,6 +695,29 @@
               "maxLength": 2048,
               "type": "string"
             }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Case-insensitive title or slug substring",
+            "schema": {
+              "maxLength": 120,
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DRAFT",
+                "PUBLISHED",
+                "ARCHIVED"
+              ]
+            }
           }
         ],
         "responses": {
@@ -1516,6 +1539,29 @@
               "maxLength": 2048,
               "type": "string"
             }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Case-insensitive title or slug substring",
+            "schema": {
+              "maxLength": 120,
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DRAFT",
+                "PUBLISHED",
+                "ARCHIVED"
+              ]
+            }
           }
         ],
         "responses": {
@@ -1600,6 +1646,7 @@
         ]
       },
       "post": {
+        "deprecated": true,
         "operationId": "PortfolioAdminController_createStory",
         "parameters": [],
         "requestBody": {
@@ -1995,6 +2042,7 @@
         ]
       },
       "put": {
+        "deprecated": true,
         "operationId": "PortfolioAdminController_updateStory",
         "parameters": [
           {
@@ -2094,6 +2142,7 @@
             "bearer": []
           }
         ],
+        "summary": "Legacy metadata-only update; use the atomic draft endpoint",
         "tags": [
           "portfolio admin drafts"
         ]
@@ -2198,6 +2247,7 @@
     },
     "/api/v1/portfolio/stories/{id}/photos": {
       "put": {
+        "deprecated": true,
         "operationId": "PortfolioAdminController_replacePhotos",
         "parameters": [
           {
@@ -2297,6 +2347,7 @@
             "bearer": []
           }
         ],
+        "summary": "Legacy photo-only update; use the atomic draft endpoint",
         "tags": [
           "portfolio admin drafts"
         ]
@@ -3849,6 +3900,11 @@
             "type": "string",
             "format": "date-time"
           },
+          "thumbnailMediaId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
           "slug": {
             "type": "string"
           },
@@ -3864,6 +3920,7 @@
           "hasUnpublishedChanges",
           "publishedAt",
           "updatedAt",
+          "thumbnailMediaId",
           "slug",
           "title"
         ]
@@ -5739,6 +5796,35 @@
           "publishedAt",
           "updatedAt"
         ]
+      },
+      "PortfolioAdminListQueryDto": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "default": 24,
+            "minimum": 1,
+            "maximum": 50
+          },
+          "cursor": {
+            "type": "string",
+            "description": "Opaque version/context-bound cursor",
+            "maxLength": 2048
+          },
+          "search": {
+            "type": "string",
+            "description": "Case-insensitive title or slug substring",
+            "maxLength": 120
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "ARCHIVED"
+            ]
+          }
+        }
       },
       "PortfolioValidationParamsDto": {
         "type": "object",

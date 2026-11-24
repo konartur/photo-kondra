@@ -190,7 +190,7 @@ export class PortfolioAdminService {
       });
       const items = rows.slice(0, query.limit);
       const last = items.at(-1);
-      return { items: items.map((r) => ({ ...base(r), slug: r.slug, title: { uk: r.titleUk, en: r.titleEn } })), nextCursor: rows.length > query.limit && last ? encodePortfolioAdminCursor({ v: 1, type: 'stories', sortOrder: last.sortOrder, id: last.id, asOf, contentVersion: state.contentVersion.toString(), context: JSON.stringify([query.search?.trim() ?? '', query.status ?? '']) }, secret) : null };
+      return { items: items.map((r) => ({ ...base(r), slug: r.slug, title: { uk: r.titleUk, en: r.titleEn }, thumbnailMediaId: r.coverMediaId })), nextCursor: rows.length > query.limit && last ? encodePortfolioAdminCursor({ v: 1, type: 'stories', sortOrder: last.sortOrder, id: last.id, asOf, contentVersion: state.contentVersion.toString(), context: JSON.stringify([query.search?.trim() ?? '', query.status ?? '']) }, secret) : null };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
   }
   async createService(ownerId: string, data: PortfolioServiceDraftInputDto, seed?: { id: string; sortOrder: number }) {
@@ -276,12 +276,12 @@ export class PortfolioAdminService {
     });
   }
   async saveStoryDraft(ownerId: string, id: string, expectedVersion: number, data: PortfolioStoryDraftInputDto, items: PortfolioStoryPhotoInputDto[]) {
+    assertStoryPhotos(data.cover?.mediaId ?? null, items);
     return this.write(async (tx) => {
       const current = await tx.portfolioStory.findUnique({ where: { id } });
       if (!current) throw notFound();
       await this.persistence.claimDraftVersion(tx, PortfolioEntityType.STORY, id, expectedVersion);
       if (current.publishedVersion !== null && current.slug !== data.slug) throw conflict('PORTFOLIO_SLUG_IMMUTABLE');
-      assertStoryPhotos(data.cover?.mediaId ?? null, items);
       if (!(await tx.portfolioService.findUnique({ where: { id: data.serviceId }, select: { id: true } }))) throw notFound();
       await this.validateMedia(tx, ownerId, [...this.storyMedia(data), ...items.map(item => item.image.mediaId)]);
       await this.validatePlacementIds(tx, items, id);

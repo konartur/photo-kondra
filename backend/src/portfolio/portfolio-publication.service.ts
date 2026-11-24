@@ -14,6 +14,7 @@ import { parsePortfolioSnapshot } from './persistence/portfolio-snapshot.js';
 import type { PortfolioPublicationResponseDto } from './dto/admin-response.dto.js';
 import type { PortfolioLocaleQueryDto } from './dto/query.dto.js';
 import { CONTACT_LABELS, PORTFOLIO_BRAND, type Locale } from './dto/shared.dto.js';
+import { resolveFeaturedStory } from './portfolio-featured-defaults.js';
 import { contactSectionCopy } from './portfolio-contact-copy.js';
 
 const notFound = () => new NotFoundException({ code: 'PORTFOLIO_CONTENT_NOT_FOUND', message: 'Portfolio content not found' });
@@ -210,10 +211,11 @@ export class PortfolioPublicationService {
       });
       data.storiesSection.items = await Promise.all(data.storiesSection.items.map(async placement => {
         const row = stories.find(story => story.id === placement.storyId);
-        if (!row?.publishedDocument) return placement;
+        if (!row) return placement;
+        if (!row.publishedDocument) throw new ServiceUnavailableException('Published story snapshot unavailable');
         const snapshot = await parsePortfolioSnapshot(row.publishedDocument.snapshot);
         if (snapshot.entityType !== 'STORY') throw new ServiceUnavailableException('Published story snapshot unavailable');
-        return { ...placement, caption: placement.caption.uk.trim() || placement.caption.en.trim() ? placement.caption : snapshot.data.description, image: placement.image ?? snapshot.data.cover };
+        return resolveFeaturedStory(placement, snapshot.data);
       }));
     }
     const mediaFields = portfolioMediaFields(data, photos);
@@ -354,7 +356,7 @@ export class PortfolioPublicationService {
       if (!story?.publishedDocument) throw incomplete();
       const snapshot = await parsePortfolioSnapshot(story.publishedDocument.snapshot);
       if (snapshot.entityType !== PortfolioEntityType.STORY) throw new ServiceUnavailableException('Published portfolio snapshot is invalid');
-      featuredStories.push({ story: { id: story.id, slug: story.slug, title: this.selected(snapshot.data.title, locale), subtitle: this.selected(snapshot.data.subtitle, locale), cover: await this.previewImage(placement.image ?? snapshot.data.cover, locale) }, caption: this.selected(placement.caption.uk.trim() || placement.caption.en.trim() ? placement.caption : snapshot.data.description, locale) });
+      featuredStories.push({ story: { id: story.id, slug: story.slug, title: this.selected(snapshot.data.title, locale), subtitle: this.selected(snapshot.data.subtitle, locale), cover: await this.previewImage(placement.image ?? snapshot.data.cover, locale) }, caption: this.selected(resolveFeaturedStory(placement, snapshot.data).caption, locale) });
     }
     return {
       hero: { desktop: await this.previewImage(data.hero.desktop, locale), mobile: await this.previewImage(data.hero.mobile, locale) },

@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useEffectEvent, useId, useRef, useState, type FormEvent } from 'react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError, apiRequest } from '@/lib/api/client';
 import type {
-  AdminPortfolioEntityBaseDto,
   AdminPortfolioServiceDto,
   AdminPortfolioSettingsDto,
   AdminPortfolioStoryDto,
@@ -12,6 +11,8 @@ import type {
   PortfolioPublicationResponseDto,
   PortfolioStoryPhotoInputDto,
 } from '@/lib/portfolio/contracts';
+import { recoveredStorySave } from './portfolio-save-recovery';
+import { SettingsPublicationSummary } from './portfolio-settings-summary';
 import { initialSeo } from './portfolio-seo-defaults';
 import { PortfolioEntryRow } from './portfolio-entry-list';
 import { button, EditorLocale, FieldErrors, panel, primary } from './editor-fields';
@@ -48,16 +49,11 @@ type Section = PortfolioSection;
 const prefix = '/api/portfolio/';
 const queryPrefix = ['portfolio-admin'] as const;
 const names: Record<Section, string> = {
+  settings: 'Головна сторінка',
   services: 'Фотосесії',
   stories: 'Історії',
-  settings: 'Головна сторінка',
   contacts: 'Контакти та запис',
   media: 'Фотобібліотека',
-};
-const statuses: Record<AdminPortfolioEntityBaseDto['status'], string> = {
-  DRAFT: 'Чернетка',
-  PUBLISHED: 'Опубліковано',
-  ARCHIVED: 'В архіві',
 };
 const storyServiceUnpublished = 'Спочатку опублікуйте напрям, до якого належить ця історія.';
 
@@ -183,6 +179,12 @@ function Editor({
   >('save');
   const [conflict, setConflict] = useState(false);
   const currentRecord = useRef(initial);
+  const uncertainSave = useRef<{
+    id: string;
+    version: number;
+    data: Draft;
+    photos: PortfolioStoryPhotoInputDto[];
+  } | null>(null);
   const [latest, setLatest] = useState<Entity | null>(null);
   const path = prefix + resource + (resource !== 'settings' && record ? '/' + record.id : '');
   const savedPhotos = record && 'photos' in record ? record.photos : [];
@@ -254,16 +256,17 @@ function Editor({
     return () => observer.disconnect();
   }, []);
 
+  const focusErrorField = useEffectEvent((name: string) => focusField(name));
   useEffect(() => {
     if (pending || !fieldErrors.length) return;
     const field = editorRef.current?.querySelector<HTMLElement>(
-      '[data-portfolio-field][aria-invalid="true"]:not(:disabled)',
+      '[data-portfolio-field]:is([aria-invalid="true"],[data-invalid="true"]):not(:disabled)',
     );
     if (!field) return;
     for (let parent = field.parentElement; parent; parent = parent.parentElement) {
       if (parent instanceof HTMLDetailsElement) parent.open = true;
     }
-    focusField(field.getAttribute('data-portfolio-field')!);
+    focusErrorField(field.getAttribute('data-portfolio-field')!);
   }, [fieldErrors, pending]);
 
   function hasInvalidFields(
@@ -370,7 +373,38 @@ function Editor({
     const request = record
       ? jsonRequest('PUT', { expectedVersion: record.draftVersion, ...payload })
       : jsonRequest('POST', completeStory ? payload : data);
-    const next = await apiRequest<Entity>(path + (completeStory ? '/draft' : ''), request);
+    const uncertain = uncertainSave.current;
+    let next: Entity;
+    try {
+      next = await apiRequest<Entity>(path + (completeStory ? '/draft' : ''), request);
+    } catch (error) {
+      if (
+        completeStory &&
+        record &&
+        uncertain?.id === record.id &&
+        error instanceof ApiError &&
+        error.status === 409 &&
+        error.code === 'PORTFOLIO_VERSION_CONFLICT'
+      ) {
+        const server = await apiRequest<Entity>(path, { cache: 'no-store' });
+        if (
+          !recoveredStorySave(server, uncertain) ||
+          !recoveredStorySave(server, { version: record.draftVersion, data, photos })
+        )
+          throw error;
+        next = server;
+      } else {
+        if (completeStory && record && (!(error instanceof ApiError) || error.status >= 500))
+          uncertainSave.current = {
+            id: record.id,
+            version: record.draftVersion,
+            data: structuredClone(data),
+            photos: structuredClone(photos),
+          };
+        throw error;
+      }
+    }
+    uncertainSave.current = null;
     updateRecord(next);
     setDraft(next.draft);
     if ('photos' in next) setPhotos(next.photos);
@@ -765,6 +799,7 @@ function Editor({
           </button>
         ))}
       </div>
+      {'brand' in draft && <SettingsPublicationSummary draft={draft} />}
       <EditorLocale.Provider value={locale}>
         <FieldErrors.Provider value={fieldErrors}>
           <form
@@ -852,7 +887,13 @@ function Editor({
 
 export function PortfolioWorkspace() {
   const [dirty, setDirty] = useState(false);
-  const { section, id, navigate, ready, session: editorKey } = usePortfolioNavigation(dirty);
+  const {
+    section,
+    id,
+    navigate,
+    ready,
+    session: editorKey,
+  } = usePortfolioNavigation(dirty, () => setDirty(false));
   const resource = section === 'contacts' ? 'settings' : section;
   const media = usePortfolioMedia();
   const services = useEntries(
@@ -879,10 +920,6 @@ export function PortfolioWorkspace() {
       apiRequest<Entity>(prefix + resource + (id ? '/' + id : ''), { signal, cache: 'no-store' }),
     retry: false,
   });
-
-  useEffect(() => {
-    setDirty(false);
-  }, [editorKey]);
 
   if (!ready) return <p role="status">Відкриваємо розділ…</p>;
 

@@ -15,7 +15,7 @@ function readLocation(): Location {
   };
 }
 
-export function usePortfolioNavigation(dirty: boolean) {
+export function usePortfolioNavigation(dirty: boolean, onLeave: () => void) {
   const [location, setLocation] = useState<Location>({ section: 'settings', id: null });
   const [session, setSession] = useState(0);
   const [ready, setReady] = useState(false);
@@ -23,9 +23,11 @@ export function usePortfolioNavigation(dirty: boolean) {
   const index = useRef(0);
   const reverting = useRef(false);
   const dirtyRef = useRef(dirty);
+  const onLeaveRef = useRef(onLeave);
   useEffect(() => {
     dirtyRef.current = dirty;
-  }, [dirty]);
+    onLeaveRef.current = onLeave;
+  }, [dirty, onLeave]);
   useEffect(() => {
     savedUrl.current = window.location.href;
     index.current = window.history.state?.portfolioIndex ?? 0;
@@ -34,8 +36,13 @@ export function usePortfolioNavigation(dirty: boolean) {
       '',
       window.location.href,
     );
-    setLocation(readLocation());
-    setReady(true);
+    let active = true;
+    queueMicrotask(() => {
+      if (active) {
+        setLocation(readLocation());
+        setReady(true);
+      }
+    });
     const pop = () => {
       if (reverting.current) {
         reverting.current = false;
@@ -64,7 +71,11 @@ export function usePortfolioNavigation(dirty: boolean) {
           );
         return;
       }
-      if (!sameSettings) setSession((value) => value + 1);
+      if (!sameSettings) {
+        onLeaveRef.current();
+        dirtyRef.current = false;
+        setSession((value) => value + 1);
+      }
       index.current = nextIndex ?? index.current;
       savedUrl.current = window.location.href;
       setLocation(next);
@@ -83,11 +94,13 @@ export function usePortfolioNavigation(dirty: boolean) {
     window.addEventListener('popstate', pop);
     document.addEventListener('click', guardLink, true);
     return () => {
+      active = false;
       window.removeEventListener('popstate', pop);
       document.removeEventListener('click', guardLink, true);
     };
   }, []);
   function navigate(section: PortfolioSection, id: string | null = null, replace = false) {
+    if (!replace && section === location.section && id === location.id) return;
     const sameSettings =
       ['settings', 'contacts'].includes(section) &&
       ['settings', 'contacts'].includes(location.section);
@@ -109,7 +122,11 @@ export function usePortfolioNavigation(dirty: boolean) {
       url,
     );
     savedUrl.current = url.href;
-    if (!sameSettings && !replace) setSession((value) => value + 1);
+    if (!sameSettings && !replace) {
+      onLeaveRef.current();
+      dirtyRef.current = false;
+      setSession((value) => value + 1);
+    }
     setLocation({ section, id });
   }
   return { ...location, ready, navigate, session };

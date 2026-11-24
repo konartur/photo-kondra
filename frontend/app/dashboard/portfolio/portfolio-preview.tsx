@@ -37,13 +37,14 @@ export function PortfolioPreview({
   onLocaleChange: (locale: 'uk' | 'en') => void;
   onClose: () => void;
 }) {
-  const container = useRef<HTMLElement>(null);
+  const container = useRef<HTMLDialogElement>(null);
   const [width, setWidth] = useState<'mobile' | 'wide'>('wide');
   const [target, setTarget] = useState<HTMLElement | null>(null);
   useEffect(() => {
     const position = window.scrollY;
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    container.current?.showModal();
     container.current?.focus({ preventScroll: true });
     return () => {
       document.body.style.overflow = overflow;
@@ -53,13 +54,15 @@ export function PortfolioPreview({
   const stale = dirty || preview.draftVersion !== version;
   const { site, page } = preview;
   return createPortal(
-    <section
+    <dialog
       ref={container}
       tabIndex={-1}
-      role="dialog"
-      aria-modal="true"
+      onCancel={(event) => {
+        event.preventDefault();
+        if (!closeDisabled) onClose();
+      }}
       aria-label="Приватний попередній перегляд"
-      className="fixed inset-0 z-50 flex flex-col bg-white text-zinc-900"
+      className="fixed inset-0 m-0 flex h-dvh max-h-none w-screen max-w-none flex-col bg-white text-zinc-900"
     >
       <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-zinc-200 p-3">
         <h2 className="font-semibold">Чернетка · бачите лише ви</h2>
@@ -142,7 +145,7 @@ export function PortfolioPreview({
             )}
         </div>
       )}
-    </section>,
+    </dialog>,
     document.body,
   );
 }

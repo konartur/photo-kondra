@@ -78,7 +78,7 @@ export class PortfolioAdminController {
   listStories(@Query() query: PortfolioAdminListQueryDto) { return this.admin.listStories(query); }
 
   @Post('stories') @Header('Cache-Control', 'no-store')
-  @ApiOperation({ summary: 'Create an incomplete or complete bilingual story draft' })
+  @ApiOperation({ deprecated: true, summary: 'Create an incomplete or complete bilingual story draft' })
   @ApiCreatedResponse({ type: AdminPortfolioStoryDto })
   createStory(@Req() req: AdminRequest, @Body() dto: PortfolioStoryDraftInputDto) { return this.admin.createStory(req.user.sub, dto); }
 
@@ -100,10 +100,12 @@ export class PortfolioAdminController {
   @ApiParam({ name: 'id', format: 'uuid' }) @ApiOkResponse({ type: AdminPortfolioStoryDto })
   getStory(@Param('id', ParseUUIDPipe) id: string) { return this.admin.getStory(id); }
 
+  @ApiOperation({ deprecated: true, summary: 'Legacy metadata-only update; use the atomic draft endpoint' })
   @Put('stories/:id') @Header('Cache-Control', 'no-store')
   @ApiParam({ name: 'id', format: 'uuid' }) @ApiOkResponse({ type: AdminPortfolioStoryDto })
   updateStory(@Req() req: AdminRequest, @Param('id', ParseUUIDPipe) id: string, @Body() dto: PortfolioStoryDraftUpdateDto) { return this.admin.updateStory(req.user.sub, id, dto.expectedVersion, dto.data); }
 
+  @ApiOperation({ deprecated: true, summary: 'Legacy photo-only update; use the atomic draft endpoint' })
   @Put('stories/:id/photos') @Header('Cache-Control', 'no-store')
   @ApiParam({ name: 'id', format: 'uuid' }) @ApiOkResponse({ type: AdminPortfolioStoryDto })
   replacePhotos(@Req() req: AdminRequest, @Param('id', ParseUUIDPipe) id: string, @Body() dto: ReplaceStoryPhotosDto) { return this.admin.replacePhotos(req.user.sub, id, dto.expectedVersion, dto.items); }

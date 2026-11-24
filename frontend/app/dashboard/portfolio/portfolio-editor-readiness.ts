@@ -49,7 +49,8 @@ export function requiredDraftFields(
     if (!draft.storiesSection.items.length) missing.push('storiesSection.items');
     draft.storiesSection.items.forEach((item, index) => {
       const name = 'storiesSection.items.' + index;
-      localized(name + '.caption', item.caption);
+      if (item.caption.uk.trim() || item.caption.en.trim())
+        localized(name + '.caption', item.caption);
       if (item.image) image(name + '.image', item.image);
     });
     image('contactSection.background', draft.contactSection.background);
@@ -265,4 +266,37 @@ export function usePortfolioReadiness(
       });
     },
   };
+}
+
+function emptyTranslations<T>(value: T): T {
+  if (Array.isArray(value)) return value.map((item) => emptyTranslations(item)) as T;
+  if (value && typeof value === 'object')
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        (key === 'uk' || key === 'en') && typeof item === 'string' ? '' : emptyTranslations(item),
+      ]),
+    ) as T;
+  return value;
+}
+export function translationProgress(
+  draft: PortfolioEditorDraft,
+  photos: readonly PortfolioStoryPhotoInputDto[],
+) {
+  const required = requiredDraftFields(emptyTranslations(draft), emptyTranslations(photos));
+  if ('brand' in draft)
+    draft.storiesSection.items.forEach((item, index) => {
+      if (item.caption.uk.trim() || item.caption.en.trim())
+        for (const locale of ['uk', 'en'])
+          required.push('storiesSection.items.' + index + '.caption.' + locale);
+    });
+  const missing = new Set(requiredDraftFields(draft, photos));
+  return (['uk', 'en'] as const).map((locale) => {
+    const fields = required.filter((field) => field.endsWith('.' + locale));
+    return {
+      locale,
+      total: fields.length,
+      filled: fields.filter((field) => !missing.has(field)).length,
+    };
+  });
 }

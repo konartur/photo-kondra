@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useEffectEvent, useId, useRef, useState, type FormEvent } from 'react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError, apiRequest } from '@/lib/api/client';
 import type {
-  AdminPortfolioEntityBaseDto,
   AdminPortfolioServiceDto,
   AdminPortfolioSettingsDto,
   AdminPortfolioStoryDto,
@@ -12,7 +11,11 @@ import type {
   PortfolioPublicationResponseDto,
   PortfolioStoryPhotoInputDto,
 } from '@/lib/portfolio/contracts';
-import { button, FieldErrors, panel, primary } from './editor-fields';
+import { recoveredStorySave } from './portfolio-save-recovery';
+import { SettingsPublicationSummary } from './portfolio-settings-summary';
+import { initialSeo } from './portfolio-seo-defaults';
+import { PortfolioEntryRow } from './portfolio-entry-list';
+import { button, EditorLocale, FieldErrors, panel, primary } from './editor-fields';
 import {
   choices,
   HomeFields,
@@ -28,44 +31,44 @@ import { PortfolioPreview, type PortfolioPreviewData } from './portfolio-preview
 import {
   describePortfolioField,
   requiredDraftFields,
+  translationProgress,
   usePortfolioReadiness,
 } from './portfolio-editor-readiness';
 import styles from './portfolio-editor.module.css';
 import { deriveEditorStatus, retainUnchangedFieldErrors } from './portfolio-editor-state';
 import { mediaKey } from './portfolio-media-data';
 import { publicUrl } from '@/lib/portfolio/public-url';
+import { usePortfolioNavigation, type PortfolioSection } from './portfolio-navigation-state';
 import { portfolioSiteSettings } from '@/lib/portfolio/site-settings';
 
 type Entity = AdminPortfolioServiceDto | AdminPortfolioStoryDto | AdminPortfolioSettingsDto;
 type Draft = Entity['draft'];
 type Resource = 'services' | 'stories' | 'settings';
-type Section = Resource | 'media';
+type Section = PortfolioSection;
 
 const prefix = '/api/portfolio/';
 const queryPrefix = ['portfolio-admin'] as const;
 const names: Record<Section, string> = {
-  services: 'Напрями',
+  settings: 'Головна сторінка',
+  services: 'Фотосесії',
   stories: 'Історії',
-  settings: 'Головна та контакти',
-  media: 'Медіа',
-};
-const statuses: Record<AdminPortfolioEntityBaseDto['status'], string> = {
-  DRAFT: 'Чернетка',
-  PUBLISHED: 'Опубліковано',
-  ARCHIVED: 'В архіві',
+  contacts: 'Контакти та запис',
+  media: 'Фотобібліотека',
 };
 const storyServiceUnpublished = 'Спочатку опублікуйте напрям, до якого належить ця історія.';
 
-function useEntries(resource: 'services' | 'stories', enabled: boolean) {
+function useEntries(resource: 'services' | 'stories', enabled: boolean, search = '', status = '') {
   return useInfiniteQuery({
-    queryKey: [...queryPrefix, resource],
+    queryKey: [...queryPrefix, resource, 'list', search.trim(), status],
     enabled,
     initialPageParam: '',
     queryFn: ({ pageParam, signal }) =>
       apiRequest<{ items: AdminPortfolioSummaryDto[]; nextCursor: string | null }>(
         prefix +
           resource +
-          '?limit=50' +
+          '?limit=24&search=' +
+          encodeURIComponent(search.trim()) +
+          (status ? '&status=' + status : '') +
           (pageParam ? '&cursor=' + encodeURIComponent(pageParam) : ''),
         { signal, cache: 'no-store' },
       ),
@@ -136,8 +139,12 @@ function Editor({
   onDirty,
   onCreated,
   onOpenService,
+  settingsView = 'home',
+  onSettingsView,
 }: {
   resource: Resource;
+  settingsView?: 'home' | 'contacts';
+  onSettingsView: (view: 'home' | 'contacts') => void;
   initial?: Entity;
   media: ReturnType<typeof usePortfolioMedia>;
   services: ReturnType<typeof useEntries>;
@@ -154,6 +161,7 @@ function Editor({
   const [photos, setPhotos] = useState<PortfolioStoryPhotoInputDto[]>(() =>
     initial && 'photos' in initial ? initial.photos : [],
   );
+  const [locale, setLocale] = useState<'uk' | 'en'>('uk');
   const [pending, setPending] = useState(false);
   const pendingRef = useRef(false);
   const [notice, setNotice] = useState('');
@@ -171,6 +179,12 @@ function Editor({
   >('save');
   const [conflict, setConflict] = useState(false);
   const currentRecord = useRef(initial);
+  const uncertainSave = useRef<{
+    id: string;
+    version: number;
+    data: Draft;
+    photos: PortfolioStoryPhotoInputDto[];
+  } | null>(null);
   const [latest, setLatest] = useState<Entity | null>(null);
   const path = prefix + resource + (resource !== 'settings' && record ? '/' + record.id : '');
   const savedPhotos = record && 'photos' in record ? record.photos : [];
@@ -242,17 +256,17 @@ function Editor({
     return () => observer.disconnect();
   }, []);
 
+  const focusErrorField = useEffectEvent((name: string) => focusField(name));
   useEffect(() => {
     if (pending || !fieldErrors.length) return;
     const field = editorRef.current?.querySelector<HTMLElement>(
-      '[data-portfolio-field][aria-invalid="true"]:not(:disabled)',
+      '[data-portfolio-field]:is([aria-invalid="true"],[data-invalid="true"]):not(:disabled)',
     );
     if (!field) return;
     for (let parent = field.parentElement; parent; parent = parent.parentElement) {
       if (parent instanceof HTMLDetailsElement) parent.open = true;
     }
-    field.scrollIntoView({ block: 'center', behavior: 'instant' });
-    field.focus({ preventScroll: true });
+    focusErrorField(field.getAttribute('data-portfolio-field')!);
   }, [fieldErrors, pending]);
 
   function hasInvalidFields(
@@ -301,9 +315,9 @@ function Editor({
           );
         setFieldErrors(error.code === 'PORTFOLIO_SLUG_TAKEN' ? ['slug'] : error.fields);
         if (error.code === 'PORTFOLIO_SLUG_TAKEN')
-          void client.invalidateQueries({ queryKey: [...queryPrefix, resource], exact: true });
+          void client.invalidateQueries({ queryKey: [...queryPrefix, resource, 'list'] });
         if (error.code === 'PORTFOLIO_STORY_SERVICE_UNPUBLISHED')
-          void client.invalidateQueries({ queryKey: [...queryPrefix, 'services'], exact: true });
+          void client.invalidateQueries({ queryKey: [...queryPrefix, 'services', 'list'] });
         if (notReady) {
           const active = currentRecord.current;
           if (active)
@@ -354,11 +368,43 @@ function Editor({
 
   async function persistDraft() {
     const completeStory = resource === 'stories';
-    const payload = completeStory ? { data: draft, items: photos } : { data: draft };
+    const data = initialSeo(draft);
+    const payload = completeStory ? { data, items: photos } : { data };
     const request = record
       ? jsonRequest('PUT', { expectedVersion: record.draftVersion, ...payload })
-      : jsonRequest('POST', completeStory ? payload : draft);
-    const next = await apiRequest<Entity>(path + (completeStory ? '/draft' : ''), request);
+      : jsonRequest('POST', completeStory ? payload : data);
+    const uncertain = uncertainSave.current;
+    let next: Entity;
+    try {
+      next = await apiRequest<Entity>(path + (completeStory ? '/draft' : ''), request);
+    } catch (error) {
+      if (
+        completeStory &&
+        record &&
+        uncertain?.id === record.id &&
+        error instanceof ApiError &&
+        error.status === 409 &&
+        error.code === 'PORTFOLIO_VERSION_CONFLICT'
+      ) {
+        const server = await apiRequest<Entity>(path, { cache: 'no-store' });
+        if (
+          !recoveredStorySave(server, uncertain) ||
+          !recoveredStorySave(server, { version: record.draftVersion, data, photos })
+        )
+          throw error;
+        next = server;
+      } else {
+        if (completeStory && record && (!(error instanceof ApiError) || error.status >= 500))
+          uncertainSave.current = {
+            id: record.id,
+            version: record.draftVersion,
+            data: structuredClone(data),
+            photos: structuredClone(photos),
+          };
+        throw error;
+      }
+    }
+    uncertainSave.current = null;
     updateRecord(next);
     setDraft(next.draft);
     if ('photos' in next) setPhotos(next.photos);
@@ -405,6 +451,16 @@ function Editor({
   }
 
   function focusField(name: string) {
+    if (name.endsWith('.uk')) setLocale('uk');
+    if (name.endsWith('.en')) setLocale('en');
+    if (resource === 'settings')
+      onSettingsView(
+        name.startsWith('contacts.') || name.startsWith('bookingIntro.') ? 'contacts' : 'home',
+      );
+    requestAnimationFrame(() => focusVisibleField(name));
+  }
+
+  function focusVisibleField(name: string) {
     const fields = Array.from(
       editorRef.current?.querySelectorAll<HTMLElement>('[data-portfolio-field]:not(:disabled)') ??
         [],
@@ -495,7 +551,11 @@ function Editor({
   }
 
   return (
-    <div ref={editorRef} className={styles.editor + ' space-y-4'}>
+    <div
+      ref={editorRef}
+      inert={preview ? true : undefined}
+      className={styles.editor + ' space-y-4'}
+    >
       <header ref={toolbarRef} tabIndex={-1} className={styles.toolbar} aria-label="Дії редактора">
         <div className="min-w-0 flex-1 space-y-1">
           <h3 className="break-words text-lg font-semibold">{editorTitle}</h3>
@@ -598,7 +658,7 @@ function Editor({
         </p>
         <p className="text-sm text-zinc-700">
           {resource === 'settings'
-            ? 'Публікуються головна та контакти разом.'
+            ? 'Головна сторінка та контакти мають спільну чернетку й публікуються разом. Перевірте обидва розділи перед публікацією.'
             : 'Публікується лише цей запис. Добірки головної оновлюються окремо.'}
         </p>
         {readiness.checking && (
@@ -725,67 +785,85 @@ function Editor({
           </div>
         )}
       </section>
-      <FieldErrors.Provider value={fieldErrors}>
-        <form
-          id={formId}
-          ref={formRef}
-          className={panel}
-          onSubmit={save}
-          noValidate
-          aria-label="Поля чернетки"
-        >
-          <fieldset disabled={pending} className="space-y-4">
-            {'brand' in draft ? (
-              <HomeFields
-                value={draft}
-                change={editDraft}
-                media={mediaRows}
-                services={choices(serviceRows.filter((item) => item.status === 'PUBLISHED'))}
-                stories={choices(storyRows.filter((item) => item.status === 'PUBLISHED'))}
-              />
-            ) : 'serviceId' in draft ? (
-              <StoryFields
-                value={draft}
-                change={editDraft}
-                media={mediaRows}
-                services={choices(serviceRows)}
-                lockedSlug={record?.publishedVersion != null}
-                occupiedSlugs={occupiedSlugs}
-              />
-            ) : (
-              <ServiceFields
-                value={draft}
-                change={editDraft}
-                media={mediaRows}
-                lockedSlug={record?.publishedVersion != null}
-                occupiedSlugs={occupiedSlugs}
-              />
-            )}
-            {resource !== 'services' && <ListMore query={services} label="напрями" />}
-            {resource === 'settings' && <ListMore query={stories} label="історії" />}
-            <p className="text-sm text-zinc-700">
-              Чернетку можна зберегти без фото, перекладів та завершених текстів. Їх потрібно
-              заповнити перед публікацією.
-            </p>
-            {resource === 'stories' && 'cover' in draft && (
-              <section
-                className="space-y-4"
-                aria-label="Фото та обкладинка історії"
-                data-story-photos-section
-              >
-                <h3 className="font-semibold">Фото та обкладинка історії</h3>
-                <PhotoFields
-                  value={photos}
-                  change={editPhotos}
+      <div className="flex flex-wrap items-center gap-3" role="group" aria-label="Мова контенту">
+        {translationProgress(draft, photos).map((progress) => (
+          <button
+            type="button"
+            className={locale === progress.locale ? primary : button}
+            aria-pressed={locale === progress.locale}
+            key={progress.locale}
+            onClick={() => setLocale(progress.locale)}
+          >
+            {progress.locale === 'uk' ? 'Українська' : 'English'} · {progress.filled}/
+            {progress.total}
+          </button>
+        ))}
+      </div>
+      {'brand' in draft && <SettingsPublicationSummary draft={draft} />}
+      <EditorLocale.Provider value={locale}>
+        <FieldErrors.Provider value={fieldErrors}>
+          <form
+            id={formId}
+            ref={formRef}
+            className={panel}
+            onSubmit={save}
+            noValidate
+            aria-label="Поля чернетки"
+          >
+            <fieldset disabled={pending} className="space-y-4">
+              {'brand' in draft ? (
+                <HomeFields
+                  value={draft}
+                  view={settingsView}
+                  change={editDraft}
                   media={mediaRows}
-                  cover={draft.cover}
-                  changeCover={(cover) => editDraft({ ...draft, cover })}
+                  services={choices(serviceRows.filter((item) => item.status === 'PUBLISHED'))}
+                  stories={choices(storyRows.filter((item) => item.status === 'PUBLISHED'))}
                 />
-              </section>
-            )}
-          </fieldset>
-        </form>
-      </FieldErrors.Provider>
+              ) : 'serviceId' in draft ? (
+                <StoryFields
+                  value={draft}
+                  change={editDraft}
+                  media={mediaRows}
+                  services={choices(serviceRows)}
+                  lockedSlug={record?.publishedVersion != null}
+                  occupiedSlugs={occupiedSlugs}
+                />
+              ) : (
+                <ServiceFields
+                  value={draft}
+                  change={editDraft}
+                  media={mediaRows}
+                  lockedSlug={record?.publishedVersion != null}
+                  occupiedSlugs={occupiedSlugs}
+                />
+              )}
+              {resource !== 'services' && <ListMore query={services} label="фотосесії" />}
+              {resource === 'settings' && <ListMore query={stories} label="історії" />}
+              <p className="text-sm text-zinc-700">
+                Чернетку можна зберегти без фото, перекладів та завершених текстів. Їх потрібно
+                заповнити перед публікацією.
+              </p>
+              {resource === 'stories' && 'cover' in draft && (
+                <section
+                  className="space-y-4"
+                  aria-label="Фото та обкладинка історії"
+                  data-story-photos-section
+                >
+                  <h3 className="font-semibold">Фото та обкладинка історії</h3>
+                  <PhotoFields
+                    value={photos}
+                    change={editPhotos}
+                    media={mediaRows}
+                    cover={draft.cover}
+                    changeCover={(cover) => editDraft({ ...draft, cover })}
+                  />
+                </section>
+              )}
+            </fieldset>
+          </form>
+        </FieldErrors.Provider>
+      </EditorLocale.Provider>
       {preview && record && (
         <PortfolioPreview
           preview={preview}
@@ -799,8 +877,7 @@ function Editor({
           }}
           onClose={() => {
             setPreview(null);
-            toolbarRef.current?.scrollIntoView({ block: 'start' });
-            toolbarRef.current?.focus({ preventScroll: true });
+            requestAnimationFrame(() => toolbarRef.current?.focus({ preventScroll: true }));
           }}
         />
       )}
@@ -809,35 +886,42 @@ function Editor({
 }
 
 export function PortfolioWorkspace() {
-  const [section, setSection] = useState<Section>('services');
-  const [id, setId] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
-  const [editorKey, setEditorKey] = useState(0);
+  const {
+    section,
+    id,
+    navigate,
+    ready,
+    session: editorKey,
+  } = usePortfolioNavigation(dirty, () => setDirty(false));
+  const resource = section === 'contacts' ? 'settings' : section;
   const media = usePortfolioMedia();
   const services = useEntries(
     'services',
-    section === 'services' || section === 'stories' || section === 'settings',
+    section === 'services' || section === 'stories' || resource === 'settings',
   );
-  const stories = useEntries('stories', section === 'stories' || section === 'settings');
-  const sectionList = section === 'services' ? services : stories;
+  const stories = useEntries('stories', section === 'stories' || resource === 'settings');
+  const [filters, setFilters] = useState<Record<string, { search: string; status: string }>>({});
+  const filter = filters[section] ?? { search: '', status: '' };
+  const sectionList = useEntries(
+    section === 'services' ? 'services' : 'stories',
+    section === 'services' || section === 'stories',
+    filter.search,
+    filter.status,
+  );
+  const updateFilter = (next: Partial<typeof filter>) =>
+    setFilters((previous) => ({ ...previous, [section]: { ...filter, ...next } }));
   const rows = sectionList.data?.pages.flatMap((page) => page.items) ?? [];
-  const editing = section !== 'media' && (section === 'settings' || Boolean(id));
+  const editing = resource !== 'media' && (resource === 'settings' || Boolean(id));
   const record = useQuery({
-    queryKey: [...queryPrefix, section, id ?? 'singleton'],
-    enabled: editing && id !== 'new',
+    queryKey: [...queryPrefix, resource, id ?? 'singleton'],
+    enabled: ready && editing && id !== 'new',
     queryFn: ({ signal }) =>
-      apiRequest<Entity>(prefix + section + (id ? '/' + id : ''), { signal, cache: 'no-store' }),
+      apiRequest<Entity>(prefix + resource + (id ? '/' + id : ''), { signal, cache: 'no-store' }),
     retry: false,
   });
 
-  function navigate(next: Section, account: string | null = null) {
-    if (next === section && id === account) return;
-    if (dirty && !window.confirm('Залишити редактор без збереження введених змін?')) return;
-    setDirty(false);
-    setSection(next);
-    setId(account);
-    setEditorKey((value) => value + 1);
-  }
+  if (!ready) return <p role="status">Відкриваємо розділ…</p>;
 
   return (
     <section className="mx-auto max-w-5xl space-y-5 pt-8 text-zinc-950">
@@ -859,29 +943,51 @@ export function PortfolioWorkspace() {
         ))}
       </nav>
       {section === 'media' && <PortfolioMediaLibrary />}
-      {(section === 'services' || section === 'stories') && (
+      {(section === 'services' || section === 'stories') && !id && (
         <div className={panel}>
           <h3 className="font-semibold">{names[section]}</h3>
-          <label className="block space-y-1 text-sm font-medium">
-            Вибрати запис
-            <select value={id ?? ''} onChange={(e) => navigate(section, e.target.value || null)}>
-              <option value="">Оберіть чернетку чи публікацію</option>
-              {id === 'new' && <option value="new">Новий запис</option>}
-              {rows.map((row) => (
-                <option value={row.id} key={row.id}>
-                  {row.title.uk || row.title.en || row.slug} · {statuses[row.status]}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="flex flex-wrap gap-3">
+            <label>
+              Пошук
+              <input
+                className="block rounded border border-zinc-300 p-2"
+                value={filter.search}
+                maxLength={120}
+                onChange={(event) => updateFilter({ search: event.target.value })}
+              />
+            </label>
+            <label>
+              Статус
+              <select
+                className="block rounded border border-zinc-300 p-2"
+                value={filter.status}
+                onChange={(event) => updateFilter({ status: event.target.value })}
+              >
+                <option value="">Усі</option>
+                <option value="DRAFT">Чернетки</option>
+                <option value="PUBLISHED">Опубліковані</option>
+                <option value="ARCHIVED">Архів</option>
+              </select>
+            </label>
+            <button type="button" className={button} onClick={() => navigate(section, 'new')}>
+              {section === 'services' ? 'Додати фотосесію' : 'Додати історію'}
+            </button>
+          </div>
+          <ul className="space-y-3">
+            {rows.map((row) => (
+              <PortfolioEntryRow key={row.id} row={row} open={() => navigate(section, row.id)} />
+            ))}
+          </ul>
           {sectionList.isPending && <p role="status">Завантажуємо список…</p>}
           {sectionList.isError && <p role="alert">Список недоступний.</p>}
           {sectionList.isSuccess && !rows.length && <p>У цьому розділі ще немає записів.</p>}
-          <button type="button" className={button} onClick={() => navigate(section, 'new')}>
-            Створити {section === 'services' ? 'напрям' : 'історію'}
-          </button>
           <ListMore query={sectionList} label={names[section]} />
         </div>
+      )}
+      {editing && (section === 'services' || section === 'stories') && (
+        <button type="button" className={button} onClick={() => navigate(section)}>
+          ← До списку
+        </button>
       )}
       {editing && id !== 'new' && record.isPending && <p role="status">Завантажуємо чернетку…</p>}
       {editing && id !== 'new' && record.isError && (
@@ -894,14 +1000,16 @@ export function PortfolioWorkspace() {
       )}
       {editing && (id === 'new' || record.data) && (
         <Editor
-          key={section + ':' + editorKey}
-          resource={section}
+          key={resource + ':' + editorKey}
+          resource={resource as Resource}
           initial={id === 'new' ? undefined : record.data}
           media={media}
           services={services}
           stories={stories}
           onDirty={setDirty}
-          onCreated={setId}
+          onCreated={(id) => navigate(section, id, true)}
+          settingsView={section === 'contacts' ? 'contacts' : 'home'}
+          onSettingsView={(view) => navigate(view === 'contacts' ? 'contacts' : 'settings')}
           onOpenService={(serviceId) => navigate('services', serviceId)}
         />
       )}

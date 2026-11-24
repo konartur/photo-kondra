@@ -18,6 +18,14 @@ describe('portfolio admin cursor', () => {
     expect(decodePortfolioAdminCursor(cursor, secret, 'stories')).toEqual(value);
   });
 
+  it('binds pagination to search and status filters', () => {
+    const context = JSON.stringify(['portrait', 'DRAFT']);
+    const cursor = encodePortfolioAdminCursor({...value, context}, secret);
+    expect(decodePortfolioAdminCursor(cursor, secret, 'stories', context)).toEqual({...value, context});
+    expect(() => decodePortfolioAdminCursor(cursor, secret, 'stories', JSON.stringify(['portrait', 'PUBLISHED']))).toThrow(BadRequestException);
+    expect(() => decodePortfolioAdminCursor(cursor, secret, 'stories', JSON.stringify(['other', 'DRAFT']))).toThrow(BadRequestException);
+  });
+
   it('rejects a cursor signed for another resource or tampered payload', () => {
     const cursor = encodePortfolioAdminCursor(value, secret);
     expect(() => decodePortfolioAdminCursor(cursor, secret, 'services')).toThrow(BadRequestException);

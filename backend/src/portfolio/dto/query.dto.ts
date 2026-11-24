@@ -29,9 +29,24 @@ export class PortfolioPublicListQueryDto extends PortfolioListQueryDto {
 }
 
 export class PortfolioMediaListQueryDto extends PortfolioListQueryDto {
-  @ApiPropertyOptional({ description: 'Case-insensitive filename substring; cursor is bound to the trimmed search', maxLength: 120 })
+  @ApiPropertyOptional({
+    description: 'Case-insensitive filename substring; cursor is bound to the trimmed search',
+    maxLength: 120,
+  })
   @ValidateIf((_object, value: unknown) => value !== undefined)
   @IsString()
   @MaxLength(120)
   search?: string;
+}
+
+export class PortfolioAdminListQueryDto extends PortfolioListQueryDto {
+  @ApiPropertyOptional({ description: 'Case-insensitive title or slug substring', maxLength: 120 })
+  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsString()
+  @MaxLength(120)
+  search?: string;
+  @ApiPropertyOptional({ enum: ['DRAFT', 'PUBLISHED', 'ARCHIVED'] })
+  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsIn(['DRAFT', 'PUBLISHED', 'ARCHIVED'])
+  status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 }

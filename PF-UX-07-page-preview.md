@@ -1,6 +1,6 @@
 # PF-UX-07 — Приватний перегляд як сторінка сайту
 
-**Статус:** Заплановано.
+**Статус:** Реалізовано, перевірки відкладено до PF-UX-14.
 **Залежить від:** PF-UX-06.
 **Порядок і правила:** [PF-UX-00](PF-UX-00-INDEX.md).
 **Вимоги:** [UX-план](docs/portfolio-content/admin-ux-plan.md).
@@ -34,8 +34,10 @@
 
 ## Запис виконання
 
-- Зміни: ще не виконано.
-- Файли: —.
-- Відкладені перевірки й ризики: —.
-- Блокери: не оцінювалися.
+- Зміни: окремий режим preview, повернення зі збереженням стану та позиції; uk/en, широка/375 px рамка. iframe srcDoc із noindex/nofollow, sandbox без scripts і захищеними admin URL; новий endpoint не створюється.
+- Спільні HomePageContent, StoryPageContent і ServiceCard використовуються публічними сторінками та preview. Static layout вимикає motion і перехоплює переходи/бронювання. Public snapshot не змінюється. Неповнота пояснюється readiness-помилкою до відкриття preview; за несумісної версії контент приховано.
+- Файли: portfolio-page-content.tsx, published-portfolio.tsx, portfolio-layout.tsx, portfolio-preview.tsx, portfolio-workspace.tsx.
+- Відкладені перевірки: TypeScript/build, public regression після extraction, iframe CSS/fonts/media queries, мова й рамка, клавіатура/скринрідер, scroll restore, auth/no-store derivatives, partial draft, exact version і незмінний snapshot.
+- Межа preview: оформлення без активних переходів/бронювання; фотосесія показана спільною карткою з її історіями, оскільки окремої public service route немає.
+- Перевірки: лише читання коду й форматування; поведінкова працездатність ще не підтверджена.
 

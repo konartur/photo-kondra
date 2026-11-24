@@ -14,14 +14,49 @@ const inter = localFont({
   variable: '--portfolio-font',
 });
 
-export default function PortfolioLayout({ children, site }: { children: ReactNode; site?: PortfolioSiteDto }) {
+export default function PortfolioLayout({
+  children,
+  site,
+  staticPreview = false,
+}: {
+  children: ReactNode;
+  site?: PortfolioSiteDto;
+  staticPreview?: boolean;
+}) {
   const shootTypes = site
-    ? site.booking.services.map(({ slug, title, price }) => ({ slug, title, price: formatPortfolioPrice(price, site.locale) }))
+    ? site.booking.services.map(({ slug, title, price }) => ({
+        slug,
+        title,
+        price: formatPortfolioPrice(price, site.locale),
+      }))
     : portfolioStories.map(({ slug, title }) => ({ slug, title }));
+  if (staticPreview)
+    return (
+      <div
+        className={`${styles.portfolio} ${inter.variable}`}
+        onClickCapture={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+        onKeyDownCapture={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        }}
+      >
+        {children}
+      </div>
+    );
   return (
     <PortfolioMotion className={`${styles.portfolio} ${inter.variable}`} locale={site?.locale}>
-      <PortfolioBooking shootTypes={shootTypes} price={site ? '' : portfolioPrice}
-        intro={site?.booking.intro} contacts={site?.contacts} locale={site?.locale}>
+      <PortfolioBooking
+        shootTypes={shootTypes}
+        price={site ? '' : portfolioPrice}
+        intro={site?.booking.intro}
+        contacts={site?.contacts}
+        locale={site?.locale}
+      >
         {children}
       </PortfolioBooking>
     </PortfolioMotion>

@@ -80,6 +80,7 @@ export type AdminPortfolioSummaryDto = {
   hasUnpublishedChanges: boolean;
   publishedAt: string | null;
   updatedAt: string;
+  thumbnailMediaId: string | null;
   slug: string;
   title: LocalizedTitleDto;
 };
@@ -129,6 +130,13 @@ export type LocalizedTextDto = {
 export type LocalizedTitleDto = {
   uk: string;
   en: string;
+};
+
+export type PortfolioAdminListQueryDto = {
+  limit?: number;
+  cursor?: string;
+  search?: string;
+  status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 };
 
 export type PortfolioApiErrorDto = {

@@ -1,6 +1,6 @@
 # PF-UX-09 — Списки фотосесій та історій
 
-**Статус:** Заплановано.
+**Статус:** Реалізовано, перевірки відкладено до PF-UX-14.
 **Залежить від:** PF-UX-08.
 **Порядок і правила:** [PF-UX-00](PF-UX-00-INDEX.md).
 **Вимоги:** [UX-план](docs/portfolio-content/admin-ux-plan.md).
@@ -33,8 +33,7 @@
 
 ## Запис виконання
 
-- Зміни: ще не виконано.
-- Файли: —.
-- Відкладені перевірки й ризики: —.
-- Блокери: не оцінювалися.
-
+- Зміни: список із захищеним фото, назвою, статусом, неопублікованими змінами й відкриттям; окремий редактор із поверненням до списку. Пошук/статус обробляє БД, pagination cursor прив’язаний до фільтрів. Пошук і фільтр зберігаються при поверненні до списку.
+- Файли: workspace, portfolio-entry-list, admin controller/service/response DTO, query DTO, admin cursor.
+- Контракти: additive thumbnailMediaId у summary; новий admin query search/status; генерація OpenAPI/types і fixtures — PF-UX-14. Public query DTO не розширено.
+- Відкладено: server search усіх сторінок, зміна filter/cursor, off-page thumbnails, loading/error/retry/empty, list return, клавіатура/mobile.

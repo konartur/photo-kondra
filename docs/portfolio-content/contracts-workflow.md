@@ -34,3 +34,11 @@ PF-UX-05 додає atomic story draft endpoints: `POST /portfolio/stories/draft
 - Контакти: email або HTTPS profile на instagram.com/www.instagram.com чи t.me/telegram.me, без credentials, port, query або fragment. Public href генерує mapper; arbitrary URL не приймається.
 
 Тести контракту використовують синтетичні bilingual fixtures і реальний ValidationPipe/Swagger metadata. Вони не замінюють runtime-приймання PortfolioModule на PostgreSQL/Redis/S3.
+
+## PF-UX-09/11/14
+
+Admin lists підтримують server-side search (title uk/en/slug) та status; cursor підписаний разом із цими фільтрами. Summary має nullable thumbnailMediaId для захищеного admin derivative. Public list query не змінено.
+
+Порожні обидва caption у storiesSection.items означають fallback з description опублікованої історії; відсутній image — cover. Settings publish матеріалізує значення у snapshot, preview читає тільки publishedDocument STORY. Непорожній caption лишається override і потребує обох мов. Public snapshot не змінюється від story draft edit.
+
+Legacy POST /stories, PUT /stories/:id та PUT /stories/:id/photos позначені deprecated; atomic /stories/draft та /stories/:id/draft — чинний UI write path. PF-UX-14 повторно згенерував OpenAPI/types і підтвердив --check.

@@ -360,7 +360,12 @@ export function ServiceFields({
           </div>
         )}
       </fieldset>
-      <Seo value={value.seo} change={(seo) => change({ ...value, seo })} media={media} />
+      <Seo
+        source={{ title: value.title, description: value.description }}
+        value={value.seo}
+        change={(seo) => change({ ...value, seo })}
+        media={media}
+      />
     </>
   );
 }
@@ -418,7 +423,12 @@ export function StoryFields({
         change={(description) => change({ ...value, description })}
       />
 
-      <Seo value={value.seo} change={(seo) => change({ ...value, seo })} media={media} />
+      <Seo
+        source={{ title: value.title, description: value.description }}
+        value={value.seo}
+        change={(seo) => change({ ...value, seo })}
+        media={media}
+      />
     </>
   );
 }

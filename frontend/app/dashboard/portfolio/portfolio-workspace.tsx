@@ -12,6 +12,7 @@ import type {
   PortfolioPublicationResponseDto,
   PortfolioStoryPhotoInputDto,
 } from '@/lib/portfolio/contracts';
+import { initialSeo } from './portfolio-seo-defaults';
 import { PortfolioEntryRow } from './portfolio-entry-list';
 import { button, EditorLocale, FieldErrors, panel, primary } from './editor-fields';
 import {
@@ -364,10 +365,11 @@ function Editor({
 
   async function persistDraft() {
     const completeStory = resource === 'stories';
-    const payload = completeStory ? { data: draft, items: photos } : { data: draft };
+    const data = initialSeo(draft);
+    const payload = completeStory ? { data, items: photos } : { data };
     const request = record
       ? jsonRequest('PUT', { expectedVersion: record.draftVersion, ...payload })
-      : jsonRequest('POST', completeStory ? payload : draft);
+      : jsonRequest('POST', completeStory ? payload : data);
     const next = await apiRequest<Entity>(path + (completeStory ? '/draft' : ''), request);
     updateRecord(next);
     setDraft(next.draft);

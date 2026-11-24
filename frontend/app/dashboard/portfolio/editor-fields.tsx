@@ -8,6 +8,7 @@ import type {
   PortfolioSeoInputDto,
 } from '@/lib/portfolio/contracts';
 import { button, input, panel } from './editor-ui';
+import { seoFromPage } from './portfolio-seo-defaults';
 import { PortfolioMediaPicker } from './portfolio-media-picker';
 
 export { AdminImage, button, primary, input, panel } from './editor-ui';
@@ -286,14 +287,40 @@ export function Seo({
   value,
   change,
   media,
+  source,
 }: {
+  source?: { title: LocalizedTextDto; description: LocalizedTextDto };
   value: PortfolioSeoInputDto;
   change: (value: PortfolioSeoInputDto) => void;
   media: AdminPortfolioMediaDto[];
 }) {
+  const errors = useContext(FieldErrors);
+  const locale = useContext(EditorLocale);
   return (
-    <fieldset className={panel}>
-      <legend className="px-1 font-medium">SEO та поширення</legend>
+    <details
+      className={panel}
+      open={errors.some((field) => field.replace(/^data\./, '').startsWith('seo.')) || undefined}
+    >
+      <summary className="min-h-11 cursor-pointer py-2 font-medium">
+        Вигляд у Google та соцмережах · {value.title[locale] || 'ще не заповнено'}
+      </summary>
+      <p className="text-sm text-zinc-700">
+        {source
+          ? 'Порожні поля заповняться назвою й описом сторінки при збереженні. Заголовок до 120, опис до 320 символів; скорочений текст можна відредагувати.'
+          : 'Для головної заповніть заголовок і опис вручну: вони мають описувати портфоліо загалом.'}
+      </p>
+      {source && (
+        <button
+          type="button"
+          className={button}
+          onClick={() => {
+            if (window.confirm('Замінити поточні заголовок і опис для обох мов текстом сторінки?'))
+              change({ ...value, ...seoFromPage(source.title, source.description) });
+          }}
+        >
+          Використати назву й опис сторінки
+        </button>
+      )}
       <Localized
         label="SEO заголовок"
         name="seo.title"
@@ -315,7 +342,7 @@ export function Seo({
         change={(shareImage) => change({ ...value, shareImage })}
         media={media}
       />
-    </fieldset>
+    </details>
   );
 }
 

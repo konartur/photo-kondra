@@ -70,7 +70,7 @@
     bottom: 0;
     z-index: 20;
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
     padding: 0.75rem max(0.75rem, env(safe-area-inset-right))
       max(0.75rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
     border-top: 1px solid var(--color-zinc-200, #e4e4e7);
@@ -81,6 +81,8 @@
     min-width: 0;
     height: 100%;
     padding-inline: 0.5rem;
+    line-height: 1.2;
+    text-wrap: balance;
   }
 
   .editor :is([data-portfolio-field], details, [data-editor-preview]) {

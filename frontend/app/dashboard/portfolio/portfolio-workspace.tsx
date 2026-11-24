@@ -414,9 +414,8 @@ function Editor({
       fields.find((field) => name.startsWith(field.dataset.portfolioField + '.'));
     if (!field) {
       const fallback =
-        editorRef.current?.querySelector<HTMLElement>(
-          '[aria-label="Фото та обкладинка історії"]',
-        ) ?? formRef.current;
+        editorRef.current?.querySelector<HTMLElement>('[data-story-photos-section]') ??
+        formRef.current;
       fallback?.scrollIntoView({ block: 'start', behavior: 'instant' });
       setNotice('Поле не знайдено на екрані: ' + describePortfolioField(name));
       return;
@@ -535,7 +534,7 @@ function Editor({
             type="submit"
             form={formId}
             disabled={pending || conflict || !needsSave}
-            aria-label="Зберегти чернетку"
+            aria-label={!pending ? 'Зберегти чернетку' : undefined}
           >
             {pending && (operation === 'save' || operation === 'save-preview')
               ? 'Зберігаємо…'
@@ -546,7 +545,9 @@ function Editor({
             type="button"
             disabled={pending || conflict}
             onClick={showPreview}
-            aria-label={needsSave ? 'Зберегти й переглянути' : 'Переглянути чернетку'}
+            aria-label={
+              !pending ? (needsSave ? 'Зберегти й переглянути' : 'Переглянути чернетку') : undefined
+            }
           >
             {pending && (operation === 'preview' || operation === 'save-preview')
               ? 'Відкриваємо…'
@@ -600,9 +601,6 @@ function Editor({
             ? 'Публікуються головна та контакти разом.'
             : 'Публікується лише цей запис. Добірки головної оновлюються окремо.'}
         </p>
-        <p id={formId + '-publish-reason'} className="text-sm text-zinc-700">
-          {publishReason}
-        </p>
         {readiness.checking && (
           <p role="status">Перевіряємо готовність фото й пов’язаних записів…</p>
         )}
@@ -634,7 +632,6 @@ function Editor({
                 setProblem('');
                 setReadinessProblem(false);
                 readiness.retry();
-                void media.refetch();
                 if (resource !== 'services') void services.refetch();
                 if (resource === 'settings') void stories.refetch();
               }}
@@ -771,7 +768,11 @@ function Editor({
               заповнити перед публікацією.
             </p>
             {resource === 'stories' && 'cover' in draft && (
-              <section className="space-y-4" aria-label="Фото та обкладинка історії">
+              <section
+                className="space-y-4"
+                aria-label="Фото та обкладинка історії"
+                data-story-photos-section
+              >
                 <h3 className="font-semibold">Фото та обкладинка історії</h3>
                 <PhotoFields
                   value={photos}

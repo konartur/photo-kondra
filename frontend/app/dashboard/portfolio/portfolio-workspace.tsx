@@ -495,7 +495,11 @@ function Editor({
   }
 
   return (
-    <div ref={editorRef} className={styles.editor + ' space-y-4'}>
+    <div
+      ref={editorRef}
+      inert={preview ? true : undefined}
+      className={styles.editor + ' space-y-4'}
+    >
       <header ref={toolbarRef} tabIndex={-1} className={styles.toolbar} aria-label="Дії редактора">
         <div className="min-w-0 flex-1 space-y-1">
           <h3 className="break-words text-lg font-semibold">{editorTitle}</h3>
@@ -799,8 +803,7 @@ function Editor({
           }}
           onClose={() => {
             setPreview(null);
-            toolbarRef.current?.scrollIntoView({ block: 'start' });
-            toolbarRef.current?.focus({ preventScroll: true });
+            requestAnimationFrame(() => toolbarRef.current?.focus({ preventScroll: true }));
           }}
         />
       )}

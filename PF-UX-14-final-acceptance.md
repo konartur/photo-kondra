@@ -50,6 +50,8 @@
 
 ## Межі
 
+- [ ] PF-UX-07: public regression після presentation extraction; iframe CSS/fonts, реальні media queries wide/mobile, uk/en; збереження редактора/scroll/focus; клавіатура й скринрідер; відсутність переходів/бронювання; stale version, partial draft і приватні derivatives без кешування.
+
 Локальне приймання без деплою. Відсутність зовнішніх сервісів записати як блокер, а не успішний тест.
 
 ## Перевірки

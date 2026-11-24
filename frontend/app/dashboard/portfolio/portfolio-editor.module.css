@@ -70,7 +70,7 @@
     bottom: 0;
     z-index: 20;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
     padding: 0.75rem max(0.75rem, env(safe-area-inset-right))
       max(0.75rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
     border-top: 1px solid var(--color-zinc-200, #e4e4e7);
